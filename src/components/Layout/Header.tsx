@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -26,7 +27,17 @@ interface HeaderProps {
 }
 
 export default function Header({ userRole, userName, onMenuClick }: HeaderProps) {
+  const navigate = useNavigate();
   const [notifications] = useState(3); // Mock notifications
+
+  const handleSignOut = () => {
+    // Clear localStorage
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');
+    
+    // Navigate to login page
+    navigate('/login');
+  };
 
   const getRoleBadgeVariant = (role?: string) => {
     switch (role) {
@@ -128,7 +139,7 @@ export default function Header({ userRole, userName, onMenuClick }: HeaderProps)
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>

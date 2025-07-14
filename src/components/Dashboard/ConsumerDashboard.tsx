@@ -12,13 +12,17 @@ import {
   Camera,
   QrCode
 } from "lucide-react";
+import QRScanner from "@/components/Camera/QRScanner";
+import PhotoCapture from "@/components/Camera/PhotoCapture";
 
 export default function ConsumerDashboard() {
-  const [recentScans] = useState([
+  const [recentScans, setRecentScans] = useState([
     { id: 1, drugName: "Paracetamol", result: "authentic", time: "Today, 2:30 PM", location: "Zuma Pharmacy" },
     { id: 2, drugName: "Vitamin C", result: "authentic", time: "Yesterday, 6:15 PM", location: "City Pharmacy" },
     { id: 3, drugName: "Cough Syrup", result: "verified", time: "2 days ago", location: "Health Plus" },
   ]);
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showPhotoCapture, setShowPhotoCapture] = useState(false);
 
   const getResultIcon = (result: string) => {
     switch (result) {
@@ -42,6 +46,28 @@ export default function ConsumerDashboard() {
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
+  };
+
+  const handleQRResult = (result: string) => {
+    const newScan = {
+      id: recentScans.length + 1,
+      drugName: "Scanned Drug",
+      result: "authentic",
+      time: "Just now",
+      location: "Current scan"
+    };
+    setRecentScans([newScan, ...recentScans]);
+  };
+
+  const handlePhotoResult = (imageData: string) => {
+    const newScan = {
+      id: recentScans.length + 1,
+      drugName: "Analyzed Drug",
+      result: "authentic",
+      time: "Just now",
+      location: "Photo analysis"
+    };
+    setRecentScans([newScan, ...recentScans]);
   };
 
   return (
@@ -71,11 +97,21 @@ export default function ConsumerDashboard() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto">
-              <Button variant="scan" size="xl" className="h-20 flex-col">
+              <Button 
+                variant="scan" 
+                size="xl" 
+                className="h-20 flex-col"
+                onClick={() => setShowQRScanner(true)}
+              >
                 <QrCode className="h-8 w-8 mb-2" />
                 Scan QR Code
               </Button>
-              <Button variant="hero" size="xl" className="h-20 flex-col">
+              <Button 
+                variant="hero" 
+                size="xl" 
+                className="h-20 flex-col"
+                onClick={() => setShowPhotoCapture(true)}
+              >
                 <Camera className="h-8 w-8 mb-2" />
                 Take Photo
               </Button>
@@ -201,6 +237,22 @@ export default function ConsumerDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <QRScanner
+          onResult={handleQRResult}
+          onClose={() => setShowQRScanner(false)}
+        />
+      )}
+
+      {/* Photo Capture Modal */}
+      {showPhotoCapture && (
+        <PhotoCapture
+          onResult={handlePhotoResult}
+          onClose={() => setShowPhotoCapture(false)}
+        />
+      )}
     </div>
   );
 }
