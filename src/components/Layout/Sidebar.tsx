@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/router";
 import { cn } from "@/lib/utils";
 import {
   Sidebar,
@@ -29,51 +30,91 @@ import {
 } from "lucide-react";
 
 interface SidebarProps {
-  userRole: 'manufacturer' | 'pharmacist' | 'consumer' | 'regulatory' | 'admin';
+  userRole: "manufacturer" | "pharmacist" | "consumer" | "regulatory" | "admin";
 }
 
 export default function AppSidebar({ userRole }: SidebarProps) {
-  const location = useLocation();
+  const router = useRouter();
 
   const getMenuItems = () => {
     switch (userRole) {
-      case 'manufacturer':
+      case "manufacturer":
         return [
           { title: "Dashboard", url: "/manufacturer", icon: Home },
-          { title: "Batch Management", url: "/manufacturer/batches", icon: Package },
-          { title: "QR Generation", url: "/manufacturer/qr-codes", icon: QrCode },
+          {
+            title: "Batch Management",
+            url: "/manufacturer/batches",
+            icon: Package,
+          },
+          {
+            title: "QR Generation",
+            url: "/manufacturer/qr-codes",
+            icon: QrCode,
+          },
           { title: "Upload Data", url: "/manufacturer/upload", icon: Upload },
-          { title: "Analytics", url: "/manufacturer/analytics", icon: BarChart3 },
+          {
+            title: "Analytics",
+            url: "/manufacturer/analytics",
+            icon: BarChart3,
+          },
         ];
-      
-      case 'pharmacist':
+
+      case "pharmacist":
         return [
           { title: "Dashboard", url: "/pharmacist", icon: Home },
           { title: "Inventory", url: "/pharmacist/inventory", icon: Package },
           { title: "Scan Drugs", url: "/pharmacist/scan", icon: ScanLine },
-          { title: "Report Issues", url: "/pharmacist/reports", icon: AlertTriangle },
-          { title: "Verification History", url: "/pharmacist/history", icon: FileText },
+          {
+            title: "Report Issues",
+            url: "/pharmacist/reports",
+            icon: AlertTriangle,
+          },
+          {
+            title: "Verification History",
+            url: "/pharmacist/history",
+            icon: FileText,
+          },
         ];
-      
-      case 'consumer':
+
+      case "consumer":
         return [
           { title: "Scan Drug", url: "/consumer", icon: ScanLine },
           { title: "My Scans", url: "/consumer/history", icon: FileText },
           { title: "Drug Information", url: "/consumer/drugs", icon: Package },
-          { title: "Report Issue", url: "/consumer/report", icon: AlertTriangle },
+          {
+            title: "Report Issue",
+            url: "/consumer/report",
+            icon: AlertTriangle,
+          },
         ];
-      
-      case 'regulatory':
+
+      case "regulatory":
         return [
           { title: "Dashboard", url: "/regulatory", icon: Home },
-          { title: "Counterfeit Reports", url: "/regulatory/reports", icon: AlertTriangle },
-          { title: "Blockchain Query", url: "/regulatory/blockchain", icon: Database },
-          { title: "NAFDAC Integration", url: "/regulatory/nafdac", icon: Shield },
+          {
+            title: "Counterfeit Reports",
+            url: "/regulatory/reports",
+            icon: AlertTriangle,
+          },
+          {
+            title: "Blockchain Query",
+            url: "/regulatory/blockchain",
+            icon: Database,
+          },
+          {
+            title: "NAFDAC Integration",
+            url: "/regulatory/nafdac",
+            icon: Shield,
+          },
           { title: "Analytics", url: "/regulatory/analytics", icon: BarChart3 },
-          { title: "Manufacturers", url: "/regulatory/manufacturers", icon: Building },
+          {
+            title: "Manufacturers",
+            url: "/regulatory/manufacturers",
+            icon: Building,
+          },
         ];
-      
-      case 'admin':
+
+      case "admin":
         return [
           { title: "Dashboard", url: "/admin", icon: Home },
           { title: "User Management", url: "/admin/users", icon: Users },
@@ -81,14 +122,14 @@ export default function AppSidebar({ userRole }: SidebarProps) {
           { title: "Settings", url: "/admin/settings", icon: Settings },
           { title: "Audit Logs", url: "/admin/logs", icon: FileText },
         ];
-      
+
       default:
         return [];
     }
   };
 
   const menuItems = getMenuItems();
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => router.pathname === path;
 
   return (
     <Sidebar className="w-64">
@@ -100,8 +141,8 @@ export default function AppSidebar({ userRole }: SidebarProps) {
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
+                    <Link
+                      href={item.url}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 transition-all",
                         isActive(item.url)
@@ -111,7 +152,7 @@ export default function AppSidebar({ userRole }: SidebarProps) {
                     >
                       <item.icon className="h-5 w-5" />
                       <span>{item.title}</span>
-                    </NavLink>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

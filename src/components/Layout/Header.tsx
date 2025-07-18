@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Shield, 
-  Menu, 
-  X, 
-  User, 
-  LogOut, 
+import {
+  Shield,
+  Menu,
+  X,
+  User,
+  LogOut,
   Settings,
   Bell,
-  HelpCircle
+  HelpCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,43 +22,66 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
-  userRole?: 'manufacturer' | 'pharmacist' | 'consumer' | 'regulatory' | 'admin';
+  userRole?:
+    | "manufacturer"
+    | "pharmacist"
+    | "consumer"
+    | "regulatory"
+    | "admin";
   userName?: string;
   onMenuClick?: () => void;
 }
 
-export default function Header({ userRole, userName, onMenuClick }: HeaderProps) {
-  const navigate = useNavigate();
+export default function Header({
+  userRole,
+  userName,
+  onMenuClick,
+}: HeaderProps) {
+  const router = useRouter();
   const [notifications] = useState(3); // Mock notifications
 
   const handleSignOut = () => {
     // Clear localStorage
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
-    
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userEmail");
+    }
+
     // Navigate to login page
-    navigate('/login');
+    router.push("/login");
   };
 
   const getRoleBadgeVariant = (role?: string) => {
     switch (role) {
-      case 'manufacturer': return 'default';
-      case 'pharmacist': return 'secondary';
-      case 'consumer': return 'outline';
-      case 'regulatory': return 'destructive';
-      case 'admin': return 'secondary';
-      default: return 'outline';
+      case "manufacturer":
+        return "default";
+      case "pharmacist":
+        return "secondary";
+      case "consumer":
+        return "outline";
+      case "regulatory":
+        return "destructive";
+      case "admin":
+        return "secondary";
+      default:
+        return "outline";
     }
   };
 
   const getRoleDisplayName = (role?: string) => {
     switch (role) {
-      case 'manufacturer': return 'Manufacturer';
-      case 'pharmacist': return 'Pharmacist';
-      case 'consumer': return 'Consumer';
-      case 'regulatory': return 'NAFDAC Officer';
-      case 'admin': return 'Administrator';
-      default: return 'Guest';
+      case "manufacturer":
+        return "Manufacturer";
+      case "pharmacist":
+        return "Pharmacist";
+      case "consumer":
+        return "Consumer";
+      case "regulatory":
+        return "NAFDAC Officer";
+      case "admin":
+        return "Administrator";
+      default:
+        return "Guest";
     }
   };
 
@@ -77,14 +100,16 @@ export default function Header({ userRole, userName, onMenuClick }: HeaderProps)
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          
+
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
               <Shield className="h-5 w-5 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">DrugShield</h1>
-              <p className="text-xs text-muted-foreground">Pharmaceutical Authentication</p>
+              <p className="text-xs text-muted-foreground">
+                Pharmaceutical Authentication
+              </p>
             </div>
           </div>
         </div>
@@ -92,7 +117,9 @@ export default function Header({ userRole, userName, onMenuClick }: HeaderProps)
         {/* Center - Status Indicator */}
         <div className="hidden md:flex items-center gap-2">
           <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-          <span className="text-sm text-muted-foreground">System Operational</span>
+          <span className="text-sm text-muted-foreground">
+            System Operational
+          </span>
         </div>
 
         {/* Right - User Menu */}
@@ -101,8 +128,8 @@ export default function Header({ userRole, userName, onMenuClick }: HeaderProps)
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
             {notifications > 0 && (
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center"
               >
                 {notifications}
@@ -123,8 +150,13 @@ export default function Header({ userRole, userName, onMenuClick }: HeaderProps)
                   <User className="h-4 w-4" />
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium">{userName || 'Guest User'}</p>
-                  <Badge variant={getRoleBadgeVariant(userRole)} className="text-xs">
+                  <p className="text-sm font-medium">
+                    {userName || "Guest User"}
+                  </p>
+                  <Badge
+                    variant={getRoleBadgeVariant(userRole)}
+                    className="text-xs"
+                  >
                     {getRoleDisplayName(userRole)}
                   </Badge>
                 </div>
