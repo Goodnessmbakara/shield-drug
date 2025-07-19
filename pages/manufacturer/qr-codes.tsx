@@ -51,6 +51,9 @@ export default function QRCodesPage() {
   const [qrQuantity, setQrQuantity] = useState(1000);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [showBulkGenerate, setShowBulkGenerate] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -158,6 +161,79 @@ export default function QRCodesPage() {
 
   const getProgressPercentage = (generated: number, total: number) => {
     return (generated / total) * 100;
+  };
+
+  const handleBulkGenerate = () => {
+    setShowBulkGenerate(true);
+    // In a real app, this would open a modal or navigate to bulk generation page
+    console.log("Opening bulk QR code generation...");
+  };
+
+  const handleExportData = () => {
+    // Simulate data export
+    const csvData = qrCodes.map((qr) => ({
+      id: qr.id,
+      batchId: qr.batchId,
+      drug: qr.drug,
+      quantity: qr.quantity,
+      generated: qr.generated,
+      status: qr.status,
+      downloads: qr.downloads,
+      verifications: qr.verifications,
+    }));
+
+    const csv = [
+      Object.keys(csvData[0]).join(","),
+      ...csvData.map((row) => Object.values(row).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `qr-codes-export-${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleAnalytics = () => {
+    setShowAnalytics(true);
+    router.push("/manufacturer/analytics");
+  };
+
+  const handleSettings = () => {
+    setShowSettings(true);
+    // In a real app, this would open settings modal or navigate to settings page
+    console.log("Opening QR code settings...");
+  };
+
+  const handleDownloadQR = (qrId: string) => {
+    // Simulate QR code download
+    console.log(`Downloading QR codes for ${qrId}...`);
+    // In a real app, this would generate and download QR codes
+  };
+
+  const handlePreviewQR = (qrId: string) => {
+    // Simulate QR code preview
+    console.log(`Previewing QR codes for ${qrId}...`);
+    // In a real app, this would show QR code preview modal
+  };
+
+  const handleCopyLink = (qrId: string) => {
+    // Simulate copying QR code link
+    const link = `${window.location.origin}/verify/${qrId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      console.log("QR code link copied to clipboard");
+    });
+  };
+
+  const handleQRAnalytics = (qrId: string) => {
+    // Navigate to analytics page with QR code filter
+    router.push(`/manufacturer/analytics?qr=${qrId}`);
   };
 
   if (!isClient) {
@@ -462,19 +538,35 @@ export default function QRCodesPage() {
                       </div>
 
                       <div className="flex items-center gap-2 mt-3">
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadQR(qr.id)}
+                        >
                           <Download className="w-3 h-3 mr-1" />
                           Download
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePreviewQR(qr.id)}
+                        >
                           <Eye className="w-3 h-3 mr-1" />
                           Preview
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCopyLink(qr.id)}
+                        >
                           <Copy className="w-3 h-3 mr-1" />
                           Copy Link
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQRAnalytics(qr.id)}
+                        >
                           <BarChart3 className="w-3 h-3 mr-1" />
                           Analytics
                         </Button>
@@ -582,19 +674,39 @@ export default function QRCodesPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Button variant="default" size="lg" className="h-20 flex-col">
+              <Button 
+                variant="default" 
+                size="lg" 
+                className="h-20 flex-col"
+                onClick={handleBulkGenerate}
+              >
                 <Upload className="h-6 w-6 mb-2" />
                 Bulk Generate
               </Button>
-              <Button variant="secondary" size="lg" className="h-20 flex-col">
+              <Button 
+                variant="secondary" 
+                size="lg" 
+                className="h-20 flex-col"
+                onClick={handleExportData}
+              >
                 <Download className="h-6 w-6 mb-2" />
                 Export Data
               </Button>
-              <Button variant="outline" size="lg" className="h-20 flex-col">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="h-20 flex-col"
+                onClick={handleAnalytics}
+              >
                 <BarChart3 className="h-6 w-6 mb-2" />
                 Analytics
               </Button>
-              <Button variant="outline" size="lg" className="h-20 flex-col">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="h-20 flex-col"
+                onClick={handleSettings}
+              >
                 <Settings className="h-6 w-6 mb-2" />
                 Settings
               </Button>

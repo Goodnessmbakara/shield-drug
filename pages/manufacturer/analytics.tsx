@@ -51,6 +51,8 @@ export default function AnalyticsPage() {
   const [isClient, setIsClient] = useState(false);
   const [timeRange, setTimeRange] = useState("30d");
   const [selectedMetric, setSelectedMetric] = useState("verifications");
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -183,6 +185,86 @@ export default function AnalyticsPage() {
     if (change > 0) return "text-success";
     if (change < 0) return "text-danger";
     return "text-muted-foreground";
+  };
+
+  const handleExportData = () => {
+    setShowExportModal(true);
+    // Export analytics data as CSV
+    const csvData = [
+      {
+        metric: "Total Batches",
+        value: analyticsData.overview.totalBatches,
+        unit: "batches",
+      },
+      {
+        metric: "Total QR Codes",
+        value: analyticsData.overview.totalQRCodes,
+        unit: "codes",
+      },
+      {
+        metric: "Total Verifications",
+        value: analyticsData.overview.totalVerifications,
+        unit: "verifications",
+      },
+      {
+        metric: "Authenticity Rate",
+        value: analyticsData.overview.authenticityRate,
+        unit: "%",
+      },
+      {
+        metric: "Compliance Rate",
+        value: analyticsData.overview.complianceRate,
+        unit: "%",
+      },
+    ];
+
+    const csv = [
+      Object.keys(csvData[0]).join(","),
+      ...csvData.map((row) => Object.values(row).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analytics-export-${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleViewDetails = (drugName: string) => {
+    // Navigate to drug-specific analytics
+    router.push(`/manufacturer/analytics/drug/${drugName}`);
+  };
+
+  const handleRegionalAnalysis = (region: string) => {
+    // Navigate to regional analytics
+    router.push(`/manufacturer/analytics/region/${region}`);
+  };
+
+  const handleViewReports = () => {
+    // In a real app, this would open reports modal
+    console.log("Opening analytics reports...");
+  };
+
+  const handleAnalyticsSettings = () => {
+    setShowSettings(true);
+    // In a real app, this would open analytics settings
+    console.log("Opening analytics settings...");
+  };
+
+  const handleGenerateReport = () => {
+    // In a real app, this would generate a comprehensive report
+    console.log("Generating analytics report...");
+  };
+
+  const handleViewBlockchain = () => {
+    // Navigate to blockchain analytics
+    router.push("/manufacturer/analytics/blockchain");
   };
 
   if (!isClient) {
@@ -446,7 +528,8 @@ export default function AnalyticsPage() {
                 {analyticsData.topDrugs.map((drug, index) => (
                   <div
                     key={drug.name}
-                    className="flex items-center justify-between p-3 border border-border rounded-lg"
+                    className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                    onClick={() => handleViewDetails(drug.name)}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
@@ -490,7 +573,8 @@ export default function AnalyticsPage() {
               {analyticsData.regionalData.map((region) => (
                 <div
                   key={region.region}
-                  className="p-4 border border-border rounded-lg text-center"
+                  className="p-4 border border-border rounded-lg text-center hover:bg-accent/50 cursor-pointer transition-colors"
+                  onClick={() => handleRegionalAnalysis(region.region)}
                 >
                   <h3 className="font-medium mb-2">{region.region}</h3>
                   <div className="space-y-2">
@@ -705,19 +789,39 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Button variant="default" size="lg" className="h-20 flex-col">
+              <Button
+                variant="default"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleExportData}
+              >
                 <Download className="h-6 w-6 mb-2" />
                 Export Report
               </Button>
-              <Button variant="secondary" size="lg" className="h-20 flex-col">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleGenerateReport}
+              >
                 <FileText className="h-6 w-6 mb-2" />
                 Generate PDF
               </Button>
-              <Button variant="outline" size="lg" className="h-20 flex-col">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleViewReports}
+              >
                 <Eye className="h-6 w-6 mb-2" />
                 View Details
               </Button>
-              <Button variant="outline" size="lg" className="h-20 flex-col">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleAnalyticsSettings}
+              >
                 <Settings className="h-6 w-6 mb-2" />
                 Settings
               </Button>

@@ -50,6 +50,9 @@ export default function BatchesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDrug, setFilterDrug] = useState("all");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showReports, setShowReports] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -190,6 +193,109 @@ export default function BatchesPage() {
   };
 
   const uniqueDrugs = Array.from(new Set(batches.map((batch) => batch.drug)));
+
+  const handleUploadBatch = () => {
+    setShowUploadModal(true);
+    router.push("/manufacturer/upload");
+  };
+
+  const handleGenerateQRCodes = () => {
+    router.push("/manufacturer/qr-codes");
+  };
+
+  const handleViewAnalytics = () => {
+    setShowAnalytics(true);
+    router.push("/manufacturer/analytics");
+  };
+
+  const handleBlockchainQuery = () => {
+    // In a real app, this would open blockchain query interface
+    console.log("Opening blockchain query interface...");
+  };
+
+  const handleViewDetails = (batchId: string) => {
+    // Navigate to batch details page
+    router.push(`/manufacturer/batches/${batchId}`);
+  };
+
+  const handleEditBatch = (batchId: string) => {
+    // In a real app, this would open edit modal
+    console.log(`Editing batch ${batchId}...`);
+  };
+
+  const handleExportBatch = (batchId?: string) => {
+    if (batchId) {
+      // Export specific batch
+      const batch = batches.find((b) => b.id === batchId);
+      if (batch) {
+        const csvData = [
+          {
+            id: batch.id,
+            drug: batch.drug,
+            quantity: batch.quantity,
+            status: batch.status,
+            verifications: batch.verifications,
+            manufacturer: batch.manufacturer,
+            location: batch.location,
+            compliance: batch.compliance,
+          },
+        ];
+
+        const csv = [
+          Object.keys(csvData[0]).join(","),
+          ...csvData.map((row) => Object.values(row).join(",")),
+        ].join("\n");
+
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `batch-${batchId}-${
+          new Date().toISOString().split("T")[0]
+        }.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } else {
+      // Export all batches
+      const csvData = batches.map((batch) => ({
+        id: batch.id,
+        drug: batch.drug,
+        quantity: batch.quantity,
+        status: batch.status,
+        verifications: batch.verifications,
+        manufacturer: batch.manufacturer,
+        location: batch.location,
+        compliance: batch.compliance,
+      }));
+
+      const csv = [
+        Object.keys(csvData[0]).join(","),
+        ...csvData.map((row) => Object.values(row).join(",")),
+      ].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `all-batches-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleBatchAnalytics = (batchId: string) => {
+    router.push(`/manufacturer/analytics?batch=${batchId}`);
+  };
+
+  const handleDeleteBatch = (batchId: string) => {
+    // In a real app, this would show confirmation dialog
+    console.log(`Deleting batch ${batchId}...`);
+  };
 
   if (!isClient) {
     return null;
@@ -535,19 +641,35 @@ export default function BatchesPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(batch.id)}
+                        >
                           <Eye className="w-3 h-3 mr-1" />
                           View Details
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditBatch(batch.id)}
+                        >
                           <Edit className="w-3 h-3 mr-1" />
                           Edit
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleExportBatch(batch.id)}
+                        >
                           <Download className="w-3 h-3 mr-1" />
                           Export
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleBatchAnalytics(batch.id)}
+                        >
                           <BarChart3 className="w-3 h-3 mr-1" />
                           Analytics
                         </Button>
@@ -555,6 +677,7 @@ export default function BatchesPage() {
                           variant="outline"
                           size="sm"
                           className="text-danger hover:text-danger"
+                          onClick={() => handleDeleteBatch(batch.id)}
                         >
                           <Trash2 className="w-3 h-3 mr-1" />
                           Delete
@@ -663,19 +786,39 @@ export default function BatchesPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Button variant="default" size="lg" className="h-20 flex-col">
+              <Button
+                variant="default"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleUploadBatch}
+              >
                 <Upload className="h-6 w-6 mb-2" />
                 Upload Batch
               </Button>
-              <Button variant="secondary" size="lg" className="h-20 flex-col">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={() => handleExportBatch()}
+              >
                 <Download className="h-6 w-6 mb-2" />
                 Export Data
               </Button>
-              <Button variant="outline" size="lg" className="h-20 flex-col">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleViewAnalytics}
+              >
                 <BarChart3 className="h-6 w-6 mb-2" />
                 Analytics
               </Button>
-              <Button variant="outline" size="lg" className="h-20 flex-col">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={() => setShowReports(true)}
+              >
                 <FileText className="h-6 w-6 mb-2" />
                 Reports
               </Button>

@@ -51,6 +51,9 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -176,6 +179,87 @@ export default function UploadPage() {
     }, 200);
   };
 
+  const handleUploadNewData = () => {
+    setShowUploadModal(true);
+    // In a real app, this would open upload modal
+    console.log("Opening upload modal...");
+  };
+
+  const handleViewAnalytics = () => {
+    setShowAnalytics(true);
+    router.push("/manufacturer/analytics");
+  };
+
+  const handleViewSettings = () => {
+    setShowSettings(true);
+    // In a real app, this would open settings modal
+    console.log("Opening upload settings...");
+  };
+
+  const handleDownloadTemplate = () => {
+    // Create and download CSV template
+    const template = [
+      "drug_name,quantity,manufacturer,location,expiry_date,nafdac_number",
+      "Coartem,10000,Novartis,Lagos,2025-12-31,NAFDAC-123456",
+      "Amoxil,5000,GlaxoSmithKline,Abuja,2025-06-30,NAFDAC-789012",
+    ].join("\n");
+
+    const blob = new Blob([template], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "batch-upload-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleViewUploadDetails = (uploadId: string) => {
+    // Navigate to upload details page
+    router.push(`/manufacturer/upload/${uploadId}`);
+  };
+
+  const handleRetryUpload = (uploadId: string) => {
+    // In a real app, this would retry the failed upload
+    console.log(`Retrying upload ${uploadId}...`);
+  };
+
+  const handleDeleteUpload = (uploadId: string) => {
+    // In a real app, this would show confirmation dialog
+    console.log(`Deleting upload ${uploadId}...`);
+  };
+
+  const handleExportUploadHistory = () => {
+    // Export upload history as CSV
+    const csvData = uploadHistory.map((upload) => ({
+      id: upload.id,
+      fileName: upload.fileName,
+      drug: upload.drug,
+      quantity: upload.quantity,
+      status: upload.status,
+      date: upload.date,
+      size: upload.size,
+      records: upload.records,
+      blockchainTx: upload.blockchainTx,
+    }));
+
+    const csv = [
+      Object.keys(csvData[0]).join(","),
+      ...csvData.map((row) => Object.values(row).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `upload-history-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   if (!isClient) {
     return null;
   }
@@ -191,7 +275,7 @@ export default function UploadPage() {
               Upload drug batch data and generate QR codes for authentication
             </p>
           </div>
-          <Button variant="hero" size="xl">
+          <Button variant="hero" size="xl" onClick={handleUploadNewData}>
             <Upload className="mr-2 h-5 w-5" />
             Upload New Data
           </Button>
@@ -546,15 +630,27 @@ export default function UploadPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewUploadDetails(upload.id)}
+                    >
                       <Eye className="w-3 h-3 mr-1" />
                       View Details
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadTemplate()}
+                    >
                       <Download className="w-3 h-3 mr-1" />
                       Download
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewAnalytics()}
+                    >
                       <BarChart3 className="w-3 h-3 mr-1" />
                       Analytics
                     </Button>
@@ -562,6 +658,7 @@ export default function UploadPage() {
                       variant="outline"
                       size="sm"
                       className="text-danger hover:text-danger"
+                      onClick={() => handleDeleteUpload(upload.id)}
                     >
                       <Trash2 className="w-3 h-3 mr-1" />
                       Delete
@@ -669,19 +766,39 @@ export default function UploadPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Button variant="default" size="lg" className="h-20 flex-col">
+              <Button
+                variant="default"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleUploadNewData}
+              >
                 <Upload className="h-6 w-6 mb-2" />
                 Upload Data
               </Button>
-              <Button variant="secondary" size="lg" className="h-20 flex-col">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleDownloadTemplate}
+              >
                 <Download className="h-6 w-6 mb-2" />
                 Download Template
               </Button>
-              <Button variant="outline" size="lg" className="h-20 flex-col">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleViewAnalytics}
+              >
                 <BarChart3 className="h-6 w-6 mb-2" />
                 Upload Analytics
               </Button>
-              <Button variant="outline" size="lg" className="h-20 flex-col">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-20 flex-col"
+                onClick={handleViewSettings}
+              >
                 <Settings className="h-6 w-6 mb-2" />
                 Upload Settings
               </Button>
