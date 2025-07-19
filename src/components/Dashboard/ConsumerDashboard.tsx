@@ -1,35 +1,59 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ScanLine, 
-  Shield, 
-  AlertTriangle, 
-  FileText, 
+import {
+  ScanLine,
+  Shield,
+  AlertTriangle,
+  FileText,
   Info,
   CheckCircle,
   Camera,
-  QrCode
+  QrCode,
 } from "lucide-react";
 import QRScanner from "@/components/Camera/QRScanner";
 import PhotoCapture from "@/components/Camera/PhotoCapture";
 
 export default function ConsumerDashboard() {
   const [recentScans, setRecentScans] = useState([
-    { id: 1, drugName: "Paracetamol", result: "authentic", time: "Today, 2:30 PM", location: "Zuma Pharmacy" },
-    { id: 2, drugName: "Vitamin C", result: "authentic", time: "Yesterday, 6:15 PM", location: "City Pharmacy" },
-    { id: 3, drugName: "Cough Syrup", result: "verified", time: "2 days ago", location: "Health Plus" },
+    {
+      id: 1,
+      drugName: "Paracetamol",
+      result: "authentic",
+      time: "Today, 2:30 PM",
+      location: "Zuma Pharmacy",
+    },
+    {
+      id: 2,
+      drugName: "Vitamin C",
+      result: "authentic",
+      time: "Yesterday, 6:15 PM",
+      location: "City Pharmacy",
+    },
+    {
+      id: 3,
+      drugName: "Cough Syrup",
+      result: "verified",
+      time: "2 days ago",
+      location: "Health Plus",
+    },
   ]);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
 
   const getResultIcon = (result: string) => {
     switch (result) {
-      case 'authentic':
-      case 'verified':
+      case "authentic":
+      case "verified":
         return <CheckCircle className="h-5 w-5 text-success" />;
-      case 'suspicious':
+      case "suspicious":
         return <AlertTriangle className="h-5 w-5 text-warning" />;
       default:
         return <Shield className="h-5 w-5 text-muted-foreground" />;
@@ -38,11 +62,17 @@ export default function ConsumerDashboard() {
 
   const getResultBadge = (result: string) => {
     switch (result) {
-      case 'authentic':
-      case 'verified':
-        return <Badge className="bg-success text-success-foreground">Verified</Badge>;
-      case 'suspicious':
-        return <Badge className="bg-warning text-warning-foreground">Suspicious</Badge>;
+      case "authentic":
+      case "verified":
+        return (
+          <Badge className="bg-success text-success-foreground">Verified</Badge>
+        );
+      case "suspicious":
+        return (
+          <Badge className="bg-warning text-warning-foreground">
+            Suspicious
+          </Badge>
+        );
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -54,7 +84,7 @@ export default function ConsumerDashboard() {
       drugName: "Scanned Drug",
       result: "authentic",
       time: "Just now",
-      location: "Current scan"
+      location: "Current scan",
     };
     setRecentScans([newScan, ...recentScans]);
   };
@@ -65,7 +95,7 @@ export default function ConsumerDashboard() {
       drugName: "Analyzed Drug",
       result: "authentic",
       time: "Just now",
-      location: "Photo analysis"
+      location: "Photo analysis",
     };
     setRecentScans([newScan, ...recentScans]);
   };
@@ -74,49 +104,55 @@ export default function ConsumerDashboard() {
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Welcome Section */}
       <div className="text-center space-y-4">
-        <div className="w-20 h-20 bg-gradient-hero rounded-full flex items-center justify-center mx-auto shadow-glow">
-          <Shield className="h-10 w-10 text-white" />
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-hero rounded-full flex items-center justify-center mx-auto shadow-glow">
+          <Shield className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Drug Verification</h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Verify the authenticity of your medications by scanning QR codes or taking photos
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground text-balance">
+            Drug Verification
+          </h1>
+          <p className="text-muted-foreground max-w-md mx-auto text-balance">
+            Verify the authenticity of your medications by scanning QR codes or
+            taking photos
           </p>
         </div>
       </div>
 
       {/* Quick Scan Section */}
       <Card className="shadow-strong bg-gradient-subtle border-primary/20">
-        <CardContent className="p-8 text-center">
+        <CardContent className="p-6 sm:p-8 text-center">
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-semibold mb-2">Verify Your Medication</h2>
-              <p className="text-muted-foreground">
-                Scan the QR code on your medication package or take a photo for verification
+              <h2 className="text-xl sm:text-2xl font-semibold mb-2 text-balance">
+                Verify Your Medication
+              </h2>
+              <p className="text-muted-foreground text-balance">
+                Scan the QR code on your medication package or take a photo for
+                verification
               </p>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto">
-              <Button 
-                variant="scan" 
-                size="xl" 
-                className="h-20 flex-col"
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
+              <Button
+                variant="scan"
+                size="xl"
+                className="h-16 sm:h-20 flex-col touch-target mobile-optimized touch-active"
                 onClick={() => setShowQRScanner(true)}
               >
-                <QrCode className="h-8 w-8 mb-2" />
-                Scan QR Code
+                <QrCode className="h-6 w-6 sm:h-8 sm:w-8 mb-2" />
+                <span className="text-sm sm:text-base">Scan QR Code</span>
               </Button>
-              <Button 
-                variant="hero" 
-                size="xl" 
-                className="h-20 flex-col"
+              <Button
+                variant="hero"
+                size="xl"
+                className="h-16 sm:h-20 flex-col touch-target mobile-optimized touch-active"
                 onClick={() => setShowPhotoCapture(true)}
               >
-                <Camera className="h-8 w-8 mb-2" />
-                Take Photo
+                <Camera className="h-6 w-6 sm:h-8 sm:w-8 mb-2" />
+                <span className="text-sm sm:text-base">Take Photo</span>
               </Button>
             </div>
-            
+
             <p className="text-xs text-muted-foreground">
               Powered by blockchain verification and AI analysis
             </p>
@@ -125,44 +161,51 @@ export default function ConsumerDashboard() {
       </Card>
 
       {/* Features Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="shadow-soft hover:shadow-medium transition-shadow">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className="shadow-soft hover:shadow-medium transition-shadow touch-hover">
           <CardHeader className="text-center">
             <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto">
               <Shield className="h-6 w-6 text-primary" />
             </div>
-            <CardTitle className="text-lg">Instant Verification</CardTitle>
+            <CardTitle className="text-lg text-balance">
+              Instant Verification
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground text-center">
-              Get immediate results on drug authenticity using blockchain technology
+            <p className="text-sm text-muted-foreground text-center text-balance">
+              Get immediate results on drug authenticity using blockchain
+              technology
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft hover:shadow-medium transition-shadow">
+        <Card className="shadow-soft hover:shadow-medium transition-shadow touch-hover">
           <CardHeader className="text-center">
             <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center mx-auto">
               <CheckCircle className="h-6 w-6 text-success" />
             </div>
-            <CardTitle className="text-lg">NAFDAC Verified</CardTitle>
+            <CardTitle className="text-lg text-balance">
+              NAFDAC Verified
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-sm text-muted-foreground text-center text-balance">
               All verifications comply with NAFDAC Mobile Authentication Service
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft hover:shadow-medium transition-shadow">
+        <Card className="shadow-soft hover:shadow-medium transition-shadow touch-hover sm:col-span-2 lg:col-span-1">
           <CardHeader className="text-center">
             <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center mx-auto">
               <AlertTriangle className="h-6 w-6 text-warning" />
             </div>
-            <CardTitle className="text-lg">Report Issues</CardTitle>
+            <CardTitle className="text-lg text-balance">
+              Report Issues
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-sm text-muted-foreground text-center text-balance">
               Easily report suspicious medications to protect the community
             </p>
           </CardContent>
@@ -184,57 +227,34 @@ export default function ConsumerDashboard() {
           {recentScans.length > 0 ? (
             <div className="space-y-4">
               {recentScans.map((scan) => (
-                <div key={scan.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
-                  <div className="flex items-center gap-3">
+                <div
+                  key={scan.id}
+                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors touch-hover"
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     {getResultIcon(scan.result)}
-                    <div>
-                      <p className="font-medium">{scan.drugName}</p>
-                      <p className="text-sm text-muted-foreground">{scan.location}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{scan.drugName}</p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {scan.location}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0 ml-2">
                     {getResultBadge(scan.result)}
-                    <p className="text-xs text-muted-foreground mt-1">{scan.time}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {scan.time}
+                    </p>
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full">
-                View All History
-              </Button>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <ScanLine className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No verifications yet</p>
-              <p className="text-sm text-muted-foreground">Start by scanning your first medication</p>
+            <div className="text-center text-muted-foreground py-8">
+              <FileText className="mx-auto mb-2 h-8 w-8" />
+              <p>No verifications yet. Start by scanning a medication!</p>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Help Section */}
-      <Card className="shadow-soft bg-accent/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Info className="h-5 w-5" />
-            How It Works
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <h4 className="font-medium mb-2">QR Code Scanning</h4>
-              <p className="text-muted-foreground">
-                Scan the QR code on your medication package for instant blockchain verification
-              </p>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">Photo Analysis</h4>
-              <p className="text-muted-foreground">
-                Take a photo for AI-powered visual analysis to detect counterfeits
-              </p>
-            </div>
-          </div>
         </CardContent>
       </Card>
 

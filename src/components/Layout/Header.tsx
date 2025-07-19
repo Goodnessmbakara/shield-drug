@@ -86,7 +86,7 @@ export default function Header({
   };
 
   return (
-    <header className="bg-card border-b border-border shadow-soft sticky top-0 z-40">
+    <header className="bg-card border-b border-border shadow-soft sticky top-0 z-40 safe-area-padding">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo and Brand */}
         <div className="flex items-center gap-3">
@@ -95,18 +95,22 @@ export default function Header({
               variant="ghost"
               size="icon"
               onClick={onMenuClick}
-              className="md:hidden"
+              className="md:hidden touch-target mobile-optimized"
+              aria-label="Toggle menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
           )}
 
           <Logo size="sm" showText={false} />
-          <div>
+          <div className="hidden sm:block">
             <h1 className="text-xl font-bold text-foreground">DrugShield</h1>
             <p className="text-xs text-muted-foreground">
               Pharmaceutical Authentication
             </p>
+          </div>
+          <div className="sm:hidden">
+            <h1 className="text-lg font-bold text-foreground">DrugShield</h1>
           </div>
         </div>
 
@@ -119,9 +123,14 @@ export default function Header({
         </div>
 
         {/* Right - User Menu */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative touch-target mobile-optimized"
+            aria-label="Notifications"
+          >
             <Bell className="h-5 w-5" />
             {notifications > 0 && (
               <Badge
@@ -134,14 +143,23 @@ export default function Header({
           </Button>
 
           {/* Help */}
-          <Button variant="ghost" size="icon">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="touch-target mobile-optimized"
+            aria-label="Help"
+          >
             <HelpCircle className="h-5 w-5" />
           </Button>
 
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 px-3">
+              <Button
+                variant="ghost"
+                className="flex items-center gap-2 px-2 sm:px-3 touch-target mobile-optimized"
+                aria-label="User menu"
+              >
                 <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                   <User className="h-4 w-4" />
                 </div>
@@ -156,19 +174,30 @@ export default function Header({
                     {getRoleDisplayName(userRole)}
                   </Badge>
                 </div>
+                <div className="md:hidden">
+                  <Badge
+                    variant={getRoleBadgeVariant(userRole)}
+                    className="text-xs"
+                  >
+                    {getRoleDisplayName(userRole)}
+                  </Badge>
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem>
+              <DropdownMenuItem className="touch-target">
                 <User className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem className="touch-target">
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                className="touch-target"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>
