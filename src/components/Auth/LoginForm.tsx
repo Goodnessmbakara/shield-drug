@@ -16,15 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Home } from "lucide-react";
 import Logo from "@/components/ui/logo";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/router";
 
 interface LoginFormProps {
   onLogin: (role: string, email: string) => void;
 }
 
 export default function LoginForm({ onLogin }: LoginFormProps) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
@@ -58,7 +60,19 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4 relative">
+      {/* Back to Home Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-4 left-4 flex items-center gap-2 text-muted-foreground hover:text-foreground"
+        onClick={() => router.push("/")}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <Home className="h-4 w-4" />
+        Back to Home
+      </Button>
+
       <Card className="w-full max-w-md shadow-strong">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
@@ -144,6 +158,19 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
               <p className="text-xs mt-1">
                 NAFDAC MAS Compliant • EU FMD Compatible
               </p>
+            </div>
+
+            <div className="text-center pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => router.push("/")}
+              >
+                <Home className="h-3 w-3 mr-1" />
+                Back to Home
+              </Button>
             </div>
           </form>
         </CardContent>
