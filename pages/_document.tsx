@@ -11,6 +11,7 @@ export default function Document(props: DocumentProps) {
           name="description"
           content="DrugShield - AI-powered counterfeit drug detection using blockchain technology, compliant with NAFDAC regulations and EU Falsified Medicines Directive."
         />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <body>

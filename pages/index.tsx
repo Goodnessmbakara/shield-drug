@@ -20,6 +20,7 @@ import {
   Eye,
   Lock,
 } from "lucide-react";
+import Logo from "@/components/ui/logo";
 
 const Index = () => {
   const router = useRouter();
@@ -84,30 +85,31 @@ const Index = () => {
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Shield className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold">DrugShield</h1>
-              <p className="text-xs text-muted-foreground">
-                Pharmaceutical Authentication
-              </p>
-            </div>
+          <Logo size="sm" showText={false} />
+          <div>
+            <h1 className="text-xl font-bold">DrugShield</h1>
+            <p className="text-xs text-muted-foreground">
+              Pharmaceutical Authentication
+            </p>
           </div>
 
-          <Button onClick={() => router.push("/login")} variant="hero">
-            Sign In
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={() => router.push("/learn-more")} variant="ghost">
+              Learn More
+            </Button>
+            <Button onClick={() => router.push("/login")} variant="hero">
+              Sign In
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
       {/* Hero Section */}
       <section className="py-20 text-center">
         <div className="container mx-auto px-4 max-w-4xl">
-          <div className="w-20 h-20 bg-gradient-hero rounded-full flex items-center justify-center mx-auto mb-8 shadow-glow">
-            <Shield className="h-10 w-10 text-white" />
+          <div className="mx-auto mb-8">
+            <Logo size="xl" showText={false} />
           </div>
 
           <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
@@ -129,7 +131,11 @@ const Index = () => {
               Get Started
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button variant="outline" size="xl">
+            <Button
+              onClick={() => router.push("/learn-more")}
+              variant="outline"
+              size="xl"
+            >
               Learn More
             </Button>
           </div>
@@ -256,9 +262,7 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <Shield className="h-5 w-5 text-white" />
-              </div>
+              <Logo size="sm" showText={false} />
               <div>
                 <h3 className="font-bold">DrugShield</h3>
                 <p className="text-xs text-muted-foreground">
@@ -271,6 +275,13 @@ const Index = () => {
               <span>NAFDAC MAS Integrated</span>
               <span>EU FMD Compatible</span>
               <span>Blockchain Secured</span>
+              <Button
+                variant="link"
+                className="text-muted-foreground p-0 h-auto"
+                onClick={() => router.push("/learn-more")}
+              >
+                Learn More
+              </Button>
             </div>
           </div>
         </div>

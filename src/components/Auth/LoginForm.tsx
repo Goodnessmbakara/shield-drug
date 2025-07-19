@@ -2,9 +2,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, Eye, EyeOff } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Eye, EyeOff } from "lucide-react";
+import Logo from "@/components/ui/logo";
 import { useToast } from "@/hooks/use-toast";
 
 interface LoginFormProps {
@@ -21,7 +34,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password || !role) {
       toast({
         title: "Missing Information",
@@ -32,7 +45,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     }
 
     setIsLoading(true);
-    
+
     // Simulate authentication
     setTimeout(() => {
       toast({
@@ -49,16 +62,16 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
       <Card className="w-full max-w-md shadow-strong">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Shield className="h-7 w-7 text-white" />
-            </div>
+            <Logo size="lg" showText={false} />
           </div>
-          <CardTitle className="text-2xl text-center">DrugShield Login</CardTitle>
+          <CardTitle className="text-2xl text-center">
+            DrugShield Login
+          </CardTitle>
           <CardDescription className="text-center">
             Secure access to pharmaceutical authentication system
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -116,9 +129,9 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               variant="hero"
               size="lg"
               disabled={isLoading}
@@ -128,7 +141,9 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
             <div className="text-center text-sm text-muted-foreground">
               <p>Secure authentication powered by blockchain technology</p>
-              <p className="text-xs mt-1">NAFDAC MAS Compliant • EU FMD Compatible</p>
+              <p className="text-xs mt-1">
+                NAFDAC MAS Compliant • EU FMD Compatible
+              </p>
             </div>
           </form>
         </CardContent>

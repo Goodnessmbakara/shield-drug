@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Logo from "@/components/ui/logo";
 import {
-  Shield,
   Menu,
   X,
   User,
@@ -101,16 +101,12 @@ export default function Header({
             </Button>
           )}
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Shield className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">DrugShield</h1>
-              <p className="text-xs text-muted-foreground">
-                Pharmaceutical Authentication
-              </p>
-            </div>
+          <Logo size="sm" showText={false} />
+          <div>
+            <h1 className="text-xl font-bold text-foreground">DrugShield</h1>
+            <p className="text-xs text-muted-foreground">
+              Pharmaceutical Authentication
+            </p>
           </div>
         </div>
 
