@@ -1,0 +1,5 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Coartem,CT2024001,10000,Novartis,Lagos Nigeria,2025-12-31,NAFDAC-123456,2024-01-15,Artemether/Lumefantrine,Tablet,20mg/120mg,24 tablets per pack,Store below 30°C,Antimalarial medication for treating uncomplicated P. falciparum malaria
+Amoxil,AX2024002,5000,GlaxoSmithKline,Abuja Nigeria,2025-06-30,NAFDAC-789012,2024-01-20,Amoxicillin,Capsule,500mg,20 capsules per pack,Store in a cool dry place,Antibiotic for treating bacterial infections
+Panadol,PD2024003,15000,GSK Consumer,Lagos Nigeria,2026-01-10,NAFDAC-345678,2024-01-25,Paracetamol,Tablet,500mg,20 tablets per pack,Store below 25°C,Pain reliever and fever reducer
+Aspirin,AP2024004,8000,Bayer,Port Harcourt Nigeria,2025-11-30,NAFDAC-901234,2024-01-30,Acetylsalicylic Acid,Tablet,100mg,30 tablets per pack,Store in a dry place,Blood thinner and pain reliever 

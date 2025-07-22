@@ -6,7 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
+http://localhost:3000
 node_modules
 dist
 dist-ssr

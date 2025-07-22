@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrugShield - Authentication Setup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            text-align: center;
+        }
+        .role-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DrugShield Authentication Setup</h1>
+        <p>Use this page to set up authentication for testing different user roles.</p>
+        
+        <div class="role-section">
+            <h3>Manufacturer Role</h3>
+            <p>Set up authentication for manufacturer dashboard testing</p>
+            <button onclick="setManufacturer()">Set as Manufacturer</button>
+            <button onclick="goToManufacturer()">Go to Manufacturer Dashboard</button>
+        </div>
+
+        <div class="role-section">
+            <h3>Pharmacist Role</h3>
+            <p>Set up authentication for pharmacist dashboard testing</p>
+            <button onclick="setPharmacist()">Set as Pharmacist</button>
+            <button onclick="goToPharmacist()">Go to Pharmacist Dashboard</button>
+        </div>
+
+        <div class="role-section">
+            <h3>Consumer Role</h3>
+            <p>Set up authentication for consumer app testing</p>
+            <button onclick="setConsumer()">Set as Consumer</button>
+            <button onclick="goToConsumer()">Go to Consumer App</button>
+        </div>
+
+        <div class="role-section">
+            <h3>Regulatory Role</h3>
+            <p>Set up authentication for regulatory dashboard testing</p>
+            <button onclick="setRegulatory()">Set as Regulatory</button>
+            <button onclick="goToRegulatory()">Go to Regulatory Dashboard</button>
+        </div>
+
+        <div class="role-section">
+            <h3>Clear Authentication</h3>
+            <p>Clear all authentication data</p>
+            <button onclick="clearAuth()">Clear Authentication</button>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+    </div>
+
+    <script>
+        function setManufacturer() {
+            localStorage.setItem('userRole', 'manufacturer');
+            localStorage.setItem('userEmail', 'test@manufacturer.com');
+            showStatus('Manufacturer authentication set successfully!', false);
+        }
+
+        function setPharmacist() {
+            localStorage.setItem('userRole', 'pharmacist');
+            localStorage.setItem('userEmail', 'test@pharmacist.com');
+            showStatus('Pharmacist authentication set successfully!', false);
+        }
+
+        function setConsumer() {
+            localStorage.setItem('userRole', 'consumer');
+            localStorage.setItem('userEmail', 'test@consumer.com');
+            showStatus('Consumer authentication set successfully!', false);
+        }
+
+        function setRegulatory() {
+            localStorage.setItem('userRole', 'regulatory');
+            localStorage.setItem('userEmail', 'test@regulatory.com');
+            showStatus('Regulatory authentication set successfully!', false);
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userEmail');
+            showStatus('Authentication cleared successfully!', false);
+        }
+
+        function goToManufacturer() {
+            window.location.href = 'http://localhost:3001/manufacturer';
+        }
+
+        function goToPharmacist() {
+            window.location.href = 'http://localhost:3001/pharmacist';
+        }
+
+        function goToConsumer() {
+            window.location.href = 'http://localhost:3001/consumer';
+        }
+
+        function goToRegulatory() {
+            window.location.href = 'http://localhost:3001/regulatory';
+        }
+
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            statusDiv.className = isError ? 'status error' : 'status';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Check current authentication status on page load
+        window.onload = function() {
+            const role = localStorage.getItem('userRole');
+            const email = localStorage.getItem('userEmail');
+            
+            if (role && email) {
+                showStatus(`Currently authenticated as: ${role} (${email})`, false);
+            } else {
+                showStatus('No authentication set. Please select a role above.', true);
+            }
+        };
+    </script>
+</body>
+</html> 

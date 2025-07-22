@@ -42,18 +42,33 @@ import {
   Trash2,
   RefreshCw,
   Cloud,
+  X,
 } from "lucide-react";
+import { useBatchUpload } from "@/hooks/useBatchUpload";
+import { ValidationResults } from "@/components/ValidationResults";
+import { UploadHistory } from "@/lib/types";
 
 export default function UploadPage() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("");
   const [isClient, setIsClient] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showValidationResults, setShowValidationResults] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+
+  // Use the batch upload hook
+  const {
+    isUploading,
+    uploadProgress,
+    uploadResult,
+    error,
+    uploadFile,
+    validateFile,
+    downloadTemplate,
+    resetUpload,
+  } = useBatchUpload();
 
   useEffect(() => {
     setIsClient(true);
@@ -73,52 +88,26 @@ export default function UploadPage() {
     }
   }, [router]);
 
-  const uploadHistory = [
-    {
-      id: "UP2024001",
-      fileName: "coartem_batch_001.csv",
-      drug: "Coartem",
-      quantity: 10000,
-      status: "completed",
-      date: "2024-01-15",
-      size: "2.4 MB",
-      records: 10000,
-      blockchainTx: "0x1234...5678",
-    },
-    {
-      id: "UP2024002",
-      fileName: "amoxil_batch_002.csv",
-      drug: "Amoxil",
-      quantity: 5000,
-      status: "completed",
-      date: "2024-01-20",
-      size: "1.2 MB",
-      records: 5000,
-      blockchainTx: "0x8765...4321",
-    },
-    {
-      id: "UP2024003",
-      fileName: "panadol_batch_003.csv",
-      drug: "Panadol",
-      quantity: 15000,
-      status: "in-progress",
-      date: "2024-01-25",
-      size: "3.6 MB",
-      records: 15000,
-      blockchainTx: "Pending...",
-    },
-    {
-      id: "UP2024004",
-      fileName: "aspirin_batch_004.csv",
-      drug: "Aspirin",
-      quantity: 8000,
-      status: "failed",
-      date: "2024-01-30",
-      size: "1.9 MB",
-      records: 0,
-      blockchainTx: "Failed",
-    },
-  ];
+  const [uploadHistory, setUploadHistory] = useState<UploadHistory[]>([]);
+
+  // Load upload history from localStorage
+  useEffect(() => {
+    if (isClient) {
+      const history = JSON.parse(localStorage.getItem("uploadHistory") || "[]");
+      setUploadHistory(history);
+    }
+  }, [isClient, uploadResult]); // Reload when new upload completes
+
+  // Auto-show validation results when there are validation errors
+  useEffect(() => {
+    if (
+      uploadResult?.validationResult &&
+      !uploadResult.validationResult.isValid &&
+      uploadResult.status !== "completed"
+    ) {
+      setShowValidationResults(true);
+    }
+  }, [uploadResult]);
 
   const stats = {
     totalUploads: 156,
@@ -156,27 +145,28 @@ export default function UploadPage() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file first
+      const validation = validateFile(file);
+      if (!validation.isValid) {
+        alert(`File validation failed: ${validation.errors[0]}`);
+        return;
+      }
+
       setSelectedFile(file);
+      setShowValidationResults(false);
+      resetUpload();
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedFile) return;
 
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
+    try {
+      await uploadFile(selectedFile);
+      setSelectedFile(null);
+    } catch (err) {
+      console.error("Upload failed:", err);
+    }
   };
 
   const handleUploadNewData = () => {
@@ -197,22 +187,7 @@ export default function UploadPage() {
   };
 
   const handleDownloadTemplate = () => {
-    // Create and download CSV template
-    const template = [
-      "drug_name,quantity,manufacturer,location,expiry_date,nafdac_number",
-      "Coartem,10000,Novartis,Lagos,2025-12-31,NAFDAC-123456",
-      "Amoxil,5000,GlaxoSmithKline,Abuja,2025-06-30,NAFDAC-789012",
-    ].join("\n");
-
-    const blob = new Blob([template], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "batch-upload-template.csv";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    downloadTemplate();
   };
 
   const handleViewUploadDetails = (uploadId: string) => {
@@ -438,6 +413,24 @@ export default function UploadPage() {
                       Selected: {selectedFile.name}
                     </p>
                   )}
+
+                  {/* Quick Validation Status */}
+                  {uploadResult?.validationResult &&
+                    !uploadResult.validationResult.isValid &&
+                    uploadResult.status !== "completed" && (
+                      <div className="mt-3 p-3 border border-red-200 rounded-lg bg-red-50">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-500" />
+                          <span className="text-sm font-medium text-red-700">
+                            Validation Failed
+                          </span>
+                        </div>
+                        <p className="text-xs text-red-600 mt-1">
+                          {uploadResult.validationResult.errors.length} errors
+                          found. Click "View All Errors" below for details.
+                        </p>
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -449,33 +442,159 @@ export default function UploadPage() {
                 />
               </div>
 
-              {isUploading && (
+              {/* Upload Progress */}
+              {uploadProgress && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Upload Progress</span>
-                    <span className="font-medium">{uploadProgress}%</span>
+                    <span>{uploadProgress.message}</span>
+                    <span className="font-medium">
+                      {uploadProgress.progress}%
+                    </span>
                   </div>
-                  <Progress value={uploadProgress} className="h-2" />
+                  <Progress value={uploadProgress.progress} className="h-2" />
+                  <p className="text-xs text-muted-foreground">
+                    Stage: {uploadProgress.stage}
+                  </p>
                 </div>
               )}
 
-              <Button
-                className="w-full"
-                onClick={handleUpload}
-                disabled={!selectedFile || isUploading}
-              >
-                {isUploading ? (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Data
-                  </>
+              {/* Validation Error Summary */}
+              {uploadResult?.validationResult &&
+                !uploadResult.validationResult.isValid &&
+                uploadResult.status !== "completed" && (
+                  <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertTriangle className="h-5 w-5 text-red-500" />
+                      <h4 className="font-medium text-red-700">
+                        Validation Failed
+                      </h4>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-red-600">
+                        Your file contains{" "}
+                        {uploadResult.validationResult.errors.length} errors and{" "}
+                        {uploadResult.validationResult.warnings.length} warnings
+                        that need to be fixed.
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowValidationResults(true)}
+                          className="text-red-600 border-red-300 hover:bg-red-50"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View All Errors
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadTemplate()}
+                          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          Download Template
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </Button>
+
+              {/* Error Display */}
+              {error && (
+                <div className="p-3 border border-red-200 rounded-lg bg-red-50">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    <span className="text-sm text-red-700 font-medium">
+                      {error}
+                    </span>
+                  </div>
+                  {uploadResult?.validationResult &&
+                    !uploadResult.validationResult.isValid && (
+                      <div className="mt-2">
+                        <p className="text-xs text-red-600 mb-2">
+                          Validation failed with{" "}
+                          {uploadResult.validationResult.errors.length} errors
+                          and {uploadResult.validationResult.warnings.length}{" "}
+                          warnings.
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowValidationResults(true)}
+                          className="text-red-600 border-red-300 hover:bg-red-50"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          View Details
+                        </Button>
+                      </div>
+                    )}
+                </div>
+              )}
+
+              {/* Success Display */}
+              {uploadResult && uploadResult.status === "completed" && (
+                <div className="p-3 border border-green-200 rounded-lg bg-green-50">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-green-700">
+                      Upload completed! {uploadResult.qrCodesGenerated} QR codes
+                      generated.
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">
+                    Transaction: {uploadResult.blockchainTx?.hash}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Button
+                  className="w-full"
+                  onClick={handleUpload}
+                  disabled={
+                    !selectedFile ||
+                    isUploading ||
+                    (uploadResult?.validationResult &&
+                      !uploadResult.validationResult.isValid &&
+                      uploadResult.status !== "completed")
+                  }
+                >
+                  {isUploading ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : uploadResult?.validationResult &&
+                    !uploadResult.validationResult.isValid ? (
+                    <>
+                      <AlertTriangle className="mr-2 h-4 w-4" />
+                      Fix Validation Errors First
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Data
+                    </>
+                  )}
+                </Button>
+
+                {uploadResult?.validationResult &&
+                  !uploadResult.validationResult.isValid &&
+                  uploadResult.status !== "completed" && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        resetUpload();
+                      }}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Try Different File
+                    </Button>
+                  )}
+              </div>
             </CardContent>
           </Card>
 
@@ -553,13 +672,44 @@ export default function UploadPage() {
                 </ul>
               </div>
 
-              <Button variant="outline" className="w-full">
-                <Download className="mr-2 h-4 w-4" />
-                Download Template
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleDownloadTemplate}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Template
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    const a = document.createElement("a");
+                    a.href = "/sample-batch.csv";
+                    a.download = "sample-batch.csv";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Sample File
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Validation Results */}
+        {uploadResult?.validationResult &&
+          showValidationResults &&
+          uploadResult.status !== "completed" && (
+            <ValidationResults
+              validationResult={uploadResult.validationResult}
+              onClose={() => setShowValidationResults(false)}
+            />
+          )}
 
         {/* Upload History */}
         <Card className="shadow-soft">
@@ -638,6 +788,16 @@ export default function UploadPage() {
                       <Eye className="w-3 h-3 mr-1" />
                       View Details
                     </Button>
+                    {uploadResult?.validationResult && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowValidationResults(true)}
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        Validation
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"

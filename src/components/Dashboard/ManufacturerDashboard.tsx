@@ -1,25 +1,54 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Package, 
-  QrCode, 
-  Upload, 
-  BarChart3, 
+import {
+  Package,
+  QrCode,
+  Upload,
+  BarChart3,
   TrendingUp,
   AlertTriangle,
   CheckCircle,
   Clock,
-  Database
+  Database,
 } from "lucide-react";
 
 export default function ManufacturerDashboard() {
+  const router = useRouter();
   const [batches] = useState([
-    { id: "CT2024001", drug: "Coartem", quantity: 10000, status: "active", qrGenerated: true, verifications: 1250 },
-    { id: "AX2024002", drug: "Amoxil", quantity: 5000, status: "pending", qrGenerated: false, verifications: 0 },
-    { id: "PD2024003", drug: "Panadol", quantity: 15000, status: "active", qrGenerated: true, verifications: 3420 },
+    {
+      id: "CT2024001",
+      drug: "Coartem",
+      quantity: 10000,
+      status: "active",
+      qrGenerated: true,
+      verifications: 1250,
+    },
+    {
+      id: "AX2024002",
+      drug: "Amoxil",
+      quantity: 5000,
+      status: "pending",
+      qrGenerated: false,
+      verifications: 0,
+    },
+    {
+      id: "PD2024003",
+      drug: "Panadol",
+      quantity: 15000,
+      status: "active",
+      qrGenerated: true,
+      verifications: 3420,
+    },
   ]);
 
   const stats = {
@@ -27,17 +56,23 @@ export default function ManufacturerDashboard() {
     activeBatches: 156,
     totalQRCodes: 2890000,
     verifications: 145670,
-    authenticityRate: 98.7
+    authenticityRate: 98.7,
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active':
-        return <Badge className="bg-success text-success-foreground">Active</Badge>;
-      case 'pending':
-        return <Badge className="bg-warning text-warning-foreground">Pending</Badge>;
-      case 'expired':
-        return <Badge className="bg-danger text-danger-foreground">Expired</Badge>;
+      case "active":
+        return (
+          <Badge className="bg-success text-success-foreground">Active</Badge>
+        );
+      case "pending":
+        return (
+          <Badge className="bg-warning text-warning-foreground">Pending</Badge>
+        );
+      case "expired":
+        return (
+          <Badge className="bg-danger text-danger-foreground">Expired</Badge>
+        );
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -48,10 +83,19 @@ export default function ManufacturerDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Manufacturer Dashboard</h1>
-          <p className="text-muted-foreground">Manage drug batches, generate QR codes, and monitor verification analytics</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            Manufacturer Dashboard
+          </h1>
+          <p className="text-muted-foreground">
+            Manage drug batches, generate QR codes, and monitor verification
+            analytics
+          </p>
         </div>
-        <Button variant="hero" size="xl">
+        <Button
+          variant="hero"
+          size="xl"
+          onClick={() => router.push("/manufacturer/upload")}
+        >
           <Upload className="mr-2 h-5 w-5" />
           Upload New Batch
         </Button>
@@ -72,11 +116,15 @@ export default function ManufacturerDashboard() {
 
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Batches</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Active Batches
+            </CardTitle>
             <CheckCircle className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{stats.activeBatches}</div>
+            <div className="text-2xl font-bold text-success">
+              {stats.activeBatches}
+            </div>
             <p className="text-xs text-muted-foreground">Currently in market</p>
           </CardContent>
         </Card>
@@ -87,7 +135,9 @@ export default function ManufacturerDashboard() {
             <QrCode className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{(stats.totalQRCodes / 1000000).toFixed(1)}M</div>
+            <div className="text-2xl font-bold">
+              {(stats.totalQRCodes / 1000000).toFixed(1)}M
+            </div>
             <p className="text-xs text-muted-foreground">Generated total</p>
           </CardContent>
         </Card>
@@ -98,19 +148,27 @@ export default function ManufacturerDashboard() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.verifications.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {stats.verifications.toLocaleString()}
+            </div>
             <p className="text-xs text-muted-foreground">+8.2% this week</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Authenticity Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Authenticity Rate
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{stats.authenticityRate}%</div>
-            <p className="text-xs text-muted-foreground">Above industry average</p>
+            <div className="text-2xl font-bold text-success">
+              {stats.authenticityRate}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Above industry average
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -128,26 +186,35 @@ export default function ManufacturerDashboard() {
           <CardContent>
             <div className="space-y-4">
               {batches.map((batch) => (
-                <div key={batch.id} className="p-4 border border-border rounded-lg">
+                <div
+                  key={batch.id}
+                  className="p-4 border border-border rounded-lg"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="font-medium">{batch.drug}</p>
-                      <p className="text-sm text-muted-foreground">Batch ID: {batch.id}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Batch ID: {batch.id}
+                      </p>
                     </div>
                     {getStatusBadge(batch.status)}
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Quantity</p>
-                      <p className="font-medium">{batch.quantity.toLocaleString()} units</p>
+                      <p className="font-medium">
+                        {batch.quantity.toLocaleString()} units
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Verifications</p>
-                      <p className="font-medium">{batch.verifications.toLocaleString()}</p>
+                      <p className="font-medium">
+                        {batch.verifications.toLocaleString()}
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 mt-3">
                     {batch.qrGenerated ? (
                       <Badge variant="outline" className="text-xs">
@@ -164,7 +231,11 @@ export default function ManufacturerDashboard() {
                 </div>
               ))}
             </div>
-            <Button variant="outline" className="w-full mt-4">
+            <Button
+              variant="outline"
+              className="w-full mt-4"
+              onClick={() => router.push("/manufacturer/batches")}
+            >
               View All Batches
             </Button>
           </CardContent>
@@ -177,7 +248,9 @@ export default function ManufacturerDashboard() {
               <Database className="h-5 w-5" />
               Blockchain Status
             </CardTitle>
-            <CardDescription>Network health and transaction status</CardDescription>
+            <CardDescription>
+              Network health and transaction status
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -188,7 +261,7 @@ export default function ManufacturerDashboard() {
                   Online
                 </Badge>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Transaction Success Rate</span>
@@ -196,7 +269,7 @@ export default function ManufacturerDashboard() {
                 </div>
                 <Progress value={99.8} className="h-2" />
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Gas Optimization</span>
@@ -204,7 +277,7 @@ export default function ManufacturerDashboard() {
                 </div>
                 <Progress value={87} className="h-2" />
               </div>
-              
+
               <div className="pt-4 border-t">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
@@ -230,21 +303,41 @@ export default function ManufacturerDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Button variant="default" size="lg" className="h-20 flex-col">
+            <Button
+              variant="default"
+              size="lg"
+              className="h-20 flex-col"
+              onClick={() => router.push("/manufacturer/upload")}
+            >
               <Upload className="h-6 w-6 mb-2" />
               Upload Batch
             </Button>
-            <Button variant="secondary" size="lg" className="h-20 flex-col">
+            <Button
+              variant="secondary"
+              size="lg"
+              className="h-20 flex-col"
+              onClick={() => router.push("/manufacturer/qr-codes")}
+            >
               <QrCode className="h-6 w-6 mb-2" />
               Generate QR Codes
             </Button>
-            <Button variant="outline" size="lg" className="h-20 flex-col">
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-20 flex-col"
+              onClick={() => router.push("/manufacturer/analytics")}
+            >
               <BarChart3 className="h-6 w-6 mb-2" />
               View Analytics
             </Button>
-            <Button variant="outline" size="lg" className="h-20 flex-col">
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-20 flex-col"
+              onClick={() => router.push("/manufacturer/batches")}
+            >
               <Database className="h-6 w-6 mb-2" />
-              Blockchain Query
+              Batch Management
             </Button>
           </div>
         </CardContent>

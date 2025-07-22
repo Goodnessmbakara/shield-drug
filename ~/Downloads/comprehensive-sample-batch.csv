@@ -1,0 +1,11 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Coartem,CT2024001,10000,Novartis,Lagos Nigeria,2025-12-31,NAFDAC-123456,2024-01-15,Artemether/Lumefantrine,Tablet,20mg/120mg,24 tablets per pack,Store below 30°C,Antimalarial medication for treating uncomplicated P. falciparum malaria
+Amoxil,AX2024002,5000,GlaxoSmithKline,Abuja Nigeria,2025-06-30,NAFDAC-789012,2024-01-20,Amoxicillin,Capsule,500mg,20 capsules per pack,Store in a cool dry place,Antibiotic for treating bacterial infections
+Panadol,PD2024003,15000,GSK Consumer,Lagos Nigeria,2026-01-10,NAFDAC-345678,2024-01-25,Paracetamol,Tablet,500mg,20 tablets per pack,Store below 25°C,Pain reliever and fever reducer
+Aspirin,AP2024004,8000,Bayer,Port Harcourt Nigeria,2025-11-30,NAFDAC-901234,2024-01-30,Acetylsalicylic Acid,Tablet,100mg,30 tablets per pack,Store in a dry place,Blood thinner and pain reliever
+Augmentin,AG2024005,3000,GlaxoSmithKline,Kano Nigeria,2025-08-15,NAFDAC-567890,2024-02-01,Amoxicillin/Clavulanic Acid,Tablet,625mg,14 tablets per pack,Store below 25°C,Antibiotic for treating bacterial infections
+Vitamin C,VTC2024006,20000,Swiss Pharma,Calabar Nigeria,2026-03-20,NAFDAC-234567,2024-02-05,Ascorbic Acid,Tablet,1000mg,60 tablets per pack,Store in a cool dry place,Vitamin C supplement for immune support
+Cough Syrup,CSY2024007,12000,Emzor,Ibadan Nigeria,2025-09-30,NAFDAC-678901,2024-02-10,Dextromethorphan,Syrup,15mg/5ml,100ml bottle,Store below 30°C,Cough suppressant syrup
+Ibuprofen,IBU2024008,18000,Pfizer,Enugu Nigeria,2025-07-25,NAFDAC-345123,2024-02-15,Ibuprofen,Tablet,400mg,30 tablets per pack,Store below 25°C,Anti-inflammatory pain reliever
+Omeprazole,OME2024009,6000,AstraZeneca,Jos Nigeria,2025-10-12,NAFDAC-789456,2024-02-20,Omeprazole,Capsule,20mg,14 capsules per pack,Store below 30°C,Proton pump inhibitor for acid reflux
+Metformin,MET2024010,9000,Merck,Kaduna Nigeria,2025-12-05,NAFDAC-123789,2024-02-25,Metformin,Tablet,500mg,60 tablets per pack,Store below 25°C,Antidiabetic medication for type 2 diabetes 

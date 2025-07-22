@@ -1,0 +1,2 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Test Drug,TEST001,1000,Test Manufacturer,Lagos Nigeria,2025-12-31,NAFDAC-123456,2024-01-15,Test Ingredient,Tablet,500mg,20 tablets per pack,Store below 25°C,Test medication for validation 
