@@ -305,45 +305,48 @@ export default function BatchesPage() {
     <DashboardLayout userRole="manufacturer" userName={userEmail}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               Batch Management
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Upload, track, and manage drug batches with QR code generation
             </p>
           </div>
-          <Button variant="hero" size="xl">
-            <Upload className="mr-2 h-5 w-5" />
-            Upload New Batch
+          <Button variant="hero" size="lg" className="w-full sm:w-auto">
+            <Upload className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">Upload New Batch</span>
+            <span className="sm:hidden">Upload Batch</span>
           </Button>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Total Batches
               </CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <Package className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalBatches}</div>
+              <div className="text-lg sm:text-2xl font-bold">
+                {stats.totalBatches}
+              </div>
               <p className="text-xs text-muted-foreground">+23 this month</p>
             </CardContent>
           </Card>
 
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Active Batches
               </CardTitle>
-              <CheckCircle className="h-4 w-4 text-success" />
+              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-success">
+              <div className="text-lg sm:text-2xl font-bold text-success">
                 {stats.activeBatches}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -354,11 +357,13 @@ export default function BatchesPage() {
 
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <Clock className="h-4 w-4 text-warning" />
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Pending
+              </CardTitle>
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-warning" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-warning">
+              <div className="text-lg sm:text-2xl font-bold text-warning">
                 {stats.pendingBatches}
               </div>
               <p className="text-xs text-muted-foreground">Awaiting approval</p>
@@ -367,11 +372,13 @@ export default function BatchesPage() {
 
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Expired</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-danger" />
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Expired
+              </CardTitle>
+              <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-danger" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-danger">
+              <div className="text-lg sm:text-2xl font-bold text-danger">
                 {stats.expiredBatches}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -382,11 +389,13 @@ export default function BatchesPage() {
 
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">QR Codes</CardTitle>
-              <Hash className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                QR Codes
+              </CardTitle>
+              <Hash className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-lg sm:text-2xl font-bold">
                 {(stats.totalQRCodes / 1000000).toFixed(1)}M
               </div>
               <p className="text-xs text-muted-foreground">Generated total</p>
@@ -395,13 +404,13 @@ export default function BatchesPage() {
 
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Verifications
               </CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-lg sm:text-2xl font-bold">
                 {stats.verifications.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">+8.2% this week</p>
@@ -410,13 +419,13 @@ export default function BatchesPage() {
 
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Authenticity Rate
               </CardTitle>
-              <TrendingUp className="h-4 w-4 text-success" />
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-success">
+              <div className="text-lg sm:text-2xl font-bold text-success">
                 {stats.authenticityRate}%
               </div>
               <p className="text-xs text-muted-foreground">
@@ -427,13 +436,13 @@ export default function BatchesPage() {
 
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Compliance Rate
               </CardTitle>
-              <CheckCircle className="h-4 w-4 text-success" />
+              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-success">
+              <div className="text-lg sm:text-2xl font-bold text-success">
                 {stats.complianceRate}%
               </div>
               <p className="text-xs text-muted-foreground">NAFDAC compliant</p>
@@ -441,7 +450,7 @@ export default function BatchesPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Batch Upload */}
           <Card className="shadow-soft lg:col-span-1">
             <CardHeader>
@@ -517,40 +526,45 @@ export default function BatchesPage() {
                     Track and manage all drug batches
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search batches..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-64"
+                      className="pl-10 w-full sm:w-64"
                     />
                   </div>
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="expired">Expired</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterDrug} onValueChange={setFilterDrug}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Drugs</SelectItem>
-                      {uniqueDrugs.map((drug) => (
-                        <SelectItem key={drug} value={drug}>
-                          {drug}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select
+                      value={filterStatus}
+                      onValueChange={setFilterStatus}
+                    >
+                      <SelectTrigger className="w-full sm:w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="expired">Expired</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterDrug} onValueChange={setFilterDrug}>
+                      <SelectTrigger className="w-full sm:w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Drugs</SelectItem>
+                        {uniqueDrugs.map((drug) => (
+                          <SelectItem key={drug} value={drug}>
+                            {drug}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -577,20 +591,22 @@ export default function BatchesPage() {
                       key={batch.id}
                       className="p-4 border border-border rounded-lg"
                     >
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                         <div>
-                          <p className="font-medium">{batch.drug}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium text-sm sm:text-base">
+                            {batch.drug}
+                          </p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             Batch ID: {batch.id}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           {getStatusBadge(batch.status)}
                           {getComplianceBadge(batch.compliance)}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm mb-3">
                         <div>
                           <p className="text-muted-foreground">Quantity</p>
                           <p className="font-medium">
@@ -613,7 +629,7 @@ export default function BatchesPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm mb-3">
                         <div>
                           <p className="text-muted-foreground">Created</p>
                           <p className="font-medium">{batch.dateCreated}</p>

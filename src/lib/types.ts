@@ -20,7 +20,7 @@ export interface DrugBatch {
 }
 
 // Upload Status Types
-export type UploadStatus = 'pending' | 'validating' | 'uploading' | 'completed' | 'failed';
+export type UploadStatus = 'pending' | 'validating' | 'uploading' | 'completed' | 'failed' | 'in-progress';
 
 // Upload History Types
 export interface UploadHistory {
@@ -35,10 +35,10 @@ export interface UploadHistory {
   blockchainTx?: string;
   errorMessage?: string;
   validationErrors?: ValidationError[];
-  manufacturer: string;
-  uploadProgress: number;
-  createdAt: string;
-  updatedAt: string;
+  manufacturer?: string;
+  uploadProgress?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Validation Error Types

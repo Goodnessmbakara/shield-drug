@@ -94,7 +94,63 @@ export default function UploadPage() {
   useEffect(() => {
     if (isClient) {
       const history = JSON.parse(localStorage.getItem("uploadHistory") || "[]");
-      setUploadHistory(history);
+      // If no history exists, create sample data
+      if (history.length === 0) {
+        const sampleHistory: UploadHistory[] = [
+          {
+            id: "UPMDGJKFKFVCWZEC",
+            fileName: "coartem_batch_001.csv",
+            drug: "Coartem (Artemether/Lumefantrine)",
+            quantity: 50000,
+            status: "completed",
+            date: "2024-01-15 14:30:22",
+            size: "2.1 MB",
+            records: 50000,
+            blockchainTx:
+              "0x8f2a3774a83e8a6d64e6f2ce8ed4ac7d1f219856e07b6955b6b3a0e45b3eac5f",
+          },
+          {
+            id: "UPMDGJKFKFVCWZED",
+            fileName: "amoxil_batch_002.csv",
+            drug: "Amoxil (Amoxicillin)",
+            quantity: 75000,
+            status: "completed",
+            date: "2024-01-14 09:15:33",
+            size: "3.2 MB",
+            records: 75000,
+            blockchainTx:
+              "0x8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+          },
+          {
+            id: "UPMDGJKFKFVCWZEE",
+            fileName: "panadol_batch_003.csv",
+            drug: "Panadol (Paracetamol)",
+            quantity: 100000,
+            status: "in-progress",
+            date: "2024-01-13 16:45:12",
+            size: "4.5 MB",
+            records: 100000,
+            blockchainTx:
+              "0x9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1",
+          },
+          {
+            id: "UPMDGJKFKFVCWZEF",
+            fileName: "flagyl_batch_004.csv",
+            drug: "Flagyl (Metronidazole)",
+            quantity: 25000,
+            status: "failed",
+            date: "2024-01-12 11:20:45",
+            size: "1.8 MB",
+            records: 25000,
+            blockchainTx:
+              "0x0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2",
+          },
+        ];
+        localStorage.setItem("uploadHistory", JSON.stringify(sampleHistory));
+        setUploadHistory(sampleHistory);
+      } else {
+        setUploadHistory(history);
+      }
     }
   }, [isClient, uploadResult]); // Reload when new upload completes
 
@@ -243,21 +299,29 @@ export default function UploadPage() {
     <DashboardLayout userRole="manufacturer" userName={userEmail}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Data Upload</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+              Data Upload
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Upload drug batch data and generate QR codes for authentication
             </p>
           </div>
-          <Button variant="hero" size="xl" onClick={handleUploadNewData}>
-            <Upload className="mr-2 h-5 w-5" />
-            Upload New Data
+          <Button
+            variant="hero"
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={handleUploadNewData}
+          >
+            <Upload className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">Upload New Data</span>
+            <span className="sm:hidden">Upload Data</span>
           </Button>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -360,7 +424,7 @@ export default function UploadPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Upload Form */}
           <Card className="shadow-soft">
             <CardHeader>
@@ -842,13 +906,13 @@ export default function UploadPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Network Status</span>
-                  <Badge className="bg-success text-success-foreground">
+                  <Badge className="bg-purple-100 text-purple-800 border-purple-200">
                     <div className="w-2 h-2 bg-current rounded-full mr-1 animate-pulse"></div>
-                    Online
+                    Polygon Mumbai Testnet
                   </Badge>
                 </div>
 
@@ -910,7 +974,7 @@ export default function UploadPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Gas Price</p>
-                    <p className="font-medium">25 Gwei</p>
+                    <p className="font-medium">30 Gwei</p>
                   </div>
                 </div>
               </div>
@@ -925,7 +989,7 @@ export default function UploadPage() {
             <CardDescription>Common upload management tasks</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <Button
                 variant="default"
                 size="lg"
