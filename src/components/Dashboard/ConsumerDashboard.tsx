@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,32 +21,22 @@ import {
 import QRScanner from "@/components/Camera/QRScanner";
 import PhotoCapture from "@/components/Camera/PhotoCapture";
 
-export default function ConsumerDashboard() {
-  const [recentScans, setRecentScans] = useState([
-    {
-      id: 1,
-      drugName: "Paracetamol",
-      result: "authentic",
-      time: "Today, 2:30 PM",
-      location: "Zuma Pharmacy",
-    },
-    {
-      id: 2,
-      drugName: "Vitamin C",
-      result: "authentic",
-      time: "Yesterday, 6:15 PM",
-      location: "City Pharmacy",
-    },
-    {
-      id: 3,
-      drugName: "Cough Syrup",
-      result: "verified",
-      time: "2 days ago",
-      location: "Health Plus",
-    },
-  ]);
+export default function ConsumerDashboard({
+  userEmail,
+}: {
+  userEmail?: string;
+}) {
+  const [recentScans, setRecentScans] = useState<any[]>([]);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
+
+  // Fetch recent verifications from API
+  useEffect(() => {
+    if (!userEmail) return;
+    fetch(`/api/consumer/verifications?userEmail=${userEmail}`)
+      .then((res) => res.json())
+      .then((data) => setRecentScans(data));
+  }, [userEmail]);
 
   const getResultIcon = (result: string) => {
     switch (result) {

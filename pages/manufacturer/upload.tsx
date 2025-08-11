@@ -43,6 +43,7 @@ import {
   RefreshCw,
   Cloud,
   X,
+  Copy,
 } from "lucide-react";
 import { useBatchUpload } from "@/hooks/useBatchUpload";
 import { ValidationResults } from "@/components/ValidationResults";
@@ -90,69 +91,58 @@ export default function UploadPage() {
 
   const [uploadHistory, setUploadHistory] = useState<UploadHistory[]>([]);
 
-  // Load upload history from localStorage
+  // Load upload history from database
   useEffect(() => {
-    if (isClient) {
-      const history = JSON.parse(localStorage.getItem("uploadHistory") || "[]");
-      // If no history exists, create sample data
-      if (history.length === 0) {
-        const sampleHistory: UploadHistory[] = [
-          {
-            id: "UPMDGJKFKFVCWZEC",
-            fileName: "coartem_batch_001.csv",
-            drug: "Coartem (Artemether/Lumefantrine)",
-            quantity: 50000,
-            status: "completed",
-            date: "2024-01-15 14:30:22",
-            size: "2.1 MB",
-            records: 50000,
-            blockchainTx:
-              "0x8f2a3774a83e8a6d64e6f2ce8ed4ac7d1f219856e07b6955b6b3a0e45b3eac5f",
-          },
-          {
-            id: "UPMDGJKFKFVCWZED",
-            fileName: "amoxil_batch_002.csv",
-            drug: "Amoxil (Amoxicillin)",
-            quantity: 75000,
-            status: "completed",
-            date: "2024-01-14 09:15:33",
-            size: "3.2 MB",
-            records: 75000,
-            blockchainTx:
-              "0x8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
-          },
-          {
-            id: "UPMDGJKFKFVCWZEE",
-            fileName: "panadol_batch_003.csv",
-            drug: "Panadol (Paracetamol)",
-            quantity: 100000,
-            status: "in-progress",
-            date: "2024-01-13 16:45:12",
-            size: "4.5 MB",
-            records: 100000,
-            blockchainTx:
-              "0x9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1",
-          },
-          {
-            id: "UPMDGJKFKFVCWZEF",
-            fileName: "flagyl_batch_004.csv",
-            drug: "Flagyl (Metronidazole)",
-            quantity: 25000,
-            status: "failed",
-            date: "2024-01-12 11:20:45",
-            size: "1.8 MB",
-            records: 25000,
-            blockchainTx:
-              "0x0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2",
-          },
-        ];
-        localStorage.setItem("uploadHistory", JSON.stringify(sampleHistory));
-        setUploadHistory(sampleHistory);
-      } else {
-        setUploadHistory(history);
+    const fetchUploadHistory = async () => {
+      if (!userEmail) return;
+
+      try {
+        const response = await fetch(
+          `/api/uploads?userEmail=${encodeURIComponent(userEmail)}&limit=10`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setUploadHistory(data.uploads || []);
+        } else {
+          // Fallback to mock data if API fails
+          console.warn("Failed to fetch upload history, using mock data");
+          const mockHistory: UploadHistory[] = [
+            {
+              id: "UPMDGJKFKFVCWZEC",
+              fileName: "coartem_batch_001.csv",
+              drug: "Coartem (Artemether/Lumefantrine)",
+              quantity: 50000,
+              status: "completed",
+              date: "2024-01-15 14:30:22",
+              size: "2.1 MB",
+              records: 50000,
+              blockchainTx:
+                "0x8f2a3774a83e8a6d64e6f2ce8ed4ac7d1f219856e07b6955b6b3a0e45b3eac5f",
+            },
+            {
+              id: "UPMDGJKFKFVCWZED",
+              fileName: "amoxil_batch_002.csv",
+              drug: "Amoxil (Amoxicillin)",
+              quantity: 75000,
+              status: "completed",
+              date: "2024-01-14 09:15:33",
+              size: "3.2 MB",
+              records: 75000,
+              blockchainTx:
+                "0x8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+            },
+          ];
+          setUploadHistory(mockHistory);
+        }
+      } catch (error) {
+        console.error("Error fetching upload history:", error);
+        // Set empty array on error
+        setUploadHistory([]);
       }
-    }
-  }, [isClient, uploadResult]); // Reload when new upload completes
+    };
+
+    fetchUploadHistory();
+  }, [userEmail, uploadResult]); // Reload when new upload completes
 
   // Auto-show validation results when there are validation errors
   useEffect(() => {
@@ -165,15 +155,41 @@ export default function UploadPage() {
     }
   }, [uploadResult]);
 
-  const stats = {
-    totalUploads: 156,
-    successfulUploads: 142,
-    failedUploads: 14,
-    totalRecords: 2840000,
-    averageFileSize: "2.1 MB",
-    uploadSuccessRate: 91.0,
+  const [stats, setStats] = useState({
+    totalUploads: 0,
+    successfulUploads: 0,
+    failedUploads: 0,
+    totalRecords: 0,
+    averageFileSize: "0 KB",
+    uploadSuccessRate: 0,
     blockchainSuccessRate: 99.8,
-  };
+    totalQRCodes: 0,
+    scannedQRCodes: 0,
+    unScannedQRCodes: 0,
+  });
+
+  // Fetch upload statistics
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!userEmail) return;
+
+      try {
+        const response = await fetch(
+          `/api/manufacturer/upload-stats?userEmail=${encodeURIComponent(
+            userEmail
+          )}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        }
+      } catch (error) {
+        console.error("Error fetching upload stats:", error);
+      }
+    };
+
+    fetchStats();
+  }, [userEmail]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -803,39 +819,38 @@ export default function UploadPage() {
                     {getStatusBadge(upload.status)}
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-3">
                     <div>
-                      <p className="text-muted-foreground">Drug</p>
-                      <p className="font-medium">{upload.drug}</p>
+                      <p className="text-muted-foreground text-xs">Drug</p>
+                      <p
+                        className="font-medium text-sm truncate"
+                        title={upload.drug}
+                      >
+                        {upload.drug}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Quantity</p>
-                      <p className="font-medium">
+                      <p className="text-muted-foreground text-xs">Quantity</p>
+                      <p className="font-medium text-sm">
                         {upload.quantity.toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">File Size</p>
-                      <p className="font-medium">{upload.size}</p>
+                      <p className="text-muted-foreground text-xs">File Size</p>
+                      <p className="font-medium text-sm">{upload.size}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Records</p>
-                      <p className="font-medium">
+                      <p className="text-muted-foreground text-xs">Records</p>
+                      <p className="font-medium text-sm">
                         {upload.records.toLocaleString()}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-3">
                     <div>
                       <p className="text-muted-foreground">Upload Date</p>
                       <p className="font-medium">{upload.date}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Blockchain TX</p>
-                      <p className="font-medium font-mono text-xs">
-                        {upload.blockchainTx}
-                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Status</p>
@@ -843,14 +858,45 @@ export default function UploadPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="mb-3">
+                    <p className="text-muted-foreground text-sm mb-1">
+                      Blockchain Transaction
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium font-mono text-xs bg-muted px-2 py-1 rounded truncate flex-1">
+                        {upload.blockchainTx}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(
+                              String(upload.blockchainTx)
+                            );
+                            // Simple alert for now - you could replace with a proper toast
+                            alert("Transaction hash copied to clipboard!");
+                          } catch (err) {
+                            console.error("Failed to copy:", err);
+                          }
+                        }}
+                        title="Copy transaction hash"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleViewUploadDetails(upload.id)}
                     >
                       <Eye className="w-3 h-3 mr-1" />
-                      View Details
+                      <span className="hidden sm:inline">View Details</span>
+                      <span className="sm:hidden">View</span>
                     </Button>
                     {uploadResult?.validationResult && (
                       <Button
@@ -859,7 +905,8 @@ export default function UploadPage() {
                         onClick={() => setShowValidationResults(true)}
                       >
                         <FileText className="w-3 h-3 mr-1" />
-                        Validation
+                        <span className="hidden sm:inline">Validation</span>
+                        <span className="sm:hidden">Valid</span>
                       </Button>
                     )}
                     <Button
@@ -868,7 +915,8 @@ export default function UploadPage() {
                       onClick={() => handleDownloadTemplate()}
                     >
                       <Download className="w-3 h-3 mr-1" />
-                      Download
+                      <span className="hidden sm:inline">Download</span>
+                      <span className="sm:hidden">DL</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -876,7 +924,8 @@ export default function UploadPage() {
                       onClick={() => handleViewAnalytics()}
                     >
                       <BarChart3 className="w-3 h-3 mr-1" />
-                      Analytics
+                      <span className="hidden sm:inline">Analytics</span>
+                      <span className="sm:hidden">Stats</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -885,7 +934,8 @@ export default function UploadPage() {
                       onClick={() => handleDeleteUpload(upload.id)}
                     >
                       <Trash2 className="w-3 h-3 mr-1" />
-                      Delete
+                      <span className="hidden sm:inline">Delete</span>
+                      <span className="sm:hidden">Del</span>
                     </Button>
                   </div>
                 </div>

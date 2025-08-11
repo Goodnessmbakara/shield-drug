@@ -88,11 +88,10 @@ const QRCodeSchema: Schema = new Schema({
 });
 
 // Create indexes for better query performance
-QRCodeSchema.index({ qrId: 1 });
 QRCodeSchema.index({ uploadId: 1 });
 QRCodeSchema.index({ batchId: 1 });
 QRCodeSchema.index({ isScanned: 1 });
 QRCodeSchema.index({ manufacturer: 1 });
 QRCodeSchema.index({ drugName: 1 });
 
-export default mongoose.models.QRCode || mongoose.model<IQRCode>('QRCode', QRCodeSchema); 
+export default mongoose.models.QRCode || mongoose.model<IQRCode>('QRCode', QRCodeSchema);

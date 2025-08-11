@@ -32,7 +32,7 @@ export default function ConsumerDashboardPage() {
 
   return (
     <DashboardLayout userRole="consumer" userName={userEmail}>
-      <ConsumerDashboard />
+      <ConsumerDashboard userEmail={userEmail} />
     </DashboardLayout>
   );
 }

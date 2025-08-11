@@ -12,7 +12,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -24,7 +23,6 @@ import {
   Package,
   Upload,
   Search,
-  Filter,
   BarChart3,
   TrendingUp,
   CheckCircle,
@@ -35,11 +33,8 @@ import {
   Edit,
   Trash2,
   Download,
-  Calendar,
   Hash,
-  Globe,
   Activity,
-  Users,
   FileText,
 } from "lucide-react";
 
@@ -50,7 +45,7 @@ export default function BatchesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDrug, setFilterDrug] = useState("all");
-  const [showUploadModal, setShowUploadModal] = useState(false);
+
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showReports, setShowReports] = useState(false);
 
@@ -194,11 +189,6 @@ export default function BatchesPage() {
 
   const uniqueDrugs = Array.from(new Set(batches.map((batch) => batch.drug)));
 
-  const handleUploadBatch = () => {
-    setShowUploadModal(true);
-    router.push("/manufacturer/upload");
-  };
-
   const handleGenerateQRCodes = () => {
     router.push("/manufacturer/qr-codes");
   };
@@ -314,7 +304,12 @@ export default function BatchesPage() {
               Upload, track, and manage drug batches with QR code generation
             </p>
           </div>
-          <Button variant="hero" size="lg" className="w-full sm:w-auto">
+          <Button
+            variant="hero"
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={() => router.push("/manufacturer/upload")}
+          >
             <Upload className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Upload New Batch</span>
             <span className="sm:hidden">Upload Batch</span>
@@ -450,71 +445,9 @@ export default function BatchesPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Batch Upload */}
-          <Card className="shadow-soft lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Upload New Batch
-              </CardTitle>
-              <CardDescription>
-                Register a new drug batch for QR code generation
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="drug">Drug Name</Label>
-                <Input id="drug" placeholder="Enter drug name" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Batch Quantity</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  placeholder="Enter quantity"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="manufacturer">Manufacturer</Label>
-                <Input id="manufacturer" placeholder="Enter manufacturer" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="location">Production Location</Label>
-                <Input id="location" placeholder="Enter location" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="expiry">Expiry Date</Label>
-                <Input id="expiry" type="date" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="compliance">Compliance Status</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="approved">NAFDAC Approved</SelectItem>
-                    <SelectItem value="pending">Pending Approval</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button className="w-full">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Batch
-              </Button>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-1 gap-4 sm:gap-6">
           {/* Batches List */}
-          <Card className="shadow-soft lg:col-span-2">
+          <Card className="shadow-soft">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -806,7 +739,7 @@ export default function BatchesPage() {
                 variant="default"
                 size="lg"
                 className="h-20 flex-col"
-                onClick={handleUploadBatch}
+                onClick={() => router.push("/manufacturer/upload")}
               >
                 <Upload className="h-6 w-6 mb-2" />
                 Upload Batch

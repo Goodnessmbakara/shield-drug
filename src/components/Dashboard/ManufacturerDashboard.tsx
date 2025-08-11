@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,63 +20,181 @@ import {
   CheckCircle,
   Clock,
   Database,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 export default function ManufacturerDashboard() {
   const router = useRouter();
-  const [batches] = useState([
-    {
-      id: "CT2024001",
-      drug: "Coartem",
-      quantity: 10000,
-      status: "active",
-      qrGenerated: true,
-      verifications: 1250,
-    },
-    {
-      id: "AX2024002",
-      drug: "Amoxil",
-      quantity: 5000,
-      status: "pending",
-      qrGenerated: false,
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<{
+    batches: Array<{
+      id: string;
+      drug: string;
+      quantity: number;
+      status: string;
+      qrGenerated: boolean;
+      verifications: number;
+    }>;
+    stats: {
+      totalBatches: number;
+      activeBatches: number;
+      totalQRCodes: number;
+      verifications: number;
+      authenticityRate: number;
+    };
+  }>({
+    batches: [],
+    stats: {
+      totalBatches: 0,
+      activeBatches: 0,
+      totalQRCodes: 0,
       verifications: 0,
+      authenticityRate: 0,
     },
-    {
-      id: "PD2024003",
-      drug: "Panadol",
-      quantity: 15000,
-      status: "active",
-      qrGenerated: true,
-      verifications: 3420,
-    },
-  ]);
+  });
 
-  const stats = {
-    totalBatches: 247,
-    activeBatches: 156,
-    totalQRCodes: 2890000,
-    verifications: 145670,
-    authenticityRate: 98.7,
-  };
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const userEmail = localStorage.getItem("userEmail");
+        if (!userEmail) {
+          setError("User email not found");
+          setLoading(false);
+          return;
+        }
+        setUserEmail(userEmail);
+
+        const response = await fetch(
+          `/api/manufacturer/dashboard?userEmail=${encodeURIComponent(userEmail)}`
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setDashboardData(data);
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch dashboard data"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const { batches, stats } = dashboardData;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
+      case "completed":
         return (
           <Badge className="bg-success text-success-foreground">Active</Badge>
         );
       case "pending":
+      case "validating":
+      case "uploading":
         return (
           <Badge className="bg-warning text-warning-foreground">Pending</Badge>
         );
       case "expired":
+      case "failed":
         return (
-          <Badge className="bg-danger text-danger-foreground">Expired</Badge>
+          <Badge className="bg-danger text-danger-foreground">Failed</Badge>
         );
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+              Manufacturer Dashboard
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Manage drug batches, generate QR codes, and monitor verification
+              analytics
+            </p>
+          </div>
+          <Button
+            variant="hero"
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={() => router.push("/manufacturer/upload")}
+          >
+            <Upload className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">Upload New Batch</span>
+            <span className="sm:hidden">Upload Batch</span>
+          </Button>
+        </div>
+
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading dashboard data...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+              Manufacturer Dashboard
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Manage drug batches, generate QR codes, and monitor verification
+              analytics
+            </p>
+          </div>
+          <Button
+            variant="hero"
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={() => router.push("/manufacturer/upload")}
+          >
+            <Upload className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">Upload New Batch</span>
+            <span className="sm:hidden">Upload Batch</span>
+          </Button>
+        </div>
+
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="font-medium">Error loading dashboard data</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">{error}</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -112,7 +230,7 @@ export default function ManufacturerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalBatches}</div>
-            <p className="text-xs text-muted-foreground">+23 this month</p>
+            <p className="text-xs text-muted-foreground">Total uploaded</p>
           </CardContent>
         </Card>
 
@@ -138,7 +256,11 @@ export default function ManufacturerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(stats.totalQRCodes / 1000000).toFixed(1)}M
+              {stats.totalQRCodes >= 1000000
+                ? (stats.totalQRCodes / 1000000).toFixed(1) + "M"
+                : stats.totalQRCodes >= 1000
+                ? (stats.totalQRCodes / 1000).toFixed(1) + "K"
+                : stats.totalQRCodes.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">Generated total</p>
           </CardContent>
@@ -153,7 +275,7 @@ export default function ManufacturerDashboard() {
             <div className="text-2xl font-bold">
               {stats.verifications.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">+8.2% this week</p>
+            <p className="text-xs text-muted-foreground">Total verifications</p>
           </CardContent>
         </Card>
 
@@ -168,9 +290,7 @@ export default function ManufacturerDashboard() {
             <div className="text-2xl font-bold text-success">
               {stats.authenticityRate}%
             </div>
-            <p className="text-xs text-muted-foreground">
-              Above industry average
-            </p>
+            <p className="text-xs text-muted-foreground">Authenticity rate</p>
           </CardContent>
         </Card>
       </div>
@@ -187,51 +307,63 @@ export default function ManufacturerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {batches.map((batch) => (
-                <div
-                  key={batch.id}
-                  className="p-4 border border-border rounded-lg"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="font-medium">{batch.drug}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Batch ID: {batch.id}
-                      </p>
+              {batches.length > 0 ? (
+                batches.map((batch) => (
+                  <div
+                    key={batch.id}
+                    className="p-4 border border-border rounded-lg"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="font-medium">{batch.drug}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Batch ID: {batch.id}
+                        </p>
+                      </div>
+                      {getStatusBadge(batch.status)}
                     </div>
-                    {getStatusBadge(batch.status)}
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Quantity</p>
-                      <p className="font-medium">
-                        {batch.quantity.toLocaleString()} units
-                      </p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Quantity</p>
+                        <p className="font-medium">
+                          {batch.quantity.toLocaleString()} units
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Verifications</p>
+                        <p className="font-medium">
+                          {batch.verifications.toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Verifications</p>
-                      <p className="font-medium">
-                        {batch.verifications.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-2 mt-3">
-                    {batch.qrGenerated ? (
-                      <Badge variant="outline" className="text-xs">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        QR Generated
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Pending QR
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2 mt-3">
+                      {batch.qrGenerated ? (
+                        <Badge variant="outline" className="text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          QR Generated
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Pending QR
+                        </Badge>
+                      )}
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-2">
+                    No batches uploaded yet
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Upload your first drug batch to get started
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
             <Button
               variant="outline"
@@ -266,29 +398,29 @@ export default function ManufacturerDashboard() {
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Transaction Success Rate</span>
-                  <span className="font-medium">99.8%</span>
+                  <span>Connected Network</span>
+                  <span className="font-medium">Polygon Amoy</span>
                 </div>
-                <Progress value={99.8} className="h-2" />
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Gas Optimization</span>
-                  <span className="font-medium">87%</span>
+                  <span>Contract Status</span>
+                  <span className="font-medium text-success">Deployed</span>
                 </div>
-                <Progress value={87} className="h-2" />
               </div>
 
               <div className="pt-4 border-t">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Pending Txns</p>
-                    <p className="font-medium">3</p>
+                    <p className="text-muted-foreground">Total Batches</p>
+                    <p className="font-medium">{stats.totalBatches}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Daily Volume</p>
-                    <p className="font-medium">12,847</p>
+                    <p className="text-muted-foreground">QR Codes</p>
+                    <p className="font-medium">
+                      {stats.totalQRCodes.toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </div>

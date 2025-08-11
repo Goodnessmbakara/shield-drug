@@ -1,7 +1,7 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  console.log("🚀 Deploying PharmaceuticalData contract to Polygon Amoy...");
+  console.log("🚀 Deploying PharmaceuticalData contract to Avalanche Fuji...");
 
   // Get the contract factory
   const PharmaceuticalData = await ethers.getContractFactory("PharmaceuticalData");
@@ -18,9 +18,9 @@ async function main() {
   const address = await pharmaceuticalData.getAddress();
   console.log("✅ Contract deployed successfully!");
   console.log("📍 Contract Address:", address);
-  console.log("🌐 View on Amoy Polygonscan:", `https://amoy.polygonscan.com/address/${address}`);
+  console.log("🌐 View on Fuji Snowtrace:", `https://testnet.snowtrace.io/address/${address}`);
 
-  // Verify the contract (optional for Amoy)
+  // Verify the contract (optional for Avalanche)
   console.log("🔍 Verifying contract...");
   try {
     await pharmaceuticalData.deploymentTransaction()?.wait(5); // Wait for 5 confirmations
@@ -37,12 +37,12 @@ async function main() {
 
   // Save deployment info
   const deploymentInfo = {
-    network: "Polygon Amoy Testnet",
+    network: "Avalanche Fuji Testnet",
     contractAddress: address,
     deployer: await pharmaceuticalData.runner?.getAddress(),
     deploymentTime: new Date().toISOString(),
-    chainId: 80002,
-    explorerUrl: `https://amoy.polygonscan.com/address/${address}`,
+    chainId: 43113,
+    explorerUrl: `https://testnet.snowtrace.io/address/${address}`,
   };
 
   console.log("\n📋 Deployment Summary:");
@@ -51,7 +51,7 @@ async function main() {
   // Update environment file
   console.log("\n🔧 Updating environment configuration...");
   console.log("Please update your .env.local file with:");
-  console.log(`POLYGON_CONTRACT_ADDRESS=${address}`);
+  console.log(`AVALANCHE_CONTRACT_ADDRESS=${address}`);
 
   return deploymentInfo;
 }
@@ -65,4 +65,4 @@ main()
   .catch((error) => {
     console.error("❌ Deployment failed:", error);
     process.exit(1);
-  }); 
+  });

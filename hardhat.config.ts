@@ -15,33 +15,27 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    amoy: {
-      url: process.env.POLYGON_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Is8yBI6q-15CZYr4ySEfU0xnh6b-X2sz",
-      accounts: process.env.POLYGON_PRIVATE_KEY ? [process.env.POLYGON_PRIVATE_KEY] : [],
-      chainId: 80002,
-    },
-    mumbai: {
-      url: process.env.POLYGON_RPC_URL || "https://polygon-mumbai.infura.io/v3/your-infura-project-id",
-      accounts: process.env.POLYGON_PRIVATE_KEY ? [process.env.POLYGON_PRIVATE_KEY] : [],
-      chainId: 80001,
+    avalancheFuji: {
+      url: process.env.AVALANCHE_RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc",
+      accounts: process.env.AVALANCHE_PRIVATE_KEY ? [process.env.AVALANCHE_PRIVATE_KEY] : [],
+      chainId: Number(process.env.AVALANCHE_CHAIN_ID) || 43113,
     },
   },
   etherscan: {
     apiKey: {
-      amoy: "not-needed", // Amoy doesn't need API key for verification
-      mumbai: process.env.POLYGONSCAN_API_KEY || "",
+      avalancheFuji: "not-needed", // Fuji doesn't need API key for verification
     },
     customChains: [
       {
-        network: "amoy",
-        chainId: 80002,
+        network: "avalancheFuji",
+        chainId: 43113,
         urls: {
-          apiURL: "https://amoy.polygonscan.com/api",
-          browserURL: "https://amoy.polygonscan.com",
+          apiURL: "https://testnet.snowtrace.io/api",
+          browserURL: "https://testnet.snowtrace.io",
         },
       },
     ],
   },
 };
 
-export default config; 
+export default config;

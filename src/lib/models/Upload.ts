@@ -160,4 +160,4 @@ UploadSchema.index({ status: 1 });
 UploadSchema.index({ manufacturer: 1 });
 UploadSchema.index({ drug: 1 });
 
-export default mongoose.models.Upload || mongoose.model<IUpload>('Upload', UploadSchema); 
+export default mongoose.models.Upload || mongoose.model<IUpload>('Upload', UploadSchema);
