@@ -70,7 +70,9 @@ export default function ManufacturerDashboard() {
         setUserEmail(userEmail);
 
         const response = await fetch(
-          `/api/manufacturer/dashboard?userEmail=${encodeURIComponent(userEmail)}`
+          `/api/manufacturer/dashboard?userEmail=${encodeURIComponent(
+            userEmail
+          )}`
         );
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

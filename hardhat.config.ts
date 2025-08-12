@@ -17,8 +17,14 @@ const config: HardhatUserConfig = {
   networks: {
     avalancheFuji: {
       url: process.env.AVALANCHE_RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc",
-      accounts: process.env.AVALANCHE_PRIVATE_KEY ? [process.env.AVALANCHE_PRIVATE_KEY] : [],
-      chainId: Number(process.env.AVALANCHE_CHAIN_ID) || 43113,
+      accounts:
+        process.env.AVALANCHE_PRIVATE_KEY && process.env.AVALANCHE_PRIVATE_KEY !== ""
+          ? [process.env.AVALANCHE_PRIVATE_KEY]
+          : [],
+      chainId:
+        process.env.AVALANCHE_CHAIN_ID && process.env.AVALANCHE_CHAIN_ID !== ""
+          ? Number(process.env.AVALANCHE_CHAIN_ID)
+          : 43113,
     },
   },
   etherscan: {
