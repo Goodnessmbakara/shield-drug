@@ -37,25 +37,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get network information
     const networkInfo = await blockchainService.getNetworkInfo();
     
-    // Check if we're on the correct network (Polygon Mumbai testnet)
-    const isCorrectNetwork = networkInfo.chainId === 80001;
+    // Check if we're on the correct network (Avalanche C-Chain)
+    const isCorrectNetwork = networkInfo.chainId === 43114;
     
     const status = {
       success: true,
       status: 'connected',
       network: {
-        name: 'Polygon Mumbai Testnet',
+        name: 'Avalanche C-Chain',
         chainId: networkInfo.chainId,
         blockNumber: networkInfo.blockNumber,
         gasPrice: networkInfo.gasPrice,
         isCorrectNetwork
       },
       contract: {
-        address: process.env.POLYGON_CONTRACT_ADDRESS || 'Not configured',
-        isConfigured: !!process.env.POLYGON_CONTRACT_ADDRESS
+        address: process.env.AVALANCHE_CONTRACT_ADDRESS || 'Not configured',
+        isConfigured: !!process.env.AVALANCHE_CONTRACT_ADDRESS
       },
       wallet: {
-        isConfigured: !!process.env.POLYGON_PRIVATE_KEY,
+        isConfigured: !!process.env.AVALANCHE_PRIVATE_KEY,
         hasBalance: true // In a real app, you'd check actual balance
       },
       timestamp: new Date().toISOString()

@@ -30,7 +30,7 @@ async function main() {
       constructorArguments: [],
     });
     
-    console.log("✅ Contract verified on Polygonscan!");
+    console.log("✅ Contract verified on Snowtrace!");
   } catch (error) {
     console.log("⚠️ Contract verification failed (this is normal for Amoy):", error);
   }

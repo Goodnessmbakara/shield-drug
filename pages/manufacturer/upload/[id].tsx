@@ -285,9 +285,9 @@ export default function UploadDetailsPage() {
   };
 
   const handleViewBlockchain = () => {
-    // Open Polygon Mumbai testnet explorer
+    // Open Avalanche C-Chain explorer
     window.open(
-      `https://mumbai.polygonscan.com/tx/${uploadDetails?.blockchainTx}`,
+      `https://snowtrace.io/tx/${uploadDetails?.blockchainTx}`,
       "_blank"
     );
   };
@@ -596,7 +596,7 @@ export default function UploadDetailsPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Network</p>
                     <Badge className="bg-purple-100 text-purple-800 border-purple-200">
-                      Polygon Mumbai Testnet
+                      Avalanche C-Chain
                     </Badge>
                   </div>
                   <div>
@@ -635,7 +635,7 @@ export default function UploadDetailsPage() {
                   onClick={handleViewBlockchain}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
-                  View on PolygonScan
+                                          View on Snowtrace
                 </Button>
               </CardContent>
             </Card>

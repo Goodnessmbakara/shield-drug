@@ -1,5 +1,5 @@
 const { createPublicClient, http } = require('viem');
-const { polygonAmoy } = require('viem/chains');
+const { avalancheFuji } = require('viem/chains');
 require('dotenv').config({ path: '.env.local' });
 
 // Smart Contract ABI for checking authorization
@@ -41,9 +41,9 @@ const CONTRACT_ABI = [
 async function checkAuthorization() {
   try {
     // Get environment variables
-    const rpcUrl = process.env.POLYGON_RPC_URL;
-    const privateKey = process.env.POLYGON_PRIVATE_KEY;
-    const contractAddress = process.env.POLYGON_CONTRACT_ADDRESS;
+    const rpcUrl = process.env.AVALANCHE_RPC_URL;
+const privateKey = process.env.AVALANCHE_PRIVATE_KEY;
+const contractAddress = process.env.AVALANCHE_CONTRACT_ADDRESS;
 
     if (!rpcUrl || !privateKey || !contractAddress) {
       console.error('❌ Missing required environment variables');
@@ -54,7 +54,7 @@ async function checkAuthorization() {
 
     // Create public client
     const publicClient = createPublicClient({
-      chain: polygonAmoy,
+      chain: avalancheFuji,
       transport: http(rpcUrl),
     });
 

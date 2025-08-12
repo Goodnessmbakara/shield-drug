@@ -81,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             status: qrCode.blockchainTx?.status,
             blockNumber: qrCode.blockchainTx?.blockNumber,
             explorerUrl: qrCode.blockchainTx?.hash 
-              ? `https://amoy.polygonscan.com/tx/${qrCode.blockchainTx.hash}`
+              ? `https://snowtrace.io/tx/${qrCode.blockchainTx.hash}`
               : undefined,
           },
         },

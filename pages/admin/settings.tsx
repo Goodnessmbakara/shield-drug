@@ -419,7 +419,7 @@ export default function AdminSettingsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ethereum">Ethereum Mainnet</SelectItem>
-                  <SelectItem value="polygon">Polygon</SelectItem>
+                  <SelectItem value="avalanche">Avalanche</SelectItem>
                   <SelectItem value="bsc">Binance Smart Chain</SelectItem>
                   <SelectItem value="testnet">Testnet</SelectItem>
                 </SelectContent>

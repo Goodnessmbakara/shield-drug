@@ -2,7 +2,7 @@
 
 const { createPublicClient, http, createWalletClient } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
-const { polygonAmoy } = require('viem/chains');
+const { avalancheFuji } = require('viem/chains');
 
 async function testQRCodeGeneration() {
   console.log('🔗 Testing QR Code Generation with Real Blockchain Transactions\n');
@@ -11,9 +11,9 @@ async function testQRCodeGeneration() {
     // Load environment variables
     require('dotenv').config({ path: '.env.local' });
     
-    const rpcUrl = process.env.POLYGON_RPC_URL;
-    const privateKey = process.env.POLYGON_PRIVATE_KEY;
-    const contractAddress = process.env.POLYGON_CONTRACT_ADDRESS;
+      const rpcUrl = process.env.AVALANCHE_RPC_URL;
+  const privateKey = process.env.AVALANCHE_PRIVATE_KEY;
+  const contractAddress = process.env.AVALANCHE_CONTRACT_ADDRESS;
 
     console.log('📋 Environment Check:');
     console.log(`RPC URL: ${rpcUrl ? '✅ Configured' : '❌ Not configured'}`);
@@ -27,19 +27,19 @@ async function testQRCodeGeneration() {
 
     // Initialize blockchain connection
     console.log('\n🔗 Initializing blockchain connection...');
-    const publicClient = createPublicClient({
-      chain: polygonAmoy,
-      transport: http(rpcUrl),
-    });
+      const publicClient = createPublicClient({
+    chain: avalancheFuji,
+    transport: http(rpcUrl),
+  });
 
     const formattedPrivateKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
     const account = privateKeyToAccount(formattedPrivateKey);
     
-    const walletClient = createWalletClient({
-      chain: polygonAmoy,
-      transport: http(rpcUrl),
-      account: account,
-    });
+      const walletClient = createWalletClient({
+    chain: avalancheFuji,
+    transport: http(rpcUrl),
+    account: account,
+  });
 
     console.log('✅ Blockchain connection initialized');
     console.log(`Wallet Address: ${account.address}`);
@@ -135,16 +135,16 @@ async function testQRCodeGeneration() {
     console.log('\n🎉 QR Code Generation Test Complete!');
     console.log('\n🔗 Your QR code system is now:');
     console.log('   ✅ Ready for real blockchain transactions');
-    console.log('   ✅ Connected to Polygon Amoy testnet');
+    console.log('   ✅ Connected to Avalanche Fuji testnet');
     console.log('   ✅ Smart contract deployed and configured');
     console.log('   ✅ Wallet connected with sufficient balance');
     console.log('   ✅ API endpoints ready for integration');
 
     // Show real blockchain explorer URLs
     console.log('\n🌐 Real Blockchain Explorer URLs:');
-    console.log(`   Contract: https://amoy.polygonscan.com/address/${contractAddress}`);
-    console.log(`   Wallet: https://amoy.polygonscan.com/address/${account.address}`);
-    console.log(`   Network: https://amoy.polygonscan.com/`);
+      console.log(`   Contract: https://testnet.snowtrace.io/address/${contractAddress}`);
+  console.log(`   Wallet: https://testnet.snowtrace.io/address/${account.address}`);
+  console.log(`   Network: https://testnet.snowtrace.io/`);
 
     console.log('\n🚀 Next Steps:');
     console.log('1. Start your development server: npm run dev');

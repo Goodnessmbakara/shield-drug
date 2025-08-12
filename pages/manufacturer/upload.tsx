@@ -962,7 +962,7 @@ export default function UploadPage() {
                   <span className="text-sm font-medium">Network Status</span>
                   <Badge className="bg-purple-100 text-purple-800 border-purple-200">
                     <div className="w-2 h-2 bg-current rounded-full mr-1 animate-pulse"></div>
-                    Polygon Mumbai Testnet
+                    Avalanche C-Chain
                   </Badge>
                 </div>
 

@@ -51,7 +51,7 @@ const LearnMore = () => {
       icon: Shield,
       title: "Blockchain Security",
       description:
-        "Immutable drug authenticity records stored on Polygon network ensuring tamper-proof verification",
+        "Immutable drug authenticity records stored on Avalanche network ensuring tamper-proof verification",
       details:
         "Every drug verification is permanently recorded on the blockchain, creating an unbreakable chain of custody from manufacturer to consumer.",
       color: "text-primary",

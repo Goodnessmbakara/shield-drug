@@ -29,7 +29,7 @@ const Index = () => {
     {
       icon: Shield,
       title: "Blockchain Verification",
-      description: "Immutable drug authenticity records on Polygon network",
+              description: "Immutable drug authenticity records on Avalanche network",
       color: "text-primary",
     },
     {

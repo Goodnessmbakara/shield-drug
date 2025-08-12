@@ -401,7 +401,7 @@ export default function ManufacturerDashboard() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Connected Network</span>
-                  <span className="font-medium">Polygon Amoy</span>
+                  <span className="font-medium">Avalanche C-Chain</span>
                 </div>
               </div>
 

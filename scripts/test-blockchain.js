@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 const { createPublicClient, http, createWalletClient } = require('viem');
-const { polygonAmoy } = require('viem/chains');
+const { avalancheFuji } = require('viem/chains');
 
 async function testBlockchainConnection() {
   console.log('🔗 Testing Blockchain Connection with Viem\n');
   
   // Check environment variables
-  const rpcUrl = process.env.POLYGON_RPC_URL;
-  const privateKey = process.env.POLYGON_PRIVATE_KEY;
+  const rpcUrl = process.env.AVALANCHE_RPC_URL;
+  const privateKey = process.env.AVALANCHE_PRIVATE_KEY;
   
   console.log('📋 Environment Check:');
   console.log(`RPC URL: ${rpcUrl ? '✅ Configured' : '❌ Not configured'}`);
@@ -23,25 +23,25 @@ async function testBlockchainConnection() {
   try {
     // Test provider connection
     console.log('\n🔗 Testing RPC Connection...');
-    const publicClient = createPublicClient({
-      chain: polygonAmoy,
-      transport: http(rpcUrl),
-    });
+      const publicClient = createPublicClient({
+    chain: avalancheFuji,
+    transport: http(rpcUrl),
+  });
     
     const blockNumber = await publicClient.getBlockNumber();
     const gasPrice = await publicClient.getGasPrice();
-    const chainId = polygonAmoy.id;
+    const chainId = avalancheFuji.id;
     
     console.log('✅ RPC Connection Successful!');
-    console.log(`Network: ${polygonAmoy.name} (Chain ID: ${chainId})`);
+    console.log(`Network: ${avalancheFuji.name} (Chain ID: ${chainId})`);
     console.log(`Current Block: ${blockNumber}`);
     console.log(`Gas Price: ${gasPrice} wei`);
     
     if (chainId !== 80002) {
-      console.log('⚠️  Warning: Not connected to Polygon Amoy testnet!');
+      console.log('⚠️  Warning: Not connected to Avalanche Fuji testnet!');
       console.log('Expected Chain ID: 80002, Got:', chainId);
     } else {
-      console.log('✅ Connected to Polygon Amoy testnet!');
+      console.log('✅ Connected to Avalanche Fuji testnet!');
     }
     
     // Test wallet if private key is configured
@@ -57,7 +57,7 @@ async function testBlockchainConnection() {
         const account = privateKeyToAccount(formattedPrivateKey);
         
         const walletClient = createWalletClient({
-          chain: polygonAmoy,
+          chain: avalancheFuji,
           transport: http(rpcUrl),
           account: account,
         });
@@ -71,7 +71,7 @@ async function testBlockchainConnection() {
         
         if (balance === 0n) {
           console.log('⚠️  Warning: Wallet has 0 MATIC');
-          console.log('💡 Get test tokens from: https://faucet.polygon.technology/');
+          console.log('💡 Get test tokens from: https://faucet.avax.network/');
         } else {
           console.log('✅ Wallet has sufficient balance for transactions');
         }
@@ -117,7 +117,7 @@ async function testBlockchainConnection() {
     } else {
       console.log('\n⚠️  Some configuration is missing:');
       if (chainId !== 80002) {
-        console.log('   • Wrong network (should be Polygon Amoy)');
+        console.log('   • Wrong network (should be Avalanche Fuji)');
       }
       if (!privateKey || privateKey === 'your-private-key-here') {
         console.log('   • Private key not configured');

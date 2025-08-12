@@ -10,7 +10,7 @@ const rl = readline.createInterface({
 });
 
 console.log('🚀 Shield Drug Blockchain Setup\n');
-console.log('This script will help you configure a real blockchain connection for Polygon Mumbai testnet.\n');
+console.log('This script will help you configure a real blockchain connection for Avalanche Fuji testnet.\n');
 
 async function askQuestion(question) {
   return new Promise((resolve) => {
@@ -41,11 +41,11 @@ async function setupBlockchain() {
         console.log('1. Go to https://www.alchemy.com/');
         console.log('2. Sign up for a free account');
         console.log('3. Create a new app');
-        console.log('4. Select "Polygon" network');
+        console.log('4. Select "Avalanche" network');
         console.log('5. Copy your API key');
         
         const alchemyKey = await askQuestion('\nEnter your Alchemy API key: ');
-        rpcUrl = `https://polygon-mumbai.g.alchemy.com/v2/${alchemyKey}`;
+        rpcUrl = `https://avalanche-fuji.g.alchemy.com/v2/${alchemyKey}`;
         break;
         
       case '2':
@@ -54,11 +54,11 @@ async function setupBlockchain() {
         console.log('1. Go to https://infura.io/');
         console.log('2. Sign up for a free account');
         console.log('3. Create a new project');
-        console.log('4. Select "Polygon" network');
+        console.log('4. Select "Avalanche" network');
         console.log('5. Copy your project ID');
         
         const infuraProjectId = await askQuestion('\nEnter your Infura project ID: ');
-        rpcUrl = `https://polygon-mumbai.infura.io/v3/${infuraProjectId}`;
+        rpcUrl = `https://avalanche-fuji.infura.io/v3/${infuraProjectId}`;
         break;
         
       case '3':
@@ -67,7 +67,7 @@ async function setupBlockchain() {
         console.log('1. Go to https://www.quicknode.com/');
         console.log('2. Sign up for a free account');
         console.log('3. Create a new endpoint');
-        console.log('4. Select "Polygon Mumbai" network');
+        console.log('4. Select "Avalanche Fuji" network');
         console.log('5. Copy your HTTP provider URL');
         
         const quicknodeUrl = await askQuestion('\nEnter your QuickNode HTTP provider URL: ');
@@ -86,7 +86,7 @@ async function setupBlockchain() {
           return;
         }
         
-        rpcUrl = 'https://rpc-mumbai.maticvigil.com/';
+        rpcUrl = 'https://api.avax-test.network/ext/bc/C/rpc';
         break;
         
       default:
@@ -111,9 +111,9 @@ async function setupBlockchain() {
       console.log(`Current Block: ${blockNumber}`);
       console.log(`Gas Price: ${gasPrice.gasPrice?.toString() || 'Unknown'} wei`);
       
-      if (network.chainId !== 80001n) {
-        console.log('⚠️  Warning: You are not connected to Polygon Mumbai testnet!');
-        console.log('Expected Chain ID: 80001, Got:', network.chainId.toString());
+      if (network.chainId !== 43113n) {
+        console.log('⚠️  Warning: You are not connected to Avalanche Fuji testnet!');
+        console.log('Expected Chain ID: 43113, Got:', network.chainId.toString());
       }
       
     } catch (error) {
@@ -125,10 +125,10 @@ async function setupBlockchain() {
     
     // Get wallet private key
     console.log('\n🔑 Wallet Setup:');
-    console.log('You need a wallet with some test MATIC tokens.');
+    console.log('You need a wallet with some test AVAX tokens.');
     console.log('1. Install MetaMask: https://metamask.io/');
-    console.log('2. Add Polygon Mumbai testnet to MetaMask');
-    console.log('3. Get test MATIC from: https://faucet.polygon.technology/');
+    console.log('2. Add Avalanche Fuji testnet to MetaMask');
+    console.log('3. Get test AVAX from: https://faucet.avax.network/');
     console.log('4. Export your private key (for testing only)');
     
     const privateKey = await askQuestion('\nEnter your wallet private key (0x...): ');
@@ -161,20 +161,20 @@ async function setupBlockchain() {
     
     // Update RPC URL
     envContent = envContent.replace(
-      /POLYGON_RPC_URL=.*/,
-      `POLYGON_RPC_URL=${rpcUrl}`
+          /AVALANCHE_RPC_URL=.*/,
+    `AVALANCHE_RPC_URL=${rpcUrl}`
     );
     
     // Update private key
     envContent = envContent.replace(
-      /POLYGON_PRIVATE_KEY=.*/,
-      `POLYGON_PRIVATE_KEY=${privateKey}`
+          /AVALANCHE_PRIVATE_KEY=.*/,
+    `AVALANCHE_PRIVATE_KEY=${privateKey}`
     );
     
     // Add provider info
     envContent = envContent.replace(
       /# Blockchain Integration.*/,
-      `# Blockchain Integration (${providerName} - Polygon Mumbai Testnet)`
+      `# Blockchain Integration (${providerName} - Avalanche Fuji Testnet)`
     );
     
     fs.writeFileSync(envPath, envContent);
@@ -186,7 +186,7 @@ async function setupBlockchain() {
     
     console.log('\n📝 Next Steps:');
     console.log('1. Deploy the smart contract (see BLOCKCHAIN_SETUP.md)');
-    console.log('2. Update POLYGON_CONTRACT_ADDRESS in .env.local');
+    console.log('2. Update AVALANCHE_CONTRACT_ADDRESS in .env.local');
     console.log('3. Restart your development server');
     console.log('4. Test the blockchain integration');
     

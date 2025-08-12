@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isValid: true,
             blockchainConfirmed: blockchainStatus?.confirmed || false,
             explorerUrl: data.blockchainTx?.hash 
-              ? `https://amoy.polygonscan.com/tx/${data.blockchainTx.hash}`
+              ? `https://snowtrace.io/tx/${data.blockchainTx.hash}`
               : undefined,
           },
         },

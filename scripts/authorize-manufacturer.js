@@ -1,6 +1,6 @@
 const { createPublicClient, http, createWalletClient, getContract } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
-const { polygonAmoy } = require('viem/chains');
+const { avalancheFuji } = require('viem/chains');
 require('dotenv').config({ path: '.env.local' });
 
 // Smart Contract ABI for authorization functions
@@ -117,35 +117,35 @@ const CONTRACT_ABI = [
 async function authorizeManufacturer() {
   try {
     // Get environment variables
-    const rpcUrl = process.env.POLYGON_RPC_URL;
-    const privateKey = process.env.POLYGON_PRIVATE_KEY;
-    const contractAddress = process.env.POLYGON_CONTRACT_ADDRESS;
+      const rpcUrl = process.env.AVALANCHE_RPC_URL;
+  const privateKey = process.env.AVALANCHE_PRIVATE_KEY;
+  const contractAddress = process.env.AVALANCHE_CONTRACT_ADDRESS;
 
     if (!rpcUrl || !privateKey || !contractAddress) {
       console.error('❌ Missing required environment variables:');
-      console.error('   POLYGON_RPC_URL:', rpcUrl ? '✅ Set' : '❌ Missing');
-      console.error('   POLYGON_PRIVATE_KEY:', privateKey ? '✅ Set' : '❌ Missing');
-      console.error('   POLYGON_CONTRACT_ADDRESS:', contractAddress ? '✅ Set' : '❌ Missing');
+          console.error('   AVALANCHE_RPC_URL:', rpcUrl ? '✅ Set' : '❌ Missing');
+    console.error('   AVALANCHE_PRIVATE_KEY:', privateKey ? '✅ Set' : '❌ Missing');
+    console.error('   AVALANCHE_CONTRACT_ADDRESS:', contractAddress ? '✅ Set' : '❌ Missing');
       process.exit(1);
     }
 
     console.log('🔗 Initializing blockchain connection...');
 
     // Create public client
-    const publicClient = createPublicClient({
-      chain: polygonAmoy,
-      transport: http(rpcUrl),
-    });
+          const publicClient = createPublicClient({
+        chain: avalancheFuji,
+        transport: http(rpcUrl),
+      });
 
     // Create wallet client
     const formattedPrivateKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
     const account = privateKeyToAccount(formattedPrivateKey);
     
-    const walletClient = createWalletClient({
-      chain: polygonAmoy,
-      transport: http(rpcUrl),
-      account: account,
-    });
+          const walletClient = createWalletClient({
+        chain: avalancheFuji,
+        transport: http(rpcUrl),
+        account: account,
+      });
 
     console.log('✅ Blockchain clients initialized');
     console.log('👤 Account address:', account.address);
