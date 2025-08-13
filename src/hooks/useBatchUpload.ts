@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { UploadResponse, ValidationResult, UploadProgress, UploadStatus } from '@/lib/types';
 import { validateFileSize, validateFileType, generateCSVTemplate } from '@/lib/validation';
 
@@ -21,6 +21,44 @@ export function useBatchUpload(): UseBatchUploadReturn {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentUploadId, setCurrentUploadId] = useState<string | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Function to poll progress from the backend
+  const pollProgress = useCallback(async (uploadId: string) => {
+    try {
+      const response = await fetch(`/api/manufacturer/upload-progress?uploadId=${uploadId}`);
+      if (response.ok) {
+        const progress = await response.json();
+        setUploadProgress({
+          stage: progress.stage,
+          progress: progress.progress,
+          message: progress.message,
+          details: `Processed: ${progress.processedQuantity}/${progress.totalQuantity} | Time remaining: ${progress.estimatedTimeRemaining}s`
+        });
+        
+        if (progress.isComplete) {
+          // Stop polling when complete
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+          setCurrentUploadId(null);
+        }
+        
+        if (progress.error) {
+          setError(progress.error);
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+          setCurrentUploadId(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error polling progress:', error);
+    }
+  }, []);
 
   const validateFile = useCallback((file: File): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
@@ -119,45 +157,28 @@ export function useBatchUpload(): UseBatchUploadReturn {
         message: 'Recording on blockchain...'
       });
 
-      // The backend will handle the entire process including blockchain and QR generation
-      // We just need to wait for it to complete
+      // Get the response
       const result: UploadResponse = await response.json();
 
-      // Check if validation failed but we still got a response
-      if (!response.ok) {
-        if (result.validationResult && !result.validationResult.isValid) {
-          // Validation failed but we have detailed results
-          setUploadResult(result);
-          setError(`Validation failed: ${result.validationResult.errors.length} errors found`);
-          setUploadProgress({
-            stage: 'validation',
-            progress: 0,
-            message: 'Validation failed'
-          });
-          return;
-        } else {
-          // Other type of error
-          throw new Error(result.error || 'Upload failed');
+      // Start polling for progress updates
+      setCurrentUploadId(result.uploadId);
+      
+      // Start polling every 2 seconds
+      progressIntervalRef.current = setInterval(() => {
+        pollProgress(result.uploadId);
+      }, 2000);
+      
+      // Initial poll
+      pollProgress(result.uploadId);
+      
+      // Wait for completion by polling until done
+      while (currentUploadId) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (error) {
+          throw new Error(error);
         }
       }
-
-      // The backend has already completed QR code generation
-      // The result includes the actual qrCodesGenerated count
-      setUploadProgress({
-        stage: 'qr-generation',
-        progress: 90,
-        message: `Generated ${result.qrCodesGenerated} QR codes...`
-      });
-
-      // Brief delay to show completion
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      setUploadProgress({
-        stage: 'completed',
-        progress: 100,
-        message: 'Upload completed successfully!'
-      });
-
+      
       setUploadResult(result);
 
       // Store in upload history (in a real app, this would be managed by a global state)
@@ -193,6 +214,12 @@ export function useBatchUpload(): UseBatchUploadReturn {
         details: errorMessage
       });
     } finally {
+      // Clean up progress polling
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      setCurrentUploadId(null);
       setIsUploading(false);
     }
   }, [validateFile]);

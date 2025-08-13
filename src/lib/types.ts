@@ -1,3 +1,13 @@
+import { NextApiResponse } from 'next';
+
+export interface NextApiResponseServerIO extends NextApiResponse {
+  socket: any & {
+    server: any & {
+      io: any;
+    };
+  };
+}
+
 // Drug Batch Types
 export interface DrugBatch {
   id: string;
