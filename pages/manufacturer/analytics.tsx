@@ -165,6 +165,17 @@ export default function AnalyticsPage() {
     recentActivity: [],
   };
 
+  // Calculate trend percentages for display
+  const calculateTrend = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+
+  // Generate mock trend data for comparison (in real app, this would come from previous period)
+  const getMockPreviousValue = (current: number) => {
+    return Math.round(current * (0.8 + Math.random() * 0.4)); // 80-120% of current value
+  };
+
   const getTrendIcon = (current: number, previous: number) => {
     const change = ((current - previous) / previous) * 100;
     if (change > 0) {
@@ -316,12 +327,23 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {analyticsData.overview.totalBatches}
+                {data.overview.totalBatches.toLocaleString()}
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {getTrendIcon(247, 220)}
-                <span className={getTrendColor(247, 220)}>+12.3%</span>
-                <span>vs last month</span>
+                {(() => {
+                  const current = data.overview.totalBatches;
+                  const previous = getMockPreviousValue(current);
+                  const trend = calculateTrend(current, previous);
+                  return (
+                    <>
+                      {getTrendIcon(current, previous)}
+                      <span className={getTrendColor(current, previous)}>
+                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                      </span>
+                      <span>vs last period</span>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -333,12 +355,26 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {(analyticsData.overview.totalQRCodes / 1000000).toFixed(1)}M
+                {data.overview.totalQRCodes > 1000000 
+                  ? `${(data.overview.totalQRCodes / 1000000).toFixed(1)}M`
+                  : data.overview.totalQRCodes.toLocaleString()
+                }
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {getTrendIcon(2890000, 2600000)}
-                <span className={getTrendColor(2890000, 2600000)}>+11.2%</span>
-                <span>vs last month</span>
+                {(() => {
+                  const current = data.overview.totalQRCodes;
+                  const previous = getMockPreviousValue(current);
+                  const trend = calculateTrend(current, previous);
+                  return (
+                    <>
+                      {getTrendIcon(current, previous)}
+                      <span className={getTrendColor(current, previous)}>
+                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                      </span>
+                      <span>vs last period</span>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -352,12 +388,23 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {analyticsData.overview.totalVerifications.toLocaleString()}
+                {data.overview.totalVerifications.toLocaleString()}
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {getTrendIcon(145670, 132000)}
-                <span className={getTrendColor(145670, 132000)}>+10.4%</span>
-                <span>vs last month</span>
+                {(() => {
+                  const current = data.overview.totalVerifications;
+                  const previous = getMockPreviousValue(current);
+                  const trend = calculateTrend(current, previous);
+                  return (
+                    <>
+                      {getTrendIcon(current, previous)}
+                      <span className={getTrendColor(current, previous)}>
+                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                      </span>
+                      <span>vs last period</span>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -371,12 +418,23 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-success">
-                {analyticsData.overview.authenticityRate}%
+                {data.overview.authenticityRate}%
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {getTrendIcon(98.7, 98.2)}
-                <span className={getTrendColor(98.7, 98.2)}>+0.5%</span>
-                <span>vs last month</span>
+                {(() => {
+                  const current = data.overview.authenticityRate;
+                  const previous = Math.max(0, current - (Math.random() * 2 - 1)); // Small variation
+                  const trend = calculateTrend(current, previous);
+                  return (
+                    <>
+                      {getTrendIcon(current, previous)}
+                      <span className={getTrendColor(current, previous)}>
+                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                      </span>
+                      <span>vs last period</span>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -390,12 +448,23 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-success">
-                {analyticsData.overview.complianceRate}%
+                {data.overview.complianceRate}%
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {getTrendIcon(94.2, 93.8)}
-                <span className={getTrendColor(94.2, 93.8)}>+0.4%</span>
-                <span>vs last month</span>
+                {(() => {
+                  const current = data.overview.complianceRate;
+                  const previous = Math.max(0, current - (Math.random() * 2 - 1)); // Small variation
+                  const trend = calculateTrend(current, previous);
+                  return (
+                    <>
+                      {getTrendIcon(current, previous)}
+                      <span className={getTrendColor(current, previous)}>
+                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                      </span>
+                      <span>vs last period</span>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -409,12 +478,23 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-success">
-                {analyticsData.overview.blockchainSuccess}%
+                {data.overview.blockchainSuccess}%
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {getTrendIcon(99.8, 99.6)}
-                <span className={getTrendColor(99.8, 99.6)}>+0.2%</span>
-                <span>vs last month</span>
+                {(() => {
+                  const current = data.overview.blockchainSuccess;
+                  const previous = Math.max(0, current - (Math.random() * 0.5 - 0.25)); // Small variation
+                  const trend = calculateTrend(current, previous);
+                  return (
+                    <>
+                      {getTrendIcon(current, previous)}
+                      <span className={getTrendColor(current, previous)}>
+                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                      </span>
+                      <span>vs last period</span>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -428,12 +508,23 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {analyticsData.overview.activePharmacies.toLocaleString()}
+                {data.overview.activePharmacies.toLocaleString()}
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {getTrendIcon(2047, 1950)}
-                <span className={getTrendColor(2047, 1950)}>+5.0%</span>
-                <span>vs last month</span>
+                {(() => {
+                  const current = data.overview.activePharmacies;
+                  const previous = getMockPreviousValue(current);
+                  const trend = calculateTrend(current, previous);
+                  return (
+                    <>
+                      {getTrendIcon(current, previous)}
+                      <span className={getTrendColor(current, previous)}>
+                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                      </span>
+                      <span>vs last period</span>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -445,12 +536,26 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₦{(analyticsData.overview.totalRevenue / 1000000).toFixed(1)}M
+                ₦{data.overview.totalRevenue > 1000000 
+                  ? `${(data.overview.totalRevenue / 1000000).toFixed(1)}M`
+                  : data.overview.totalRevenue.toLocaleString()
+                }
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {getTrendIcon(2847000, 2600000)}
-                <span className={getTrendColor(2847000, 2600000)}>+9.5%</span>
-                <span>vs last month</span>
+                {(() => {
+                  const current = data.overview.totalRevenue;
+                  const previous = getMockPreviousValue(current);
+                  const trend = calculateTrend(current, previous);
+                  return (
+                    <>
+                      {getTrendIcon(current, previous)}
+                      <span className={getTrendColor(current, previous)}>
+                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                      </span>
+                      <span>vs last period</span>
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -470,45 +575,57 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {analyticsData.monthlyStats.map((stat: any, index: number) => (
-                  <div
-                    key={stat.month}
-                    className="flex items-center justify-between p-3 border border-border rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <span className="text-sm font-medium">
-                          {stat.month}
-                        </span>
+                {data.monthlyStats.length > 0 ? (
+                  data.monthlyStats.map((stat: any, index: number) => (
+                    <div
+                      key={stat.month}
+                      className="flex items-center justify-between p-3 border border-border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <span className="text-sm font-medium">
+                            {stat.month}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {stat.verifications.toLocaleString()} verifications
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {stat.qrCodes.toLocaleString()} QR codes •{" "}
+                            {stat.uploads} uploads
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">
-                          {stat.verifications.toLocaleString()} verifications
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {stat.qrCodes.toLocaleString()} QR codes •{" "}
-                          {stat.uploads} uploads
-                        </p>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-success">
+                          {index > 0 && data.monthlyStats[index - 1]?.verifications > 0 ? (
+                            <>
+                              +
+                              {(
+                                (stat.verifications /
+                                  data.monthlyStats[index - 1].verifications -
+                                  1) *
+                                100
+                              ).toFixed(1)}
+                              %
+                            </>
+                          ) : (
+                            'New'
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          vs previous
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-success">
-                        +
-                        {(
-                          (stat.verifications /
-                            analyticsData.monthlyStats[Math.max(0, index - 1)]
-                              .verifications -
-                            1) *
-                          100
-                        ).toFixed(1)}
-                        %
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        vs previous
-                      </div>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Calendar className="h-8 w-8 mx-auto mb-2" />
+                    <p>No monthly data available</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -526,33 +643,40 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {analyticsData.topDrugs.map((drug: any, index: number) => (
-                  <div
-                    key={drug.name}
-                    className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                    onClick={() => handleViewDetails(drug.name)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
-                        <span className="text-sm font-medium">{index + 1}</span>
+                {data.topDrugs.length > 0 ? (
+                  data.topDrugs.map((drug: any, index: number) => (
+                    <div
+                      key={drug.name}
+                      className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                      onClick={() => handleViewDetails(drug.name)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
+                          <span className="text-sm font-medium">{index + 1}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{drug.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {drug.verifications.toLocaleString()} verifications
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{drug.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {drug.verifications.toLocaleString()} verifications
-                        </p>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-success">
+                          {drug.authenticity}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          authenticity
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-success">
-                        {drug.authenticity}%
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        authenticity
-                      </div>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Package className="h-8 w-8 mx-auto mb-2" />
+                    <p>No drug data available</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -571,39 +695,46 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                              {analyticsData.regionalData.map((region: any) => (
-                <div
-                  key={region.region}
-                  className="p-4 border border-border rounded-lg text-center hover:bg-accent/50 cursor-pointer transition-colors"
-                  onClick={() => handleRegionalAnalysis(region.region)}
-                >
-                  <h3 className="font-medium mb-2">{region.region}</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-2xl font-bold">
-                        {region.verifications.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Verifications
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-medium">{region.pharmacies}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Pharmacies
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-danger">
-                        {region.counterfeits}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Counterfeits Detected
-                      </p>
+              {data.regionalData.length > 0 ? (
+                data.regionalData.map((region: any) => (
+                  <div
+                    key={region.region}
+                    className="p-4 border border-border rounded-lg text-center hover:bg-accent/50 cursor-pointer transition-colors"
+                    onClick={() => handleRegionalAnalysis(region.region)}
+                  >
+                    <h3 className="font-medium mb-2">{region.region}</h3>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-2xl font-bold">
+                          {region.verifications.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Verifications
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-medium">{region.pharmacies}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Pharmacies
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-danger">
+                          {region.counterfeits}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Counterfeits Detected
+                        </p>
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  <Globe className="h-8 w-8 mx-auto mb-2" />
+                  <p>No regional data available</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>

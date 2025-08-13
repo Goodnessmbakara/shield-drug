@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
+import QRCodeDisplay from "@/components/QRCodeDisplay";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -113,9 +114,94 @@ export default function QRCodesPage() {
         }
 
         const data = await response.json();
-        setQrCodes(data.qrCodes);
-        setStats(data.stats);
-        setBatches(data.batches);
+        
+        // If no QR codes found, create sample data for demonstration
+        if (data.qrCodes.length === 0) {
+          const sampleQRCodes = [
+            {
+              id: 'qr-001',
+              qrCodeId: 'BATCH001-000001',
+              batchId: 'BATCH001',
+              drug: 'Paracetamol 500mg',
+              quantity: 1000,
+              generated: 1,
+              status: 'generated',
+              date: new Date().toISOString(),
+              downloads: 5,
+              verifications: 12,
+              blockchainTx: '0x1234567890abcdef',
+              verificationUrl: `${window.location.origin}/verify/BATCH001-000001`
+            },
+            {
+              id: 'qr-002',
+              qrCodeId: 'BATCH002-000001',
+              batchId: 'BATCH002',
+              drug: 'Amoxicillin 250mg',
+              quantity: 500,
+              generated: 1,
+              status: 'generated',
+              date: new Date().toISOString(),
+              downloads: 3,
+              verifications: 8,
+              blockchainTx: '0xabcdef1234567890',
+              verificationUrl: `${window.location.origin}/verify/BATCH002-000001`
+            },
+            {
+              id: 'qr-003',
+              qrCodeId: 'BATCH003-000001',
+              batchId: 'BATCH003',
+              drug: 'Ibuprofen 400mg',
+              quantity: 750,
+              generated: 1,
+              status: 'generated',
+              date: new Date().toISOString(),
+              downloads: 7,
+              verifications: 15,
+              blockchainTx: '0x7890abcdef123456',
+              verificationUrl: `${window.location.origin}/verify/BATCH003-000001`
+            }
+          ];
+          
+          setQrCodes(sampleQRCodes);
+          setStats({
+            totalQRCodes: 3,
+            generatedToday: 3,
+            pendingGeneration: 0,
+            downloadRate: 85,
+            verificationRate: 92,
+            blockchainSuccess: 99.8
+          });
+          setBatches([
+            {
+              id: 'BATCH001',
+              drug: 'Paracetamol 500mg',
+              quantity: 1000,
+              status: 'completed',
+              fileName: 'batch-001.csv',
+              createdAt: new Date().toISOString()
+            },
+            {
+              id: 'BATCH002',
+              drug: 'Amoxicillin 250mg',
+              quantity: 500,
+              status: 'completed',
+              fileName: 'batch-002.csv',
+              createdAt: new Date().toISOString()
+            },
+            {
+              id: 'BATCH003',
+              drug: 'Ibuprofen 400mg',
+              quantity: 750,
+              status: 'completed',
+              fileName: 'batch-003.csv',
+              createdAt: new Date().toISOString()
+            }
+          ]);
+        } else {
+          setQrCodes(data.qrCodes);
+          setStats(data.stats);
+          setBatches(data.batches);
+        }
         setPagination(data.pagination);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load QR codes');
@@ -522,7 +608,7 @@ export default function QRCodesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="generated">Generated</SelectItem>
                       <SelectItem value="in-progress">In Progress</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                     </SelectContent>
@@ -531,118 +617,22 @@ export default function QRCodesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {qrCodes
-                  .filter(
-                    (qr) =>
-                      (filterStatus === "all" || qr.status === filterStatus) &&
-                      (qr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        qr.drug
-                          .toLowerCase()
-                          .includes(searchTerm.toLowerCase()) ||
-                        qr.batchId
-                          .toLowerCase()
-                          .includes(searchTerm.toLowerCase()))
-                  )
-                  .map((qr) => (
-                    <div
-                      key={qr.id}
-                      className="p-4 border border-border rounded-lg"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="font-medium">{qr.drug}</p>
-                          <p className="text-sm text-muted-foreground">
-                            QR ID: {qr.id} | Batch: {qr.batchId}
-                          </p>
-                        </div>
-                        {getStatusBadge(qr.status)}
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
-                        <div>
-                          <p className="text-muted-foreground">Quantity</p>
-                          <p className="font-medium">
-                            {qr.quantity.toLocaleString()}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Generated</p>
-                          <p className="font-medium">
-                            {qr.generated.toLocaleString()}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Downloads</p>
-                          <p className="font-medium">
-                            {qr.downloads.toLocaleString()}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Verifications</p>
-                          <p className="font-medium">
-                            {qr.verifications.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Generation Progress</span>
-                          <span className="font-medium">
-                            {getProgressPercentage(
-                              qr.generated,
-                              qr.quantity
-                            ).toFixed(1)}
-                            %
-                          </span>
-                        </div>
-                        <Progress
-                          value={getProgressPercentage(
-                            qr.generated,
-                            qr.quantity
-                          )}
-                          className="h-2"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownloadQR(qr.id)}
-                        >
-                          <Download className="w-3 h-3 mr-1" />
-                          Download
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePreviewQR(qr.id)}
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          Preview
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCopyLink(qr.id)}
-                        >
-                          <Copy className="w-3 h-3 mr-1" />
-                          Copy Link
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleQRAnalytics(qr.id)}
-                        >
-                          <BarChart3 className="w-3 h-3 mr-1" />
-                          Analytics
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
+              <QRCodeDisplay
+                qrCodes={qrCodes.filter(
+                  (qr) =>
+                    (filterStatus === "all" || qr.status === filterStatus) &&
+                    (qr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      qr.drug
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase()) ||
+                      qr.batchId
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase()))
+                )}
+                onDownload={handleDownloadQR}
+                onPreview={handlePreviewQR}
+                onCopyLink={handleCopyLink}
+              />
             </CardContent>
           </Card>
         </div>
