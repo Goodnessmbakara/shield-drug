@@ -41,6 +41,7 @@ import {
   Calendar,
   Hash,
   Globe,
+  Activity,
 } from "lucide-react";
 
 export default function QRCodesPage() {
@@ -51,9 +52,19 @@ export default function QRCodesPage() {
   const [qrQuantity, setQrQuantity] = useState(1000);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [showBulkGenerate, setShowBulkGenerate] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  
+  // Data states
+  const [qrCodes, setQrCodes] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({});
+  const [batches, setBatches] = useState<any[]>([]);
+  const [pagination, setPagination] = useState<any>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -73,68 +84,122 @@ export default function QRCodesPage() {
     }
   }, [router]);
 
-  const qrCodes = [
-    {
-      id: "QR2024001",
-      batchId: "CT2024001",
-      drug: "Coartem",
-      quantity: 10000,
-      generated: 10000,
-      status: "completed",
-      date: "2024-01-15",
-      downloads: 8500,
-      verifications: 1250,
-    },
-    {
-      id: "QR2024002",
-      batchId: "AX2024002",
-      drug: "Amoxil",
-      quantity: 5000,
-      generated: 5000,
-      status: "completed",
-      date: "2024-01-20",
-      downloads: 4200,
-      verifications: 890,
-    },
-    {
-      id: "QR2024003",
-      batchId: "PD2024003",
-      drug: "Panadol",
-      quantity: 15000,
-      generated: 12000,
-      status: "in-progress",
-      date: "2024-01-25",
-      downloads: 9800,
-      verifications: 3420,
-    },
-    {
-      id: "QR2024004",
-      batchId: "AP2024004",
-      drug: "Aspirin",
-      quantity: 8000,
-      generated: 0,
-      status: "pending",
-      date: "2024-01-30",
-      downloads: 0,
-      verifications: 0,
-    },
-  ];
+  // Fetch QR codes data
+  useEffect(() => {
+    if (!userEmail) return;
 
-  const batches = [
-    { id: "CT2024001", drug: "Coartem", quantity: 10000, status: "active" },
-    { id: "AX2024002", drug: "Amoxil", quantity: 5000, status: "active" },
-    { id: "PD2024003", drug: "Panadol", quantity: 15000, status: "active" },
-    { id: "AP2024004", drug: "Aspirin", quantity: 8000, status: "pending" },
-  ];
+    const fetchQRCodes = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-  const stats = {
-    totalQRCodes: 32000,
-    generatedToday: 2500,
-    pendingGeneration: 8000,
-    downloadRate: 87.5,
-    verificationRate: 12.3,
-    blockchainSuccess: 99.8,
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: '10',
+          search: searchTerm,
+          status: filterStatus,
+          batchId: selectedBatch || 'all'
+        });
+
+        const response = await fetch(`/api/manufacturer/qr-codes?${params}`, {
+          headers: {
+            'x-user-role': 'manufacturer',
+            'x-user-email': userEmail
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch QR codes data');
+        }
+
+        const data = await response.json();
+        setQrCodes(data.qrCodes);
+        setStats(data.stats);
+        setBatches(data.batches);
+        setPagination(data.pagination);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load QR codes');
+        console.error('Error fetching QR codes:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchQRCodes();
+  }, [userEmail, currentPage, searchTerm, filterStatus, selectedBatch]);
+
+  // Generate QR codes function
+  const handleGenerateQRCodes = async () => {
+    if (!selectedBatch) {
+      alert('Please select a batch first');
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      
+      const response = await fetch('/api/manufacturer/qr-codes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'manufacturer',
+          'x-user-email': userEmail
+        },
+        body: JSON.stringify({
+          batchId: selectedBatch,
+          quantity: qrQuantity,
+          generateForBatch: false
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate QR codes');
+      }
+
+      const result = await response.json();
+      alert(`Successfully generated ${result.data.generatedCount} QR codes!`);
+      
+      // Refresh the data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error generating QR codes:', error);
+      alert('Failed to generate QR codes: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsGenerating(false);
+    }
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <DashboardLayout userRole="manufacturer" userName={userEmail}>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Activity className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Loading QR codes...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <DashboardLayout userRole="manufacturer" userName={userEmail}>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-destructive" />
+            <p className="text-destructive">Failed to load QR codes: {error}</p>
+            <Button onClick={() => window.location.reload()} className="mt-4">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
