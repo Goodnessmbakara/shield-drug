@@ -78,12 +78,6 @@ export function useBatchUpload(): UseBatchUploadReturn {
         fileSize: file.size
       };
 
-      setUploadProgress({
-        stage: 'processing',
-        progress: 50,
-        message: 'Processing batch data...'
-      });
-
       // Get user info from localStorage (in a real app, this would come from auth context)
       const userRole = localStorage.getItem('userRole');
       const userEmail = localStorage.getItem('userEmail');
@@ -91,6 +85,22 @@ export function useBatchUpload(): UseBatchUploadReturn {
       if (!userRole || !userEmail) {
         throw new Error('User authentication required');
       }
+
+      setUploadProgress({
+        stage: 'processing',
+        progress: 50,
+        message: 'Validating batch data...'
+      });
+
+      // Simulate validation time based on file size
+      const validationDelay = Math.min(file.size / 1024, 2000); // Max 2 seconds
+      await new Promise(resolve => setTimeout(resolve, validationDelay));
+
+      setUploadProgress({
+        stage: 'processing',
+        progress: 60,
+        message: 'Preparing blockchain transaction...'
+      });
 
       // Make API request
       const response = await fetch('/api/manufacturer/upload-batch', {
@@ -109,6 +119,8 @@ export function useBatchUpload(): UseBatchUploadReturn {
         message: 'Recording on blockchain...'
       });
 
+      // The backend will handle the entire process including blockchain and QR generation
+      // We just need to wait for it to complete
       const result: UploadResponse = await response.json();
 
       // Check if validation failed but we still got a response
@@ -129,13 +141,15 @@ export function useBatchUpload(): UseBatchUploadReturn {
         }
       }
 
+      // The backend has already completed QR code generation
+      // The result includes the actual qrCodesGenerated count
       setUploadProgress({
         stage: 'qr-generation',
         progress: 90,
-        message: 'Generating QR codes...'
+        message: `Generated ${result.qrCodesGenerated} QR codes...`
       });
 
-      // Simulate QR code generation delay
+      // Brief delay to show completion
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       setUploadProgress({
@@ -168,12 +182,15 @@ export function useBatchUpload(): UseBatchUploadReturn {
       localStorage.setItem('uploadHistory', JSON.stringify(uploadHistory.slice(0, 50))); // Keep last 50 uploads
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+      console.error('Upload error:', err);
+      
+      setError(errorMessage);
       setUploadProgress({
         stage: 'validation',
         progress: 0,
         message: 'Upload failed',
-        details: err instanceof Error ? err.message : 'Unknown error'
+        details: errorMessage
       });
     } finally {
       setIsUploading(false);

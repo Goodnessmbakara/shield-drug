@@ -98,41 +98,20 @@ export default function UploadPage() {
 
       try {
         const response = await fetch(
-          `/api/uploads?userEmail=${encodeURIComponent(userEmail)}&limit=10`
+          `/api/manufacturer/upload-history?limit=10`,
+          {
+            headers: {
+              'x-user-role': 'manufacturer',
+              'x-user-email': userEmail
+            }
+          }
         );
         if (response.ok) {
           const data = await response.json();
           setUploadHistory(data.uploads || []);
         } else {
-          // Fallback to mock data if API fails
-          console.warn("Failed to fetch upload history, using mock data");
-          const mockHistory: UploadHistory[] = [
-            {
-              id: "UPMDGJKFKFVCWZEC",
-              fileName: "coartem_batch_001.csv",
-              drug: "Coartem (Artemether/Lumefantrine)",
-              quantity: 50000,
-              status: "completed",
-              date: "2024-01-15 14:30:22",
-              size: "2.1 MB",
-              records: 50000,
-              blockchainTx:
-                "0x8f2a3774a83e8a6d64e6f2ce8ed4ac7d1f219856e07b6955b6b3a0e45b3eac5f",
-            },
-            {
-              id: "UPMDGJKFKFVCWZED",
-              fileName: "amoxil_batch_002.csv",
-              drug: "Amoxil (Amoxicillin)",
-              quantity: 75000,
-              status: "completed",
-              date: "2024-01-14 09:15:33",
-              size: "3.2 MB",
-              records: 75000,
-              blockchainTx:
-                "0x8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
-            },
-          ];
-          setUploadHistory(mockHistory);
+          console.warn("Failed to fetch upload history from database");
+          setUploadHistory([]);
         }
       } catch (error) {
         console.error("Error fetching upload history:", error);
@@ -986,24 +965,31 @@ export default function UploadPage() {
               <div className="space-y-4">
                 <h4 className="font-medium">Recent Uploads</h4>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>coartem_batch_001.csv</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>amoxil_batch_002.csv</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>panadol_batch_003.csv</span>
-                    <Badge className="bg-warning text-warning-foreground text-xs">
-                      Pending
-                    </Badge>
-                  </div>
+                  {uploadHistory.length > 0 ? (
+                    uploadHistory.slice(0, 3).map((upload) => (
+                      <div key={upload.id} className="flex items-center justify-between text-sm">
+                        <span className="truncate">{upload.fileName}</span>
+                        <Badge 
+                          className={`text-xs ${
+                            upload.status === 'completed' 
+                              ? 'bg-success text-success-foreground'
+                              : upload.status === 'pending' || upload.status === 'in-progress'
+                              ? 'bg-warning text-warning-foreground'
+                              : 'bg-destructive text-destructive-foreground'
+                          }`}
+                        >
+                          {upload.status === 'completed' ? 'Success' : 
+                           upload.status === 'pending' ? 'Pending' :
+                           upload.status === 'in-progress' ? 'Processing' :
+                           upload.status === 'failed' ? 'Failed' : upload.status}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No uploads yet
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1011,20 +997,20 @@ export default function UploadPage() {
                 <h4 className="font-medium">Network Stats</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Pending Txns</p>
-                    <p className="font-medium">1</p>
+                    <p className="text-muted-foreground">Pending Uploads</p>
+                    <p className="font-medium">{stats.failedUploads}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Daily Uploads</p>
-                    <p className="font-medium">8</p>
+                    <p className="text-muted-foreground">Total Uploads</p>
+                    <p className="font-medium">{stats.totalUploads}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Block Height</p>
-                    <p className="font-medium">45,892,147</p>
+                    <p className="text-muted-foreground">Success Rate</p>
+                    <p className="font-medium">{stats.uploadSuccessRate}%</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Gas Price</p>
-                    <p className="font-medium">30 Gwei</p>
+                    <p className="text-muted-foreground">Total Records</p>
+                    <p className="font-medium">{stats.totalRecords.toLocaleString()}</p>
                   </div>
                 </div>
               </div>

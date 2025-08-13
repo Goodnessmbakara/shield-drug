@@ -1,9 +1,9 @@
-const { createPublicClient, http, createWalletClient, getContract } = require('viem');
+const { createPublicClient, http, createWalletClient } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
 const { avalancheFuji } = require('viem/chains');
 require('dotenv').config({ path: '.env.local' });
 
-// Smart Contract ABI for authorization functions
+// Smart Contract ABI for authorization
 const CONTRACT_ABI = [
   {
     "inputs": [
@@ -14,19 +14,6 @@ const CONTRACT_ABI = [
       }
     ],
     "name": "addAuthorizedManufacturer",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "manufacturer",
-        "type": "address"
-      }
-    ],
-    "name": "removeAuthorizedManufacturer",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -62,191 +49,116 @@ const CONTRACT_ABI = [
     ],
     "stateMutability": "view",
     "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "uploadId",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "drugName",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "batchId",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "manufacturer",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "fileHash",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "expiryDate",
-        "type": "uint256"
-      }
-    ],
-    "name": "recordPharmaceuticalBatch",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
   }
 ];
 
 async function authorizeManufacturer() {
   try {
     // Get environment variables
-      const rpcUrl = process.env.AVALANCHE_RPC_URL;
-  const privateKey = process.env.AVALANCHE_PRIVATE_KEY;
-  const contractAddress = process.env.AVALANCHE_CONTRACT_ADDRESS;
-
-    if (!rpcUrl || !privateKey || !contractAddress) {
-      console.error('❌ Missing required environment variables:');
-          console.error('   AVALANCHE_RPC_URL:', rpcUrl ? '✅ Set' : '❌ Missing');
-    console.error('   AVALANCHE_PRIVATE_KEY:', privateKey ? '✅ Set' : '❌ Missing');
-    console.error('   AVALANCHE_CONTRACT_ADDRESS:', contractAddress ? '✅ Set' : '❌ Missing');
-      process.exit(1);
+    const rpcUrl = process.env.AVALANCHE_RPC_URL || 'https://api.avax-test.network/ext/bc/C/rpc';
+    const contractAddress = process.env.AVALANCHE_CONTRACT_ADDRESS;
+    const privateKey = process.env.AVALANCHE_PRIVATE_KEY;
+    
+    if (!contractAddress || contractAddress === '0x1234567890123456789012345678901234567890') {
+      console.error('❌ Contract address not configured. Please set AVALANCHE_CONTRACT_ADDRESS in .env.local');
+      return;
     }
 
-    console.log('🔗 Initializing blockchain connection...');
+    if (!privateKey || privateKey === 'your-private-key-here') {
+      console.error('❌ Private key not configured. Please set AVALANCHE_PRIVATE_KEY in .env.local');
+      return;
+    }
 
-    // Create public client
-          const publicClient = createPublicClient({
-        chain: avalancheFuji,
-        transport: http(rpcUrl),
-      });
+    console.log('🔗 Connecting to Avalanche Fuji testnet...');
+    console.log('RPC URL:', rpcUrl);
+    console.log('Contract Address:', contractAddress);
 
-    // Create wallet client
-    const formattedPrivateKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
-    const account = privateKeyToAccount(formattedPrivateKey);
-    
-          const walletClient = createWalletClient({
-        chain: avalancheFuji,
-        transport: http(rpcUrl),
-        account: account,
-      });
-
-    console.log('✅ Blockchain clients initialized');
-    console.log('👤 Account address:', account.address);
-
-    // Create contract instance
-    const contract = getContract({
-      address: contractAddress,
-      abi: CONTRACT_ABI,
-      publicClient,
-      walletClient,
+    // Initialize clients
+    const publicClient = createPublicClient({
+      chain: avalancheFuji,
+      transport: http(rpcUrl),
     });
 
-    console.log('📋 Contract address:', contractAddress);
+    const formattedPrivateKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+    const account = privateKeyToAccount(formattedPrivateKey);
+    const walletClient = createWalletClient({
+      chain: avalancheFuji,
+      transport: http(rpcUrl),
+      account: account,
+    });
 
-    // Check if the account is already authorized
+    console.log('✅ Connected to blockchain');
+    console.log('Wallet Address:', account.address);
+
+    // Check if wallet is already authorized
     console.log('🔍 Checking current authorization status...');
     const isAuthorized = await publicClient.readContract({
       address: contractAddress,
       abi: CONTRACT_ABI,
       functionName: 'authorizedManufacturers',
-      args: [account.address]
+      args: [account.address],
     });
-    
+
     if (isAuthorized) {
-      console.log('✅ Account is already authorized as a manufacturer');
+      console.log('✅ Wallet is already authorized as manufacturer');
       return;
     }
 
-    // Check if the account is the contract owner
-    console.log('👑 Checking contract ownership...');
+    // Check if wallet is the contract owner
+    console.log('🔍 Checking contract ownership...');
     const owner = await publicClient.readContract({
       address: contractAddress,
       abi: CONTRACT_ABI,
-      functionName: 'owner'
+      functionName: 'owner',
     });
-    
+
     if (owner.toLowerCase() === account.address.toLowerCase()) {
-      console.log('✅ Account is the contract owner, proceeding with authorization...');
-    } else {
-      console.log('❌ Account is not the contract owner');
-      console.log('   Owner address:', owner);
-      console.log('   Your address:', account.address);
-      console.log('💡 Only the contract owner can authorize manufacturers');
-      process.exit(1);
-    }
+      console.log('✅ Wallet is the contract owner');
+      console.log('🔧 Authorizing wallet as manufacturer...');
+      
+      // Authorize the wallet as manufacturer
+      const hash = await walletClient.writeContract({
+        address: contractAddress,
+        abi: CONTRACT_ABI,
+        functionName: 'addAuthorizedManufacturer',
+        args: [account.address],
+      });
 
-    // Add the account as an authorized manufacturer
-    console.log('🔐 Adding account as authorized manufacturer...');
-    
-    const { request } = await publicClient.simulateContract({
-      address: contractAddress,
-      abi: CONTRACT_ABI,
-      functionName: 'addAuthorizedManufacturer',
-      args: [account.address],
-      account: account.address
-    });
-    
-    const hash = await walletClient.writeContract(request);
-    
-    console.log('📝 Transaction submitted:', hash);
-    console.log('⏳ Waiting for confirmation...');
-
-    // Wait for transaction confirmation
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    
-    if (receipt.status === 'success') {
-      console.log('✅ Transaction confirmed!');
-      console.log('   Block number:', receipt.blockNumber);
-      console.log('   Gas used:', receipt.gasUsed.toString());
+      console.log('⏳ Transaction submitted:', hash);
+      
+      // Wait for transaction confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      console.log('✅ Transaction confirmed in block:', receipt.blockNumber);
       
       // Verify authorization
-      const isNowAuthorized = await publicClient.readContract({
+      const newAuthStatus = await publicClient.readContract({
         address: contractAddress,
         abi: CONTRACT_ABI,
         functionName: 'authorizedManufacturers',
-        args: [account.address]
+        args: [account.address],
       });
-      
-      if (isNowAuthorized) {
-        console.log('✅ Account successfully authorized as manufacturer!');
-        console.log('🎉 You can now upload pharmaceutical batches');
+
+      if (newAuthStatus) {
+        console.log('✅ Wallet successfully authorized as manufacturer!');
+        console.log('🎉 You can now use the recordQRCode function');
       } else {
-        console.log('❌ Authorization verification failed');
+        console.error('❌ Authorization failed');
       }
+
     } else {
-      console.log('❌ Transaction failed');
+      console.error('❌ Wallet is not the contract owner');
+      console.log('Contract Owner:', owner);
+      console.log('Your Wallet:', account.address);
+      console.log('💡 Only the contract owner can authorize manufacturers');
     }
 
   } catch (error) {
     console.error('❌ Error authorizing manufacturer:', error);
-    
-    if (error.message.includes('Only owner can call this function')) {
-      console.log('💡 Solution: Only the contract owner can authorize manufacturers');
-      console.log('   You need to use the wallet that deployed the contract');
-    } else if (error.message.includes('insufficient funds')) {
-      console.log('💡 Solution: Ensure your wallet has enough MATIC for gas fees');
-    } else if (error.message.includes('nonce')) {
-      console.log('💡 Solution: Try again in a few seconds (nonce issue)');
+    if (error.message.includes('insufficient funds')) {
+      console.log('💡 Make sure your wallet has enough AVAX for gas fees');
     }
   }
 }
 
-// Run the authorization
+// Run the script
 authorizeManufacturer(); 

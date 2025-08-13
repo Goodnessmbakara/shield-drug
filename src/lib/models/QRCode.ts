@@ -1,16 +1,29 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IQRCode extends Document {
-  qrId: string;
+  qrCodeId: string;
   uploadId: string;
+  userEmail: string;
+  drugCode: string;
   serialNumber: number;
-  drugName: string;
-  batchId: string;
-  expiryDate: Date;
-  manufacturer: string;
-  qrCodeUrl: string;
+  blockchainTx?: {
+    hash: string;
+    status: string;
+    blockNumber?: number;
+    timestamp: string;
+  };
   verificationUrl: string;
-  blockchainTx?: string;
+  imageUrl: string;
+  metadata: {
+    drugName: string;
+    batchId: string;
+    manufacturer: string;
+    expiryDate: string;
+    quantity: number;
+  };
+  status: string;
+  downloadCount: number;
+  verificationCount: number;
   isScanned: boolean;
   scannedAt?: Date;
   scannedBy?: string;
@@ -20,7 +33,7 @@ export interface IQRCode extends Document {
 }
 
 const QRCodeSchema: Schema = new Schema({
-  qrId: {
+  qrCodeId: {
     type: String,
     required: true,
     unique: true,
@@ -31,42 +44,85 @@ const QRCodeSchema: Schema = new Schema({
     required: true,
     trim: true
   },
+  userEmail: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  drugCode: {
+    type: String,
+    required: true,
+    trim: true
+  },
   serialNumber: {
     type: Number,
     required: true
   },
-  drugName: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  batchId: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  expiryDate: {
-    type: Date,
-    required: true
-  },
-  manufacturer: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  qrCodeUrl: {
-    type: String,
-    required: true,
-    trim: true
+  blockchainTx: {
+    hash: {
+      type: String,
+      trim: true
+    },
+    status: {
+      type: String,
+      trim: true
+    },
+    blockNumber: {
+      type: Number
+    },
+    timestamp: {
+      type: String,
+      trim: true
+    }
   },
   verificationUrl: {
     type: String,
     required: true,
     trim: true
   },
-  blockchainTx: {
+  imageUrl: {
     type: String,
+    required: true,
     trim: true
+  },
+  metadata: {
+    drugName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    batchId: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    manufacturer: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    expiryDate: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    quantity: {
+      type: Number,
+      required: true
+    }
+  },
+  status: {
+    type: String,
+    default: 'generated',
+    trim: true
+  },
+  downloadCount: {
+    type: Number,
+    default: 0
+  },
+  verificationCount: {
+    type: Number,
+    default: 0
   },
   isScanned: {
     type: Boolean,

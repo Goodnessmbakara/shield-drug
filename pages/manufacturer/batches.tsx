@@ -721,24 +721,31 @@ export default function BatchesPage() {
               <div className="space-y-4">
                 <h4 className="font-medium">Recent Batch Uploads</h4>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>CT2024001</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>AX2024002</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>PD2024003</span>
-                    <Badge className="bg-warning text-warning-foreground text-xs">
-                      Pending
-                    </Badge>
-                  </div>
+                  {batches.length > 0 ? (
+                    batches.slice(0, 3).map((batch) => (
+                      <div key={batch.id} className="flex items-center justify-between text-sm">
+                        <span className="truncate">{batch.batchId || batch.id}</span>
+                        <Badge 
+                          className={`text-xs ${
+                            batch.status === 'active' || batch.status === 'completed'
+                              ? 'bg-success text-success-foreground'
+                              : batch.status === 'pending' || batch.status === 'in-progress'
+                              ? 'bg-warning text-warning-foreground'
+                              : 'bg-destructive text-destructive-foreground'
+                          }`}
+                        >
+                          {batch.status === 'active' || batch.status === 'completed' ? 'Success' : 
+                           batch.status === 'pending' ? 'Pending' :
+                           batch.status === 'in-progress' ? 'Processing' :
+                           batch.status === 'failed' ? 'Failed' : batch.status}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No batches yet
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -746,20 +753,20 @@ export default function BatchesPage() {
                 <h4 className="font-medium">Network Stats</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Pending Txns</p>
-                    <p className="font-medium">2</p>
+                    <p className="text-muted-foreground">Pending Batches</p>
+                    <p className="font-medium">{stats.pendingBatches}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Daily Uploads</p>
-                    <p className="font-medium">15</p>
+                    <p className="text-muted-foreground">Total Batches</p>
+                    <p className="font-medium">{stats.totalBatches}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Block Height</p>
-                    <p className="font-medium">45,892,147</p>
+                    <p className="text-muted-foreground">Success Rate</p>
+                    <p className="font-medium">{stats.complianceRate}%</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Gas Price</p>
-                    <p className="font-medium">25 Gwei</p>
+                    <p className="text-muted-foreground">Total QRs</p>
+                    <p className="font-medium">{stats.totalQRCodes.toLocaleString()}</p>
                   </div>
                 </div>
               </div>

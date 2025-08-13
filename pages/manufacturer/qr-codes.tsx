@@ -482,9 +482,13 @@ export default function QRCodesPage() {
                 )}
               </div>
 
-              <Button className="w-full" disabled={!selectedBatch}>
+              <Button 
+                className="w-full" 
+                disabled={!selectedBatch || isGenerating}
+                onClick={handleGenerateQRCodes}
+              >
                 <QrCode className="mr-2 h-4 w-4" />
-                Generate QR Codes
+                {isGenerating ? 'Generating...' : 'Generate QR Codes'}
               </Button>
             </CardContent>
           </Card>

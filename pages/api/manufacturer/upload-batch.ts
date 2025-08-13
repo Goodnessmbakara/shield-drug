@@ -9,6 +9,8 @@ export const config = {
     bodyParser: {
       sizeLimit: '10mb',
     },
+    responseLimit: false,
+    externalResolver: true,
   },
 };
 
@@ -112,10 +114,12 @@ export default async function handler(
     // Add timeout for QR code generation to prevent hanging
     const qrCodePromise = generateAndRecordQRCodes(uploadId, validationResult);
     const timeoutPromise = new Promise<number>((_, reject) => 
-      setTimeout(() => reject(new Error('QR code generation timed out after 30 seconds')), 30000)
+      setTimeout(() => reject(new Error('QR code generation timed out after 60 seconds')), 60000)
     );
     
+    console.log('⏳ Starting QR code generation with 60-second timeout...');
     const qrCodesGenerated = await Promise.race([qrCodePromise, timeoutPromise]);
+    console.log(`✅ QR code generation completed: ${qrCodesGenerated} codes generated`);
 
     // Store upload record in database
     const uploadData = {
@@ -170,8 +174,23 @@ export default async function handler(
 
   } catch (error) {
     console.error('Upload batch error:', error);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Internal server error during batch upload';
+    if (error instanceof Error) {
+      if (error.message.includes('timed out')) {
+        errorMessage = 'Upload timed out - QR code generation took too long. Please try with a smaller batch.';
+      } else if (error.message.includes('blockchain')) {
+        errorMessage = 'Blockchain transaction failed. Please check your wallet configuration.';
+      } else if (error.message.includes('database')) {
+        errorMessage = 'Database error. Please try again.';
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
     res.status(500).json({ 
-      error: 'Internal server error during batch upload' 
+      error: errorMessage
     });
   }
 }
