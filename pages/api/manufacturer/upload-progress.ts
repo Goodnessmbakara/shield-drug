@@ -104,13 +104,14 @@ export function updateUploadProgress(
 
 // Helper function to estimate processing time
 export function estimateProcessingTime(totalQuantity: number): number {
-  // Base estimation: 2 seconds per 100 units for blockchain transactions
-  const baseTime = Math.ceil(totalQuantity / 100) * 2;
+  // Base estimation: 3 seconds per 100 units for blockchain transactions
+  // This is more conservative based on real transaction times
+  const baseTime = Math.ceil(totalQuantity / 100) * 3;
   
   // Add buffer for network delays and database operations
-  const bufferTime = Math.ceil(baseTime * 0.3);
+  const bufferTime = Math.ceil(baseTime * 0.5);
   
-  return Math.max(baseTime + bufferTime, 10); // Minimum 10 seconds
+  return Math.max(baseTime + bufferTime, 15); // Minimum 15 seconds
 }
 
 // Helper function to calculate progress percentage

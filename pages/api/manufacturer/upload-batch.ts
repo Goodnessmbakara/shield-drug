@@ -148,14 +148,9 @@ export default async function handler(
       isComplete: false
     });
 
-    // Add timeout for QR code generation to prevent hanging
-    const qrCodePromise = generateAndRecordQRCodes(uploadId, validationResult, totalQuantity);
-    const timeoutPromise = new Promise<number>((_, reject) => 
-      setTimeout(() => reject(new Error('QR code generation timed out after 60 seconds')), 60000)
-    );
-    
-    console.log('⏳ Starting QR code generation with 60-second timeout...');
-    const qrCodesGenerated = await Promise.race([qrCodePromise, timeoutPromise]);
+    // Start QR code generation without timeout - let it complete naturally
+    console.log('⏳ Starting QR code generation...');
+    const qrCodesGenerated = await generateAndRecordQRCodes(uploadId, validationResult, totalQuantity);
     console.log(`✅ QR code generation completed: ${qrCodesGenerated} codes generated`);
 
     // Store upload record in database
@@ -236,12 +231,12 @@ export default async function handler(
     // Provide more specific error messages
     let errorMessage = 'Internal server error during batch upload';
     if (error instanceof Error) {
-      if (error.message.includes('timed out')) {
-        errorMessage = 'Upload timed out - QR code generation took too long. Please try with a smaller batch.';
-      } else if (error.message.includes('blockchain')) {
+      if (error.message.includes('blockchain')) {
         errorMessage = 'Blockchain transaction failed. Please check your wallet configuration.';
       } else if (error.message.includes('database')) {
         errorMessage = 'Database error. Please try again.';
+      } else if (error.message.includes('validation')) {
+        errorMessage = 'Data validation failed. Please check your CSV file format.';
       } else {
         errorMessage = error.message;
       }
@@ -256,6 +251,8 @@ export default async function handler(
 // Generate QR codes and record them on blockchain
 async function generateAndRecordQRCodes(uploadId: string, validationResult: ValidationResult, totalQuantity: number): Promise<number> {
   let totalQRCodes = 0;
+  const transactionTimes: number[] = [];
+  const startTime = Date.now();
   
   try {
     // For large batches, use batch processing instead of individual QR codes
@@ -284,12 +281,32 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
         // Create a single QR code for this drug batch
         const qrCodeId = `${uploadId}-${batchId}`;
         
-        // Record batch QR code on blockchain
+        // Record batch QR code on blockchain with time tracking
+        const txStartTime = Date.now();
         const qrTx = await blockchainService.recordQRCode(qrCodeId, uploadId, quantity);
+        const txTime = Date.now() - txStartTime;
+        transactionTimes.push(txTime);
         
         if (qrTx.status === 'confirmed') {
           totalQRCodes += quantity; // Count all units in this batch
-          console.log(`Batch QR Code ${qrCodeId} recorded for ${quantity} units of ${drugName}`);
+          console.log(`Batch QR Code ${qrCodeId} recorded for ${quantity} units of ${drugName} in ${txTime}ms`);
+          
+          // Calculate average transaction time and estimate remaining time
+          const avgTxTime = transactionTimes.reduce((sum, time) => sum + time, 0) / transactionTimes.length;
+          const remainingBatches = validationResult.data.length - (i + 1);
+          const estimatedRemainingTime = Math.ceil((avgTxTime * remainingBatches) / 1000);
+          
+          // Update progress with real-time estimation
+          const progress = calculateProgress(totalQRCodes, totalQuantity);
+          updateUploadProgress(uploadId, {
+            stage: 'qr-generation',
+            progress: 50 + (progress * 0.4), // 50-90% range for QR generation
+            message: `Generating QR codes for ${drugName} (${i + 1}/${validationResult.data.length})...`,
+            totalQuantity,
+            processedQuantity: totalQRCodes,
+            estimatedTimeRemaining: estimatedRemainingTime,
+            isComplete: false
+          });
         } else {
           console.error(`Failed to record Batch QR Code ${qrCodeId}: ${qrTx.errorMessage}`);
         }
@@ -302,28 +319,36 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
         const quantity = parseInt(row.quantity.toString());
         
         for (let i = 1; i <= quantity; i++) {
-          // Update progress every 10 QR codes or at the end
+                    // Update progress every 10 QR codes or at the end
           if (i % 10 === 0 || i === quantity) {
+            // Calculate average transaction time and estimate remaining time
+            const avgTxTime = transactionTimes.reduce((sum, time) => sum + time, 0) / transactionTimes.length;
+            const remainingQRCodes = totalQuantity - totalQRCodes;
+            const estimatedRemainingTime = Math.ceil((avgTxTime * remainingQRCodes) / 1000);
+            
             const progress = calculateProgress(totalQRCodes, totalQuantity);
-                       updateUploadProgress(uploadId, {
-             stage: 'qr-generation',
-             progress: 50 + (progress * 0.4), // 50-90% range for QR generation
-             message: `Generating QR code ${totalQRCodes + 1} of ${totalQuantity}...`,
-             totalQuantity,
-             processedQuantity: totalQRCodes,
-             estimatedTimeRemaining: Math.max(estimateProcessingTime(totalQuantity - totalQRCodes), 1),
-             isComplete: false
-           });
+            updateUploadProgress(uploadId, {
+              stage: 'qr-generation',
+              progress: 50 + (progress * 0.4), // 50-90% range for QR generation
+              message: `Generating QR code ${totalQRCodes + 1} of ${totalQuantity}...`,
+              totalQuantity,
+              processedQuantity: totalQRCodes,
+              estimatedTimeRemaining: Math.max(estimatedRemainingTime, 1),
+              isComplete: false
+            });
           }
           
           const qrCodeId = `${uploadId}-QR-${i.toString().padStart(6, '0')}`;
           
-          // Record QR code on blockchain
+          // Record QR code on blockchain with time tracking
+          const txStartTime = Date.now();
           const qrTx = await blockchainService.recordQRCode(qrCodeId, uploadId, i);
+          const txTime = Date.now() - txStartTime;
+          transactionTimes.push(txTime);
           
           if (qrTx.status === 'confirmed') {
             totalQRCodes++;
-            console.log(`QR Code ${qrCodeId} recorded on blockchain: ${qrTx.hash}`);
+            console.log(`QR Code ${qrCodeId} recorded on blockchain: ${qrTx.hash} in ${txTime}ms`);
           } else {
             console.error(`Failed to record QR Code ${qrCodeId}: ${qrTx.errorMessage}`);
           }
@@ -331,7 +356,16 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
       }
     }
     
-    console.log(`Successfully generated ${totalQRCodes} QR codes`);
+    const totalTime = Date.now() - startTime;
+    const avgTxTime = transactionTimes.length > 0 ? transactionTimes.reduce((sum, time) => sum + time, 0) / transactionTimes.length : 0;
+    
+    console.log(`✅ Successfully generated ${totalQRCodes} QR codes in ${totalTime}ms`);
+    console.log(`📊 Transaction Statistics:`);
+    console.log(`   - Total transactions: ${transactionTimes.length}`);
+    console.log(`   - Average transaction time: ${avgTxTime.toFixed(0)}ms`);
+    console.log(`   - Fastest transaction: ${Math.min(...transactionTimes)}ms`);
+    console.log(`   - Slowest transaction: ${Math.max(...transactionTimes)}ms`);
+    
     return totalQRCodes;
     
   } catch (error) {
