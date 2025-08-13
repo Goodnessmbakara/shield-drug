@@ -664,9 +664,15 @@ export default function PharmacistScanPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Blockchain Transaction</span>
-                      <span className="font-mono text-xs">
+                      <a
+                        href={`https://testnet.snowtrace.io/tx/${scanResult.verificationDetails.blockchainTx}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
+                        title="View on Snowtrace"
+                      >
                         {scanResult.verificationDetails.blockchainTx}
-                      </span>
+                      </a>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Verification Count</span>
@@ -795,9 +801,15 @@ export default function PharmacistScanPage() {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Blockchain TX</p>
-                        <p className="font-medium font-mono text-xs">
+                        <a
+                          href={`https://testnet.snowtrace.io/tx/${scan.verificationDetails.blockchainTx}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
+                          title="View on Snowtrace"
+                        >
                           {scan.verificationDetails.blockchainTx}
-                        </p>
+                        </a>
                       </div>
                     </div>
 

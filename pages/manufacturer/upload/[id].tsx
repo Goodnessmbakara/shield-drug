@@ -273,7 +273,7 @@ export default function UploadDetailsPage() {
   const handleViewBlockchain = () => {
     // Open Avalanche C-Chain explorer
     window.open(
-      `https://snowtrace.io/tx/${uploadDetails?.blockchainTx}`,
+      `https://testnet.snowtrace.io/tx/${uploadDetails?.blockchainTx}`,
       "_blank"
     );
   };
@@ -590,9 +590,15 @@ export default function UploadDetailsPage() {
                       Transaction Hash
                     </p>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium font-mono text-xs">
+                      <a
+                        href={`https://testnet.snowtrace.io/tx/${uploadDetails.blockchainTx}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
+                        title="View on Snowtrace"
+                      >
                         {uploadDetails.blockchainTx}
-                      </p>
+                      </a>
                       <Button
                         variant="ghost"
                         size="sm"

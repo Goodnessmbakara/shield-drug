@@ -44,6 +44,7 @@ import {
   Cloud,
   X,
   Copy,
+  ExternalLink,
 } from "lucide-react";
 import { useBatchUpload } from "@/hooks/useBatchUpload";
 import { ValidationResults } from "@/components/ValidationResults";
@@ -842,9 +843,15 @@ export default function UploadPage() {
                       Blockchain Transaction
                     </p>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium font-mono text-xs bg-muted px-2 py-1 rounded truncate flex-1">
+                      <a
+                        href={`https://testnet.snowtrace.io/tx/${upload.blockchainTx}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium font-mono text-xs bg-muted px-2 py-1 rounded truncate flex-1 hover:bg-muted/80 transition-colors cursor-pointer"
+                        title="View on Snowtrace"
+                      >
                         {upload.blockchainTx}
-                      </p>
+                      </a>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -863,6 +870,15 @@ export default function UploadPage() {
                         title="Copy transaction hash"
                       >
                         <Copy className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => window.open(`https://testnet.snowtrace.io/tx/${upload.blockchainTx}`, '_blank')}
+                        title="View on Snowtrace"
+                      >
+                        <ExternalLink className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>

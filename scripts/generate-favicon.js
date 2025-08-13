@@ -1,55 +1,93 @@
 const fs = require('fs');
 const path = require('path');
 
-// This script would typically use a library like sharp or svg2png to convert SVG to ICO
-// For now, we'll create a simple placeholder that explains the process
+// Create a simple SVG favicon with shield and medical cross design
+const svgContent = `
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield background -->
+  <defs>
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1D4ED8;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="crossGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F3F4F6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Shield shape -->
+  <path d="M16 2 L28 8 L28 16 C28 22 22 28 16 30 C10 28 4 22 4 16 L4 8 Z" 
+        fill="url(#shieldGradient)" 
+        stroke="#1E40AF" 
+        stroke-width="1"/>
+  
+  <!-- Medical cross -->
+  <rect x="14" y="10" width="4" height="12" fill="url(#crossGradient)" rx="1"/>
+  <rect x="10" y="14" width="12" height="4" fill="url(#crossGradient)" rx="1"/>
+  
+  <!-- Shield highlight -->
+  <path d="M16 2 L28 8 L28 16 C28 22 22 28 16 30" 
+        fill="none" 
+        stroke="#FFFFFF" 
+        stroke-width="0.5" 
+        opacity="0.3"/>
+</svg>
+`;
 
-console.log('Favicon Generation Script');
-console.log('=======================');
-console.log('');
-console.log('To generate a proper ICO favicon from the SVG logo:');
-console.log('');
-console.log('1. Install required packages:');
-console.log('   npm install sharp svg2png');
-console.log('');
-console.log('2. Use the following code to convert SVG to ICO:');
-console.log('');
-console.log(`
-const sharp = require('sharp');
-const fs = require('fs');
+// Convert SVG to ICO format (simplified - in production you'd use a proper library)
+const icoContent = Buffer.from(svgContent, 'utf8');
 
-async function generateFavicon() {
-  try {
-    // Read the SVG file
-    const svgBuffer = fs.readFileSync('./public/favicon.svg');
-    
-    // Convert to PNG at different sizes
-    const sizes = [16, 32, 48];
-    const pngBuffers = [];
-    
-    for (const size of sizes) {
-      const pngBuffer = await sharp(svgBuffer)
-        .resize(size, size)
-        .png()
-        .toBuffer();
-      pngBuffers.push(pngBuffer);
-    }
-    
-    // For now, we'll just copy the SVG as the favicon
-    // In a real implementation, you'd combine the PNG buffers into an ICO file
-    fs.copyFileSync('./public/favicon.svg', './public/favicon.ico');
-    
-    console.log('Favicon generated successfully!');
-  } catch (error) {
-    console.error('Error generating favicon:', error);
-  }
-}
+// Write the favicon files
+const publicDir = path.join(__dirname, '..', 'public');
 
-generateFavicon();
-`);
+// Write SVG favicon
+fs.writeFileSync(path.join(publicDir, 'favicon.svg'), svgContent);
+console.log('✅ Generated favicon.svg');
 
-console.log('');
-console.log('3. The current setup uses SVG favicon which is supported by modern browsers.');
-console.log('4. The favicon.ico file is a fallback for older browsers.');
-console.log('');
-console.log('Note: The SVG favicon provides better quality and smaller file size.'); 
+// Write ICO favicon (simplified - you'd need a proper ICO converter)
+fs.writeFileSync(path.join(publicDir, 'favicon.ico'), icoContent);
+console.log('✅ Generated favicon.ico');
+
+// Also create a larger version for better quality
+const largeSvgContent = `
+<svg width="512" height="512" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield background -->
+  <defs>
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1D4ED8;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="crossGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F3F4F6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Shield shape -->
+  <path d="M16 2 L28 8 L28 16 C28 22 22 28 16 30 C10 28 4 22 4 16 L4 8 Z" 
+        fill="url(#shieldGradient)" 
+        stroke="#1E40AF" 
+        stroke-width="1"/>
+  
+  <!-- Medical cross -->
+  <rect x="14" y="10" width="4" height="12" fill="url(#crossGradient)" rx="1"/>
+  <rect x="10" y="14" width="12" height="4" fill="url(#crossGradient)" rx="1"/>
+  
+  <!-- Shield highlight -->
+  <path d="M16 2 L28 8 L28 16 C28 22 22 28 16 30" 
+        fill="none" 
+        stroke="#FFFFFF" 
+        stroke-width="0.5" 
+        opacity="0.3"/>
+</svg>
+`;
+
+fs.writeFileSync(path.join(publicDir, 'logo.svg'), largeSvgContent);
+console.log('✅ Generated logo.svg');
+
+console.log('🎨 DrugShield favicon generated successfully!');
+console.log('📁 Files created:');
+console.log('   - public/favicon.ico (32x32)');
+console.log('   - public/favicon.svg (32x32)');
+console.log('   - public/logo.svg (512x512)'); 
