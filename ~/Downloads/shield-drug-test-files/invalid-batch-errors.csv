@@ -1,0 +1,12 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+,ER2024001,1000,GSK Pharmaceuticals,Lagos Nigeria,2026-12-31,NAFDAC-123456,2024-01-15,Paracetamol,Tablet,500mg,20 tablets per pack,Store below 30°C,Missing drug name
+Paracetamol,,5000,GSK Pharmaceuticals,Lagos Nigeria,2026-12-31,NAFDAC-123456,2024-01-15,Paracetamol,Tablet,500mg,20 tablets per pack,Store below 30°C,Missing batch ID
+Ibuprofen,IB2024002,0,Bayer Healthcare,Abuja Nigeria,2026-06-30,NAFDAC-789012,2024-01-20,Ibuprofen,Tablet,400mg,30 tablets per pack,Store in a cool dry place,Zero quantity
+Amoxicillin,AM2024003,25000,,Port Harcourt Nigeria,2025-11-30,NAFDAC-345678,2024-01-25,Amoxicillin,Capsule,500mg,21 capsules per pack,Store below 25°C,Missing manufacturer
+Omeprazole,OM2024004,15000,AstraZeneca,,Kano Nigeria,2026-03-15,NAFDAC-901234,2024-01-30,Omeprazole,Capsule,20mg,14 capsules per pack,Store in original container,Missing location
+Metformin,MF2024005,20000,Merck Sharp & Dohme,Calabar Nigeria,2023-12-31,NAFDAC-567890,2024-02-05,Metformin,Tablet,500mg,60 tablets per pack,Store below 30°C,Expired date
+Aspirin,AS2024006,75000,Bayer Healthcare,Lagos Nigeria,2026-05-20,INVALID-123,2024-03-05,Acetylsalicylic Acid,Tablet,100mg,30 tablets per pack,Store in a dry place,Invalid NAFDAC number
+Lisinopril,LS2024007,45000,Merck Sharp & Dohme,Abuja Nigeria,2026-09-15,NAFDAC-777777,2024-13-10,Lisinopril,Tablet,10mg,30 tablets per pack,Store below 30°C,Invalid manufacturing date
+Atorvastatin,AT2024008,35000,Pfizer Nigeria,Port Harcourt Nigeria,2026-11-30,NAFDAC-888888,2024-03-15,,Tablet,20mg,30 tablets per pack,Store below 25°C,Missing active ingredient
+Amlodipine,AM2024009,40000,AstraZeneca,Kano Nigeria,2026-08-10,NAFDAC-999999,2024-03-20,Amlodipine,,5mg,30 tablets per pack,Store in a cool dry place,Missing dosage form
+

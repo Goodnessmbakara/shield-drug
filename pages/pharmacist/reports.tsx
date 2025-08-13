@@ -90,8 +90,6 @@ import {
   ThumbsDown,
   MessageSquare,
   MessageCircle,
-  Bell,
-  BellOff,
   Bookmark,
   BookmarkPlus,
   Tag,

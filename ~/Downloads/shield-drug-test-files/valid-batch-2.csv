@@ -1,0 +1,7 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Coartem,CT2024006,10000,Novartis,Lagos Nigeria,2025-12-31,NAFDAC-111111,2024-02-10,Artemether/Lumefantrine,Tablet,20mg/120mg,24 tablets per pack,Store below 30°C,Antimalarial medication
+Ciprofloxacin,CP2024007,8000,Bayer Healthcare,Abuja Nigeria,2026-04-15,NAFDAC-222222,2024-02-15,Ciprofloxacin,Tablet,500mg,10 tablets per pack,Store in a cool dry place,Antibiotic for various infections
+Insulin Glargine,IG2024008,5000,Sanofi-Aventis,Port Harcourt Nigeria,2025-10-20,NAFDAC-333333,2024-02-20,Insulin Glargine,Injection,100 units/ml,3ml cartridge,Store in refrigerator 2-8°C,Long-acting insulin for diabetes
+Cough Syrup,CS2024009,12000,Johnson & Johnson,Kano Nigeria,2026-07-10,NAFDAC-444444,2024-02-25,Codeine/Paracetamol,Syrup,15mg/500mg per 5ml,100ml bottle,Store below 25°C,Cough suppressant and pain reliever
+Vitamin D3,VD2024010,25000,GSK Consumer,Calabar Nigeria,2027-01-15,NAFDAC-555555,2024-03-01,Cholecalciferol,Softgel,1000 IU,60 capsules per pack,Store in a cool dry place,Vitamin D supplement
+

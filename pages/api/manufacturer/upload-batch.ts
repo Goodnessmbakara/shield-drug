@@ -108,9 +108,16 @@ export default async function handler(
 
     // Generate QR codes and record them on blockchain
     console.log('Generating QR codes...');
-    const qrCodesGenerated = await generateAndRecordQRCodes(uploadId, validationResult);
+    
+    // Add timeout for QR code generation to prevent hanging
+    const qrCodePromise = generateAndRecordQRCodes(uploadId, validationResult);
+    const timeoutPromise = new Promise<number>((_, reject) => 
+      setTimeout(() => reject(new Error('QR code generation timed out after 30 seconds')), 30000)
+    );
+    
+    const qrCodesGenerated = await Promise.race([qrCodePromise, timeoutPromise]);
 
-    // Store upload record in database (or mock for development)
+    // Store upload record in database
     const uploadData = {
       fileName,
       drug: validationResult.data[0]?.drug_name || 'Unknown',
@@ -145,9 +152,10 @@ export default async function handler(
     let savedUpload;
     try {
       savedUpload = await createUpload(uploadData);
+      console.log('✅ Upload record saved to database:', savedUpload._id);
     } catch (error) {
-      console.warn('Database not available, using mock upload ID:', error);
-      savedUpload = { _id: uploadId };
+      console.error('❌ Failed to save upload to database:', error);
+      throw new Error('Failed to save upload record to database');
     }
 
     const response: UploadResponse = {
@@ -173,21 +181,51 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
   let totalQRCodes = 0;
   
   try {
-    // Generate QR codes for each row in the batch
-    for (const row of validationResult.data) {
-      const quantity = parseInt(row.quantity.toString());
+    // Calculate total quantity for progress tracking
+    const totalQuantity = validationResult.data.reduce((sum, row) => sum + parseInt(row.quantity.toString()), 0);
+    
+    // For large batches, use batch processing instead of individual QR codes
+    if (totalQuantity > 1000) {
+      console.log(`Large batch detected (${totalQuantity} units). Using batch QR code generation...`);
       
-      for (let i = 1; i <= quantity; i++) {
-        const qrCodeId = `${uploadId}-QR-${i.toString().padStart(6, '0')}`;
+      // Generate one QR code per drug type instead of per unit
+      for (const row of validationResult.data) {
+        const quantity = parseInt(row.quantity.toString());
+        const drugName = row.drug_name;
+        const batchId = row.batch_id;
         
-        // Record QR code on blockchain
-        const qrTx = await blockchainService.recordQRCode(qrCodeId, uploadId, i);
+        // Create a single QR code for this drug batch
+        const qrCodeId = `${uploadId}-${batchId}`;
+        
+        // Record batch QR code on blockchain
+        const qrTx = await blockchainService.recordQRCode(qrCodeId, uploadId, quantity);
         
         if (qrTx.status === 'confirmed') {
-          totalQRCodes++;
-          console.log(`QR Code ${qrCodeId} recorded on blockchain: ${qrTx.hash}`);
+          totalQRCodes += quantity; // Count all units in this batch
+          console.log(`Batch QR Code ${qrCodeId} recorded for ${quantity} units of ${drugName}`);
         } else {
-          console.error(`Failed to record QR Code ${qrCodeId}: ${qrTx.errorMessage}`);
+          console.error(`Failed to record Batch QR Code ${qrCodeId}: ${qrTx.errorMessage}`);
+        }
+      }
+    } else {
+      // For small batches, use individual QR codes
+      console.log(`Small batch detected (${totalQuantity} units). Using individual QR code generation...`);
+      
+      for (const row of validationResult.data) {
+        const quantity = parseInt(row.quantity.toString());
+        
+        for (let i = 1; i <= quantity; i++) {
+          const qrCodeId = `${uploadId}-QR-${i.toString().padStart(6, '0')}`;
+          
+          // Record QR code on blockchain
+          const qrTx = await blockchainService.recordQRCode(qrCodeId, uploadId, i);
+          
+          if (qrTx.status === 'confirmed') {
+            totalQRCodes++;
+            console.log(`QR Code ${qrCodeId} recorded on blockchain: ${qrTx.hash}`);
+          } else {
+            console.error(`Failed to record QR Code ${qrCodeId}: ${qrTx.errorMessage}`);
+          }
         }
       }
     }

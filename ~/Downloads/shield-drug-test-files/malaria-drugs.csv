@@ -1,0 +1,12 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Coartem,CT2024029,25000,Novartis,Lagos Nigeria,2026-12-31,NAFDAC-111111,2024-06-10,Artemether/Lumefantrine,Tablet,20mg/120mg,24 tablets per pack,Store below 30°C,First-line antimalarial for uncomplicated P. falciparum
+Lonart,LT2024030,30000,Bliss GVS Pharma,Abuja Nigeria,2026-08-15,NAFDAC-222222,2024-06-15,Artemether/Lumefantrine,Tablet,20mg/120mg,24 tablets per pack,Store below 30°C,Generic antimalarial medication
+Amodiaquine,AQ2024031,20000,GSK Pharmaceuticals,Port Harcourt Nigeria,2026-05-20,NAFDAC-333333,2024-06-20,Amodiaquine,Tablet,200mg,12 tablets per pack,Store below 25°C,Antimalarial for chloroquine-resistant malaria
+Sulfadoxine-Pyrimethamine,SP2024032,15000,Pfizer Nigeria,Kano Nigeria,2026-10-10,NAFDAC-444444,2024-06-25,Sulfadoxine/Pyrimethamine,Tablet,500mg/25mg,3 tablets per pack,Store below 30°C,Intermittent preventive treatment for malaria
+Artesunate,AR2024033,8000,Sanofi-Aventis,Calabar Nigeria,2025-12-31,NAFDAC-555555,2024-06-30,Artesunate,Injection,60mg,1 vial per pack,Store below 25°C,Severe malaria treatment
+Quinine,QU2024034,12000,Bayer Healthcare,Lagos Nigeria,2026-07-15,NAFDAC-666666,2024-07-05,Quinine Sulfate,Tablet,300mg,20 tablets per pack,Store below 30°C,Antimalarial for severe cases
+Mefloquine,MF2024035,5000,Roche Nigeria,Abuja Nigeria,2026-09-30,NAFDAC-777777,2024-07-10,Mefloquine,Tablet,250mg,8 tablets per pack,Store below 25°C,Antimalarial for prophylaxis
+Dihydroartemisinin-Piperaquine,DP2024036,18000,Sigma Tau,Port Harcourt Nigeria,2026-11-20,NAFDAC-888888,2024-07-15,Dihydroartemisinin/Piperaquine,Tablet,40mg/320mg,12 tablets per pack,Store below 30°C,Combination antimalarial therapy
+Primaquine,PR2024037,6000,Sanofi-Aventis,Kano Nigeria,2026-04-15,NAFDAC-999999,2024-07-20,Primaquine,Tablet,15mg,14 tablets per pack,Store below 25°C,Radical cure for P. vivax malaria
+Chloroquine,CL2024038,10000,GSK Pharmaceuticals,Calabar Nigeria,2026-06-30,NAFDAC-000000,2024-07-25,Chloroquine Phosphate,Tablet,250mg,10 tablets per pack,Store below 30°C,Antimalarial for sensitive strains
+

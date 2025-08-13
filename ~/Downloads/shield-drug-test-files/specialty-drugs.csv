@@ -1,0 +1,12 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Insulin Lispro,IL2024019,3000,Eli Lilly,Lagos Nigeria,2025-08-15,NAFDAC-111111,2024-04-25,Insulin Lispro,Injection,100 units/ml,3ml cartridge,Store in refrigerator 2-8°C,Fast-acting insulin for diabetes
+Morphine Sulfate,MS2024020,1000,Purdue Pharma,Abuja Nigeria,2026-02-28,NAFDAC-222222,2024-05-01,Morphine Sulfate,Injection,10mg/ml,1ml ampoule,Store in controlled environment,Controlled substance for severe pain
+Fentanyl Patch,FP2024021,500,Janssen Pharmaceuticals,Port Harcourt Nigeria,2025-12-31,NAFDAC-333333,2024-05-05,Fentanyl,Transdermal Patch,25mcg/hr,5 patches per box,Store below 25°C,Controlled substance for chronic pain
+Rituximab,RT2024022,200,Roche Nigeria,Kano Nigeria,2025-06-30,NAFDAC-444444,2024-05-10,Rituximab,Injection,10mg/ml,10ml vial,Store in refrigerator 2-8°C,Monoclonal antibody for cancer treatment
+Adalimumab,AD2024023,150,AbbVie Nigeria,Calabar Nigeria,2025-09-15,NAFDAC-555555,2024-05-15,Adalimumab,Injection,40mg/0.8ml,2 pens per pack,Store in refrigerator 2-8°C,Biologic for autoimmune diseases
+Vancomycin,VN2024024,800,Pfizer Nigeria,Lagos Nigeria,2025-11-20,NAFDAC-666666,2024-05-20,Vancomycin,Injection,500mg,10ml vial,Store in refrigerator 2-8°C,Antibiotic for serious infections
+Cisplatin,CP2024025,300,Bristol-Myers Squibb,Abuja Nigeria,2025-07-10,NAFDAC-777777,2024-05-25,Cisplatin,Injection,1mg/ml,50ml vial,Store in refrigerator 2-8°C,Chemotherapy drug for cancer
+Paclitaxel,PL2024026,250,Bristol-Myers Squibb,Port Harcourt Nigeria,2025-10-05,NAFDAC-888888,2024-05-30,Paclitaxel,Injection,6mg/ml,16.7ml vial,Store in refrigerator 2-8°C,Chemotherapy drug for cancer
+Oxytocin,OX2024027,1200,Novartis,Kano Nigeria,2026-01-15,NAFDAC-999999,2024-06-01,Oxytocin,Injection,10 units/ml,1ml ampoule,Store in refrigerator 2-8°C,Hormone for labor induction
+Epinephrine,EP2024028,2000,Pfizer Nigeria,Calabar Nigeria,2025-12-20,NAFDAC-000000,2024-06-05,Epinephrine,Injection,1mg/ml,1ml auto-injector,Store below 25°C,Emergency medication for anaphylaxis
+

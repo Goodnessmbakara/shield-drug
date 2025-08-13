@@ -1,0 +1,12 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Aspirin,AS2024011,75000,Bayer Healthcare,Lagos Nigeria,2026-05-20,NAFDAC-666666,2024-03-05,Acetylsalicylic Acid,Tablet,100mg,30 tablets per pack,Store in a dry place,Blood thinner and pain reliever
+Lisinopril,LS2024012,45000,Merck Sharp & Dohme,Abuja Nigeria,2026-09-15,NAFDAC-777777,2024-03-10,Lisinopril,Tablet,10mg,30 tablets per pack,Store below 30°C,ACE inhibitor for hypertension
+Atorvastatin,AT2024013,35000,Pfizer Nigeria,Port Harcourt Nigeria,2026-11-30,NAFDAC-888888,2024-03-15,Atorvastatin,Tablet,20mg,30 tablets per pack,Store below 25°C,Cholesterol-lowering medication
+Amlodipine,AM2024014,40000,AstraZeneca,Kano Nigeria,2026-08-10,NAFDAC-999999,2024-03-20,Amlodipine,Tablet,5mg,30 tablets per pack,Store in a cool dry place,Calcium channel blocker for hypertension
+Losartan,LO2024015,30000,Novartis,Calabar Nigeria,2026-12-25,NAFDAC-000000,2024-03-25,Losartan,Tablet,50mg,30 tablets per pack,Store below 30°C,Angiotensin receptor blocker
+Simvastatin,SM2024016,25000,Merck Sharp & Dohme,Lagos Nigeria,2026-07-05,NAFDAC-121212,2024-03-30,Simvastatin,Tablet,40mg,30 tablets per pack,Store below 25°C,Cholesterol-lowering medication
+Hydrochlorothiazide,HC2024017,35000,GSK Pharmaceuticals,Abuja Nigeria,2026-10-20,NAFDAC-131313,2024-04-05,Hydrochlorothiazide,Tablet,25mg,30 tablets per pack,Store in a cool dry place,Diuretic for hypertension
+Metoprolol,MT2024018,28000,AstraZeneca,Port Harcourt Nigeria,2026-06-15,NAFDAC-141414,2024-04-10,Metoprolol,Tablet,50mg,30 tablets per pack,Store below 30°C,Beta blocker for heart conditions
+Furosemide,FU2024019,20000,Sanofi-Aventis,Kano Nigeria,2026-04-30,NAFDAC-151515,2024-04-15,Furosemide,Tablet,40mg,30 tablets per pack,Store in a cool dry place,Diuretic for fluid retention
+Warfarin,WA2024020,15000,Bristol-Myers Squibb,Calabar Nigeria,2026-01-10,NAFDAC-161616,2024-04-20,Warfarin,Tablet,5mg,30 tablets per pack,Store below 25°C,Blood thinner for clotting disorders
+

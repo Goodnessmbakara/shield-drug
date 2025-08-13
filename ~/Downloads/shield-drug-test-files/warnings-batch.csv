@@ -1,0 +1,12 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Very Long Drug Name That Exceeds Recommended Length For Pharmaceutical Products,VL2024010,1000,GSK Pharmaceuticals,Lagos Nigeria,2026-12-31,NAFDAC-123456,2024-01-15,Paracetamol,Tablet,500mg,20 tablets per pack,Store below 30°C,Drug name too long
+Paracetamol,BATCH_ID_WITH_SPECIAL_CHARS@#$%,5000,GSK Pharmaceuticals,Lagos Nigeria,2026-12-31,NAFDAC-123456,2024-01-15,Paracetamol,Tablet,500mg,20 tablets per pack,Store below 30°C,Batch ID with special characters
+Ibuprofen,IB2024011,999999,Bayer Healthcare,Abuja Nigeria,2026-06-30,NAFDAC-789012,2024-01-20,Ibuprofen,Tablet,400mg,30 tablets per pack,Store in a cool dry place,Very large quantity
+Amoxicillin,AM2024012,25000,Pfizer Nigeria,Port Harcourt Nigeria,2025-11-30,nafdac-345678,2024-01-25,Amoxicillin,Capsule,500mg,21 capsules per pack,Store below 25°C,NAFDAC number not in proper format
+Omeprazole,OM2024013,15000,AstraZeneca,Kano Nigeria,2026-03-15,NAFDAC-901234,2024-01-30,Omeprazole,Capsule,20mg,14 capsules per pack,Store in original container,Proton pump inhibitor for acid reflux
+Metformin,MF2024014,20000,Merck Sharp & Dohme,Calabar Nigeria,2026-08-20,NAFDAC-567890,2024-02-05,Metformin,Tablet,500mg,60 tablets per pack,Store below 30°C,Diabetes medication
+Aspirin,AS2024015,75000,Bayer Healthcare,Lagos Nigeria,2026-05-20,NAFDAC-666666,2024-03-05,Acetylsalicylic Acid,Tablet,100mg,30 tablets per pack,Store in a dry place,Blood thinner and pain reliever
+Lisinopril,LS2024016,45000,Merck Sharp & Dohme,Abuja Nigeria,2026-09-15,NAFDAC-777777,2024-03-10,Lisinopril,Tablet,10mg,30 tablets per pack,Store below 30°C,ACE inhibitor for hypertension
+Atorvastatin,AT2024017,35000,Pfizer Nigeria,Port Harcourt Nigeria,2026-11-30,NAFDAC-888888,2024-03-15,Atorvastatin,Tablet,20mg,30 tablets per pack,Store below 25°C,Cholesterol-lowering medication
+Amlodipine,AM2024018,40000,AstraZeneca,Kano Nigeria,2026-08-10,NAFDAC-999999,2024-03-20,Amlodipine,Tablet,5mg,30 tablets per pack,Store in a cool dry place,Calcium channel blocker for hypertension
+

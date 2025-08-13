@@ -203,17 +203,7 @@ export class BlockchainService {
   ): Promise<BlockchainTransaction> {
     try {
       if (!this.walletClient) {
-        // Return mock transaction for development/testing
-        console.warn('Blockchain not configured, returning mock transaction');
-        return {
-          hash: '0x' + Math.random().toString(16).substring(2, 10) + '...' + Math.random().toString(16).substring(2, 10),
-          status: 'confirmed',
-          gasUsed: Math.floor(Math.random() * 50000) + 100000,
-          gasPrice: Math.floor(Math.random() * 50) + 20,
-          blockNumber: Math.floor(Math.random() * 1000000) + 45000000,
-          timestamp: new Date().toISOString(),
-          errorMessage: undefined
-        };
+        throw new Error('Blockchain wallet not configured. Please set AVALANCHE_PRIVATE_KEY in environment variables.');
       }
 
       // Extract data from validation result
@@ -327,17 +317,7 @@ export class BlockchainService {
   ): Promise<BlockchainTransaction> {
     try {
       if (!this.walletClient) {
-        // Return mock transaction for development/testing
-        console.warn('Blockchain not configured, returning mock QR code transaction');
-        return {
-          hash: '0x' + Math.random().toString(16).substring(2, 10) + '...' + Math.random().toString(16).substring(2, 10),
-          status: 'confirmed',
-          gasUsed: Math.floor(Math.random() * 50000) + 100000,
-          gasPrice: Math.floor(Math.random() * 50) + 20,
-          blockNumber: Math.floor(Math.random() * 1000000) + 45000000,
-          timestamp: new Date().toISOString(),
-          errorMessage: undefined
-        };
+        throw new Error('Blockchain wallet not configured. Please set AVALANCHE_PRIVATE_KEY in environment variables.');
       }
 
       console.log('Recording QR code on blockchain:', {

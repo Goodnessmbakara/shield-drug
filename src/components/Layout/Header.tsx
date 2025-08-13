@@ -9,7 +9,6 @@ import {
   User,
   LogOut,
   Settings,
-  Bell,
   HelpCircle,
 } from "lucide-react";
 import {
@@ -38,7 +37,6 @@ export default function Header({
   onMenuClick,
 }: HeaderProps) {
   const router = useRouter();
-  const [notifications] = useState(3); // Mock notifications
 
   const handleSignOut = () => {
     // Clear localStorage
@@ -124,24 +122,6 @@ export default function Header({
 
         {/* Right - User Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative touch-target mobile-optimized"
-            aria-label="Notifications"
-          >
-            <Bell className="h-5 w-5" />
-            {notifications > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center"
-              >
-                {notifications}
-              </Badge>
-            )}
-          </Button>
-
           {/* Help */}
           <Button
             variant="ghost"

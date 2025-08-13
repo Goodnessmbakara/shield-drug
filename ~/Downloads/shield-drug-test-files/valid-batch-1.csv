@@ -1,0 +1,7 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Paracetamol,PC2024001,50000,GSK Pharmaceuticals,Lagos Nigeria,2026-12-31,NAFDAC-123456,2024-01-15,Paracetamol,Tablet,500mg,20 tablets per pack,Store below 30°C,Pain reliever and fever reducer
+Ibuprofen,IB2024002,30000,Bayer Healthcare,Abuja Nigeria,2026-06-30,NAFDAC-789012,2024-01-20,Ibuprofen,Tablet,400mg,30 tablets per pack,Store in a cool dry place,Anti-inflammatory pain reliever
+Amoxicillin,AM2024003,25000,Pfizer Nigeria,Port Harcourt Nigeria,2025-11-30,NAFDAC-345678,2024-01-25,Amoxicillin,Capsule,500mg,21 capsules per pack,Store below 25°C,Antibiotic for bacterial infections
+Omeprazole,OM2024004,15000,AstraZeneca,Kano Nigeria,2026-03-15,NAFDAC-901234,2024-01-30,Omeprazole,Capsule,20mg,14 capsules per pack,Store in original container,Proton pump inhibitor for acid reflux
+Metformin,MF2024005,20000,Merck Sharp & Dohme,Calabar Nigeria,2026-08-20,NAFDAC-567890,2024-02-05,Metformin,Tablet,500mg,60 tablets per pack,Store below 30°C,Diabetes medication
+

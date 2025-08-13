@@ -43,6 +43,7 @@ import {
   Award,
   Zap,
   Shield,
+  RefreshCw,
 } from "lucide-react";
 
 export default function AnalyticsPage() {
@@ -53,6 +54,9 @@ export default function AnalyticsPage() {
   const [selectedMetric, setSelectedMetric] = useState("verifications");
   const [showExportModal, setShowExportModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -72,96 +76,93 @@ export default function AnalyticsPage() {
     }
   }, [router]);
 
-  const analyticsData = {
+  // Fetch analytics data
+  useEffect(() => {
+    if (!userEmail) return;
+
+    const fetchAnalyticsData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await fetch(`/api/manufacturer/analytics?timeRange=${timeRange}&metric=${selectedMetric}`, {
+          headers: {
+            'x-user-role': 'manufacturer',
+            'x-user-email': userEmail
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch analytics data');
+        }
+
+        const data = await response.json();
+        setAnalyticsData(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load analytics');
+        console.error('Error fetching analytics:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAnalyticsData();
+  }, [userEmail, timeRange, selectedMetric]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <DashboardLayout userRole="manufacturer" userName={userEmail}>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Activity className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Loading analytics data...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <DashboardLayout userRole="manufacturer" userName={userEmail}>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-danger" />
+            <p className="text-danger">Failed to load analytics: {error}</p>
+            <Button onClick={() => window.location.reload()} className="mt-4">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Use fetched data or fallback to empty data
+  const data = analyticsData || {
     overview: {
-      totalBatches: 247,
-      totalQRCodes: 2890000,
-      totalVerifications: 145670,
-      authenticityRate: 98.7,
-      complianceRate: 94.2,
-      blockchainSuccess: 99.8,
-      activePharmacies: 2047,
-      totalRevenue: 2847000,
+      totalBatches: 0,
+      totalQRCodes: 0,
+      totalVerifications: 0,
+      authenticityRate: 0,
+      complianceRate: 0,
+      blockchainSuccess: 0,
+      activePharmacies: 0,
+      totalRevenue: 0,
     },
     trends: {
-      verifications: [1250, 1890, 2340, 3420, 2890, 4560, 5230],
-      qrGenerations: [1200, 1800, 2200, 3200, 2800, 4200, 4800],
-      uploads: [15, 23, 18, 31, 27, 42, 38],
-      counterfeits: [3, 5, 2, 8, 4, 6, 3],
+      verifications: [],
+      qrGenerations: [],
+      uploads: [],
+      counterfeits: [],
     },
-    topDrugs: [
-      {
-        name: "Coartem",
-        verifications: 45620,
-        qrCodes: 120000,
-        authenticity: 99.2,
-      },
-      {
-        name: "Panadol",
-        verifications: 34200,
-        qrCodes: 150000,
-        authenticity: 98.8,
-      },
-      {
-        name: "Amoxil",
-        verifications: 28900,
-        qrCodes: 80000,
-        authenticity: 97.9,
-      },
-      {
-        name: "Aspirin",
-        verifications: 21000,
-        qrCodes: 60000,
-        authenticity: 98.5,
-      },
-      {
-        name: "Malarone",
-        verifications: 15950,
-        qrCodes: 45000,
-        authenticity: 99.1,
-      },
-    ],
-    regionalData: [
-      {
-        region: "Lagos",
-        verifications: 45620,
-        pharmacies: 450,
-        counterfeits: 12,
-      },
-      {
-        region: "Abuja",
-        verifications: 34200,
-        pharmacies: 320,
-        counterfeits: 8,
-      },
-      {
-        region: "Port Harcourt",
-        verifications: 28900,
-        pharmacies: 280,
-        counterfeits: 15,
-      },
-      {
-        region: "Kano",
-        verifications: 21000,
-        pharmacies: 220,
-        counterfeits: 6,
-      },
-      {
-        region: "Ibadan",
-        verifications: 15950,
-        pharmacies: 180,
-        counterfeits: 9,
-      },
-    ],
-    monthlyStats: [
-      { month: "Jan", verifications: 12500, qrCodes: 120000, uploads: 15 },
-      { month: "Feb", verifications: 18900, qrCodes: 180000, uploads: 23 },
-      { month: "Mar", verifications: 23400, qrCodes: 220000, uploads: 18 },
-      { month: "Apr", verifications: 34200, qrCodes: 320000, uploads: 31 },
-      { month: "May", verifications: 28900, qrCodes: 280000, uploads: 27 },
-      { month: "Jun", verifications: 45600, qrCodes: 420000, uploads: 42 },
-      { month: "Jul", verifications: 52300, qrCodes: 480000, uploads: 38 },
-    ],
+    topDrugs: [],
+    regionalData: [],
+    monthlyStats: [],
+    recentActivity: [],
   };
 
   const getTrendIcon = (current: number, previous: number) => {
@@ -469,7 +470,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {analyticsData.monthlyStats.map((stat, index) => (
+                {analyticsData.monthlyStats.map((stat: any, index: number) => (
                   <div
                     key={stat.month}
                     className="flex items-center justify-between p-3 border border-border rounded-lg"
@@ -525,7 +526,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {analyticsData.topDrugs.map((drug, index) => (
+                {analyticsData.topDrugs.map((drug: any, index: number) => (
                   <div
                     key={drug.name}
                     className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
@@ -570,7 +571,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {analyticsData.regionalData.map((region) => (
+                              {analyticsData.regionalData.map((region: any) => (
                 <div
                   key={region.region}
                   className="p-4 border border-border rounded-lg text-center hover:bg-accent/50 cursor-pointer transition-colors"
@@ -620,7 +621,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {analyticsData.trends.verifications.map((value, index) => (
+                {analyticsData.trends.verifications.map((value: number, index: number) => (
                   <div
                     key={index}
                     className="flex items-center justify-between"
@@ -664,7 +665,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {analyticsData.trends.qrGenerations.map((value, index) => (
+                {analyticsData.trends.qrGenerations.map((value: number, index: number) => (
                   <div
                     key={index}
                     className="flex items-center justify-between"

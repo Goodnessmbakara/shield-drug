@@ -36,6 +36,7 @@ import {
   Hash,
   Activity,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 
 export default function BatchesPage() {
@@ -45,9 +46,20 @@ export default function BatchesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDrug, setFilterDrug] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
 
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showReports, setShowReports] = useState(false);
+  
+  // Data states
+  const [batches, setBatches] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({});
+  const [filters, setFilters] = useState<any>({});
+  const [pagination, setPagination] = useState<any>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -67,84 +79,83 @@ export default function BatchesPage() {
     }
   }, [router]);
 
-  const batches = [
-    {
-      id: "CT2024001",
-      drug: "Coartem",
-      quantity: 10000,
-      status: "active",
-      qrGenerated: true,
-      verifications: 1250,
-      dateCreated: "2024-01-15",
-      expiryDate: "2026-01-15",
-      manufacturer: "Novartis",
-      location: "Lagos, Nigeria",
-      compliance: "NAFDAC Approved",
-    },
-    {
-      id: "AX2024002",
-      drug: "Amoxil",
-      quantity: 5000,
-      status: "pending",
-      qrGenerated: false,
-      verifications: 0,
-      dateCreated: "2024-01-20",
-      expiryDate: "2025-12-20",
-      manufacturer: "GlaxoSmithKline",
-      location: "Abuja, Nigeria",
-      compliance: "Pending Approval",
-    },
-    {
-      id: "PD2024003",
-      drug: "Panadol",
-      quantity: 15000,
-      status: "active",
-      qrGenerated: true,
-      verifications: 3420,
-      dateCreated: "2024-01-25",
-      expiryDate: "2026-06-25",
-      manufacturer: "GSK Consumer",
-      location: "Port Harcourt, Nigeria",
-      compliance: "NAFDAC Approved",
-    },
-    {
-      id: "AP2024004",
-      drug: "Aspirin",
-      quantity: 8000,
-      status: "expired",
-      qrGenerated: true,
-      verifications: 2100,
-      dateCreated: "2023-06-15",
-      expiryDate: "2024-01-15",
-      manufacturer: "Bayer",
-      location: "Kano, Nigeria",
-      compliance: "NAFDAC Approved",
-    },
-    {
-      id: "MP2024005",
-      drug: "Malarone",
-      quantity: 3000,
-      status: "active",
-      qrGenerated: true,
-      verifications: 890,
-      dateCreated: "2024-02-01",
-      expiryDate: "2027-02-01",
-      manufacturer: "GlaxoSmithKline",
-      location: "Ibadan, Nigeria",
-      compliance: "NAFDAC Approved",
-    },
-  ];
+  // Fetch batches data
+  useEffect(() => {
+    if (!userEmail) return;
 
-  const stats = {
-    totalBatches: 247,
-    activeBatches: 156,
-    pendingBatches: 45,
-    expiredBatches: 46,
-    totalQRCodes: 2890000,
-    verifications: 145670,
-    authenticityRate: 98.7,
-    complianceRate: 94.2,
-  };
+    const fetchBatches = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: '10',
+          search: searchTerm,
+          status: filterStatus,
+          drug: filterDrug,
+          sortBy,
+          sortOrder
+        });
+
+        const response = await fetch(`/api/manufacturer/batches?${params}`, {
+          headers: {
+            'x-user-role': 'manufacturer',
+            'x-user-email': userEmail
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch batches data');
+        }
+
+        const data = await response.json();
+        setBatches(data.batches);
+        setStats(data.stats);
+        setFilters(data.filters);
+        setPagination(data.pagination);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load batches');
+        console.error('Error fetching batches:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBatches();
+  }, [userEmail, currentPage, searchTerm, filterStatus, filterDrug, sortBy, sortOrder]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <DashboardLayout userRole="manufacturer" userName={userEmail}>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Activity className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Loading batches...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <DashboardLayout userRole="manufacturer" userName={userEmail}>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-destructive" />
+            <p className="text-destructive">Failed to load batches: {error}</p>
+            <Button onClick={() => window.location.reload()} className="mt-4">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -187,7 +198,7 @@ export default function BatchesPage() {
     }
   };
 
-  const uniqueDrugs = Array.from(new Set(batches.map((batch) => batch.drug)));
+
 
   const handleGenerateQRCodes = () => {
     router.push("/manufacturer/qr-codes");
@@ -490,7 +501,7 @@ export default function BatchesPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Drugs</SelectItem>
-                        {uniqueDrugs.map((drug) => (
+                        {filters.drugs?.map((drug: string) => (
                           <SelectItem key={drug} value={drug}>
                             {drug}
                           </SelectItem>
@@ -503,23 +514,7 @@ export default function BatchesPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {batches
-                  .filter(
-                    (batch) =>
-                      (filterStatus === "all" ||
-                        batch.status === filterStatus) &&
-                      (filterDrug === "all" || batch.drug === filterDrug) &&
-                      (batch.id
-                        .toLowerCase()
-                        .includes(searchTerm.toLowerCase()) ||
-                        batch.drug
-                          .toLowerCase()
-                          .includes(searchTerm.toLowerCase()) ||
-                        batch.manufacturer
-                          .toLowerCase()
-                          .includes(searchTerm.toLowerCase()))
-                  )
-                  .map((batch) => (
+                {batches.map((batch) => (
                     <div
                       key={batch.id}
                       className="p-4 border border-border rounded-lg"
@@ -634,6 +629,51 @@ export default function BatchesPage() {
                       </div>
                     </div>
                   ))}
+              
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to{' '}
+                    {Math.min(pagination.currentPage * pagination.limit, pagination.totalBatches)} of{' '}
+                    {pagination.totalBatches} batches
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(pagination.currentPage - 1)}
+                      disabled={!pagination.hasPrevPage}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                        const pageNum = i + 1;
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={pageNum === pagination.currentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-8 h-8 p-0"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(pagination.currentPage + 1)}
+                      disabled={!pagination.hasNextPage}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
               </div>
             </CardContent>
           </Card>
