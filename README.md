@@ -98,6 +98,15 @@ DrugShield is a comprehensive solution that addresses the critical issue of coun
    ```
 
 4. **Open your browser**
+
+## 📋 CSV Schema
+
+The platform uses a unified CSV schema for data upload and export operations. See [UNIFIED_CSV_SCHEMA.md](./UNIFIED_CSV_SCHEMA.md) for complete documentation.
+
+### Quick Start with CSV
+- **Upload Format**: Use `public/sample-batch.csv` as a template for batch uploads
+- **Export Format**: Download processed data in unified format from batch/upload details pages
+- **Validation**: All uploads are validated against the required schema before processing
    Navigate to [http://localhost:3000](http://localhost:3000)
 
 ### Environment Setup

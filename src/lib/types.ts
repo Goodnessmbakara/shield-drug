@@ -138,3 +138,46 @@ export interface UploadResponse {
   qrCodesGenerated?: number;
   error?: string;
 } 
+
+// Unified CSV Export Types
+export interface UnifiedCSVExport {
+  // Core drug information (from upload)
+  serial_number: number;
+  drug_name: string;
+  batch_id: string;
+  quantity: number;
+  expiry_date: string;
+  manufacturer: string;
+  location: string;
+  nafdac_number: string;
+  manufacturing_date: string;
+  active_ingredient: string;
+  dosage_form: string;
+  strength: string;
+  package_size: string;
+  storage_conditions: string;
+  description?: string;
+  
+  // Environmental data (from upload details)
+  temperature?: string;
+  humidity?: string;
+  
+  // Blockchain and verification data
+  qr_code_id: string;
+  blockchain_tx: string;
+  file_hash: string;
+  
+  // Timestamps
+  created_date: string;
+  upload_date?: string;
+  
+  // Quality and compliance data
+  quality_score?: number;
+  compliance_status?: string;
+  regulatory_approval?: string;
+  
+  // Verification tracking
+  verification_count?: number;
+  authenticity_rate?: number;
+  last_verified?: string;
+} 

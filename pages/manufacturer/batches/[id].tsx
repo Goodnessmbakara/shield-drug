@@ -5,13 +5,10 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -23,36 +20,23 @@ import {
 import {
   ArrowLeft,
   Download,
-  Eye,
   FileText,
   CheckCircle,
   Clock,
   AlertTriangle,
-  Database,
   BarChart3,
-  TrendingUp,
-  Package,
-  Users,
-  Calendar,
   Hash,
-  Globe,
   Activity,
-  Settings,
   RefreshCw,
-  Cloud,
   ExternalLink,
   Copy,
   QrCode,
   Shield,
-  Zap,
-  Target,
-  MapPin,
-  Thermometer,
-  Scale,
   Pill,
-  X,
 } from "lucide-react";
 import { DrugBatch } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
+import { generateUnifiedCSVExport, convertToCSV } from "@/lib/utils";
 
 interface BatchDetails extends DrugBatch {
   status: string;
@@ -75,11 +59,13 @@ interface BatchDetails extends DrugBatch {
 interface QRCode {
   id: string;
   qrCodeId: string;
-  qrCodeUrl: string;
+  imageUrl: string;
   verificationUrl: string;
-  serialNumber: number;
   blockchainTx: string;
-  createdAt: string;
+  date: string;
+  status: string;
+  downloads: number;
+  verifications: number;
 }
 
 // Fetch batch details from database
@@ -127,26 +113,13 @@ const fetchQRCodes = async (batchId: string, userEmail: string) => {
 
 // Generate processed data for download from batch details and QR codes
 const generateProcessedData = (batchDetails: BatchDetails, qrCodes: QRCode[]) => {
-  return qrCodes.map((qrCode, index) => ({
-    serial_number: index + 1,
-    drug_name: batchDetails.drugName,
-    batch_id: batchDetails.batchId,
-    quantity: 1,
-    expiry_date: batchDetails.expiryDate,
-    manufacturer: batchDetails.manufacturer,
-    location: batchDetails.location,
-    nafdac_number: batchDetails.nafdacNumber,
-    manufacturing_date: batchDetails.manufacturingDate,
-    active_ingredient: batchDetails.activeIngredient,
-    dosage_form: batchDetails.dosageForm,
-    strength: batchDetails.strength,
-    package_size: batchDetails.packageSize,
-    storage_conditions: batchDetails.storageConditions,
-    qr_code_id: qrCode.qrCodeId,
-    blockchain_tx: qrCode.blockchainTx,
-    created_date: batchDetails.createdAt,
-    file_hash: batchDetails.fileHash,
-  }));
+  return generateUnifiedCSVExport(batchDetails, qrCodes, {
+    qualityScore: batchDetails.qualityScore,
+    complianceStatus: batchDetails.complianceStatus,
+    regulatoryApproval: batchDetails.regulatoryApproval,
+    verificationCount: batchDetails.verifications,
+    authenticityRate: batchDetails.authenticityRate,
+  });
 };
 
 export default function BatchDetailsPage() {
@@ -159,6 +132,7 @@ export default function BatchDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showQRCodes, setShowQRCodes] = useState(false);
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
@@ -248,10 +222,18 @@ export default function BatchDetailsPage() {
     // Generate processed data from batch details and QR codes
     const processedData = generateProcessedData(batchDetails, qrCodes);
 
-    // Convert to CSV
-    const csvHeaders = Object.keys(processedData[0]).join(",");
-    const csvRows = processedData.map((row) => Object.values(row).join(","));
-    const csvContent = [csvHeaders, ...csvRows].join("\n");
+    // Check if there's data to download
+    if (!processedData.length) {
+      toast({
+        title: "No data available",
+        description: "Please ensure QR codes have been generated for this batch.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert to CSV using unified format
+    const csvContent = convertToCSV(processedData);
 
     // Create and download file
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -267,10 +249,6 @@ export default function BatchDetailsPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleViewQRCodes = () => {
-    setShowQRCodes(true);
-  };
-
   const handleViewBlockchain = () => {
     if (!batchDetails?.blockchainTx) return;
     // Open Avalanche C-Chain explorer
@@ -278,16 +256,23 @@ export default function BatchDetailsPage() {
       `https://testnet.snowtrace.io/tx/${batchDetails.blockchainTx}`,
       "_blank"
     );
+    toast({
+      title: "Opening Snowtrace",
+      description: "Blockchain transaction details opened in new tab.",
+    });
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    // In a real app, show toast notification
+    toast({
+      title: "Copied to clipboard",
+      description: "The text has been copied to your clipboard.",
+    });
   };
 
   const downloadQRCode = (qrCode: QRCode) => {
     const a = document.createElement("a");
-    a.href = qrCode.qrCodeUrl;
+    a.href = qrCode.imageUrl;
     a.download = `QR_${qrCode.id}.png`;
     document.body.appendChild(a);
     a.click();
@@ -349,7 +334,12 @@ export default function BatchDetailsPage() {
           </div>
           <div className="flex items-center gap-2">
             {getStatusBadge(batchDetails.status)}
-            <Button variant="outline" size="sm" onClick={handleDownloadData}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleDownloadData}
+              disabled={qrCodes.length === 0}
+            >
               <Download className="h-4 w-4 mr-2" />
               Download Data
             </Button>
@@ -477,7 +467,7 @@ export default function BatchDetailsPage() {
                       Processing Time
                     </p>
                     <p className="font-medium">
-                      {batchDetails.processingTime}s
+                      {batchDetails.processingTime != null ? `${batchDetails.processingTime}s` : '—'}
                     </p>
                   </div>
                   <div>
@@ -492,21 +482,25 @@ export default function BatchDetailsPage() {
                     <p className="text-sm text-muted-foreground">
                       Quality Score
                     </p>
-                    <p className="font-medium">{batchDetails.qualityScore}%</p>
+                    <p className="font-medium">{batchDetails.qualityScore != null ? `${batchDetails.qualityScore}%` : '—'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">
                       Authenticity Rate
                     </p>
-                    <p className="font-medium">{batchDetails.authenticityRate}%</p>
+                    <p className="font-medium">{batchDetails.authenticityRate != null ? `${batchDetails.authenticityRate}%` : '—'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">
                       Compliance Status
                     </p>
-                    <Badge className="bg-success text-success-foreground">
-                      {batchDetails.complianceStatus}
-                    </Badge>
+                    {batchDetails.complianceStatus != null ? (
+                      <Badge className="bg-success text-success-foreground">
+                        {batchDetails.complianceStatus}
+                      </Badge>
+                    ) : (
+                      <p className="font-medium">—</p>
+                    )}
                   </div>
                 </div>
 
@@ -717,7 +711,6 @@ export default function BatchDetailsPage() {
                     <Button
                       variant="default"
                       className="w-full"
-                      onClick={handleViewQRCodes}
                     >
                       <QrCode className="h-4 w-4 mr-2" />
                       View QR Codes
@@ -736,18 +729,18 @@ export default function BatchDetailsPage() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {qrCodes.map((qrCode) => (
+                      {qrCodes.map((qrCode, index) => (
                         <div
                           key={qrCode.id}
                           className="border rounded-lg p-4 text-center"
                         >
                           <img
-                            src={qrCode.qrCodeUrl}
-                            alt={`QR Code ${qrCode.serialNumber}`}
+                            src={qrCode.imageUrl}
+                            alt={`QR Code ${index + 1}`}
                             className="w-full h-auto mb-2"
                           />
                           <p className="text-xs font-medium mb-1">
-                            #{qrCode.serialNumber}
+                            #{index + 1}
                           </p>
                           <p className="text-xs text-muted-foreground mb-2">
                             {qrCode.id}
@@ -783,6 +776,7 @@ export default function BatchDetailsPage() {
                   variant="outline"
                   className="w-full"
                   onClick={handleDownloadData}
+                  disabled={qrCodes.length === 0}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download Data
@@ -800,7 +794,7 @@ export default function BatchDetailsPage() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => router.push(`/manufacturer/analytics?batch=${batchDetails.id}`)}
+                  onClick={() => router.push(`/manufacturer/analytics?batch=${batchDetails.batchId}`)}
                 >
                   <BarChart3 className="h-4 w-4 mr-2" />
                   View Analytics

@@ -53,6 +53,7 @@ import {
   X,
 } from "lucide-react";
 import { UploadHistory } from "@/lib/types";
+import { generateUnifiedCSVExport, convertToCSV } from "@/lib/utils";
 
 interface UploadDetails {
   id: string;
@@ -129,21 +130,13 @@ const fetchQRCodes = async (uploadId: string, userEmail: string) => {
 
 // Generate processed data for download from real upload details
 const generateProcessedData = (uploadDetails: UploadDetails, qrCodes: any[]) => {
-  return qrCodes.map((qrCode, index) => ({
-    serial_number: index + 1,
-    drug_name: uploadDetails.drug,
-    batch_id: uploadDetails.batchId,
-    quantity: 1,
-    expiry_date: uploadDetails.expiryDate,
-    manufacturer: uploadDetails.manufacturer,
-    location: uploadDetails.location,
+  return generateUnifiedCSVExport(uploadDetails, qrCodes, {
     temperature: uploadDetails.temperature,
     humidity: uploadDetails.humidity,
-    qr_code_id: qrCode.qrCodeId,
-    blockchain_tx: qrCode.blockchainTx,
-    upload_date: uploadDetails.date,
-    file_hash: uploadDetails.fileHash,
-  }));
+    qualityScore: uploadDetails.qualityScore,
+    complianceStatus: uploadDetails.complianceStatus,
+    regulatoryApproval: uploadDetails.regulatoryApproval,
+  });
 };
 
 export default function UploadDetailsPage() {
@@ -247,10 +240,8 @@ export default function UploadDetailsPage() {
     // Generate processed data from real upload details and QR codes
     const processedData = generateProcessedData(uploadDetails, qrCodes);
 
-    // Convert to CSV
-    const csvHeaders = Object.keys(processedData[0]).join(",");
-    const csvRows = processedData.map((row) => Object.values(row).join(","));
-    const csvContent = [csvHeaders, ...csvRows].join("\n");
+    // Convert to CSV using unified format
+    const csvContent = convertToCSV(processedData);
 
     // Create and download file
     const blob = new Blob([csvContent], { type: "text/csv" });
