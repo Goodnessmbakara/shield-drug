@@ -30,6 +30,24 @@ export default async function handler(
     // Get upload history from database
     const uploads = await getUploadsByUser(userEmail as string, limitNum);
     
+    // Transform the data to include proper id field and format dates
+    const transformedUploads = uploads.map(upload => ({
+      id: (upload._id as any).toString(),
+      fileName: upload.fileName,
+      drug: upload.drug,
+      quantity: upload.quantity,
+      status: upload.status,
+      date: upload.createdAt ? new Date(upload.createdAt).toISOString() : new Date().toISOString(),
+      size: upload.size,
+      records: upload.records,
+      blockchainTx: upload.blockchainTx,
+      manufacturer: upload.manufacturer,
+      batchId: upload.batchId,
+      qrCodesGenerated: upload.qrCodesGenerated || 0,
+      processingTime: upload.processingTime,
+      userEmail: upload.userEmail
+    }));
+    
     // Get upload statistics
     const stats = await getUploadStats(userEmail as string);
 
@@ -40,7 +58,7 @@ export default async function handler(
     const hasPrevPage = pageNum > 1;
 
     res.status(200).json({
-      uploads,
+      uploads: transformedUploads,
       pagination: {
         currentPage: pageNum,
         totalPages,

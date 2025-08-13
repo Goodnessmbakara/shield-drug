@@ -84,59 +84,66 @@ interface UploadDetails {
   regulatoryApproval?: string;
 }
 
-// Mock QR code data - in a real app, this would come from the backend
-const generateMockQRData = (uploadId: string, batchId: string) => {
-  const qrCodes = [];
-  for (let i = 1; i <= 10; i++) {
-    // Show first 10 QR codes as example
-    qrCodes.push({
-      id: `${uploadId}-QR-${i.toString().padStart(6, "0")}`,
-      serialNumber: i,
-      drugName: "Coartem (Artemether/Lumefantrine)",
-      batchId: batchId,
-      expiryDate: "2026-12-31",
-      manufacturer: "Novartis Pharmaceuticals",
-      qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-        JSON.stringify({
-          id: `${uploadId}-QR-${i.toString().padStart(6, "0")}`,
-          drug: "Coartem (Artemether/Lumefantrine)",
-          batch: batchId,
-          expiry: "2026-12-31",
-          manufacturer: "Novartis Pharmaceuticals",
-          blockchainTx:
-            "0x8f2a3774a83e8a6d64e6f2ce8ed4ac7d1f219856e07b6955b6b3a0e45b3eac5f",
-        })
-      )}`,
-      verificationUrl: `https://shield-drug.com/verify/${uploadId}-QR-${i
-        .toString()
-        .padStart(6, "0")}`,
+// Fetch real upload details from database
+const fetchUploadDetails = async (uploadId: string, userEmail: string) => {
+  try {
+    const response = await fetch(`/api/manufacturer/upload-details?uploadId=${uploadId}`, {
+      headers: {
+        'x-user-role': 'manufacturer',
+        'x-user-email': userEmail
+      }
     });
+    
+    if (response.ok) {
+      return await response.json();
+    } else {
+      throw new Error('Failed to fetch upload details');
+    }
+  } catch (error) {
+    console.error('Error fetching upload details:', error);
+    return null;
   }
-  return qrCodes;
 };
 
-// Mock processed data for download
-const generateMockProcessedData = (uploadDetails: UploadDetails) => {
-  const data = [];
-  for (let i = 1; i <= 100; i++) {
-    // Generate 100 sample records
-    data.push({
-      serial_number: i,
-      drug_name: uploadDetails.drug,
-      batch_id: uploadDetails.batchId,
-      quantity: 1,
-      expiry_date: uploadDetails.expiryDate,
-      manufacturer: uploadDetails.manufacturer,
-      location: uploadDetails.location,
-      temperature: uploadDetails.temperature,
-      humidity: uploadDetails.humidity,
-      qr_code_id: `${uploadDetails.id}-QR-${i.toString().padStart(6, "0")}`,
-      blockchain_tx: uploadDetails.blockchainTx,
-      upload_date: uploadDetails.date,
-      file_hash: uploadDetails.fileHash,
+// Fetch QR codes for this upload
+const fetchQRCodes = async (uploadId: string, userEmail: string) => {
+  try {
+    const response = await fetch(`/api/manufacturer/qr-codes?uploadId=${uploadId}&limit=50`, {
+      headers: {
+        'x-user-role': 'manufacturer',
+        'x-user-email': userEmail
+      }
     });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.qrCodes || [];
+    } else {
+      throw new Error('Failed to fetch QR codes');
+    }
+  } catch (error) {
+    console.error('Error fetching QR codes:', error);
+    return [];
   }
-  return data;
+};
+
+// Generate processed data for download from real upload details
+const generateProcessedData = (uploadDetails: UploadDetails, qrCodes: any[]) => {
+  return qrCodes.map((qrCode, index) => ({
+    serial_number: index + 1,
+    drug_name: uploadDetails.drug,
+    batch_id: uploadDetails.batchId,
+    quantity: 1,
+    expiry_date: uploadDetails.expiryDate,
+    manufacturer: uploadDetails.manufacturer,
+    location: uploadDetails.location,
+    temperature: uploadDetails.temperature,
+    humidity: uploadDetails.humidity,
+    qr_code_id: qrCode.qrCodeId,
+    blockchain_tx: qrCode.blockchainTx,
+    upload_date: uploadDetails.date,
+    file_hash: uploadDetails.fileHash,
+  }));
 };
 
 export default function UploadDetailsPage() {
@@ -170,50 +177,37 @@ export default function UploadDetailsPage() {
     }
   }, [router]);
 
+  // Fetch upload details and QR codes when component mounts
   useEffect(() => {
-    if (id && isClient) {
-      // Simulate loading upload details
-      setTimeout(() => {
-        const mockUploadDetails: UploadDetails = {
-          id: id as string,
-          fileName: "coartem_batch_001.csv",
-          drug: "Coartem (Artemether/Lumefantrine)",
-          quantity: 50000,
-          status: "completed",
-          date: "2024-01-15 14:30:22",
-          size: "2.1 MB",
-          records: 50000,
-          blockchainTx:
-            "0x8f2a3774a83e8a6d64e6f2ce8ed4ac7d1f219856e07b6955b6b3a0e45b3eac5f",
-          description:
-            "Emergency malaria treatment batch for West African distribution",
-          manufacturer: "Novartis Pharmaceuticals",
-          batchId: "COARTEM-2024-001",
-          expiryDate: "2026-12-31",
-          validationResult: {
-            isValid: true,
-            errors: [],
-            warnings: [
-              "Some records have slightly elevated temperature readings",
-            ],
-          },
-          qrCodesGenerated: 50000,
-          processingTime: 45,
-          fileHash:
-            "sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
-          location: "Lagos, Nigeria",
-          temperature: "22°C ±2°C",
-          humidity: "45% ±5%",
-          qualityScore: 98.5,
-          complianceStatus: "Compliant",
-          regulatoryApproval: "NAFDAC Approved",
-        };
-
-        setUploadDetails(mockUploadDetails);
+    const loadData = async () => {
+      if (!id || !userEmail) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const [details, codes] = await Promise.all([
+          fetchUploadDetails(id as string, userEmail),
+          fetchQRCodes(id as string, userEmail)
+        ]);
+        
+        if (details) {
+          setUploadDetails(details);
+        } else {
+          setError('Upload not found');
+        }
+        
+        setQrCodes(codes);
+      } catch (err) {
+        setError('Failed to load upload details');
+        console.error('Error loading data:', err);
+      } finally {
         setIsLoading(false);
-      }, 1000);
-    }
-  }, [id, isClient]);
+      }
+    };
+    
+    loadData();
+  }, [id, userEmail]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -250,8 +244,8 @@ export default function UploadDetailsPage() {
   const handleDownloadData = () => {
     if (!uploadDetails) return;
 
-    // Generate mock processed data
-    const processedData = generateMockProcessedData(uploadDetails);
+    // Generate processed data from real upload details and QR codes
+    const processedData = generateProcessedData(uploadDetails, qrCodes);
 
     // Convert to CSV
     const csvHeaders = Object.keys(processedData[0]).join(",");
@@ -273,14 +267,6 @@ export default function UploadDetailsPage() {
   };
 
   const handleViewQRCodes = () => {
-    if (!uploadDetails) return;
-
-    // Generate mock QR codes
-    const generatedQRCodes = generateMockQRData(
-      uploadDetails.id,
-      uploadDetails.batchId
-    );
-    setQrCodes(generatedQRCodes);
     setShowQRCodes(true);
   };
 
