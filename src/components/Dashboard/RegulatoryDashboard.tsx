@@ -86,8 +86,6 @@ export default function RegulatoryDashboard() {
     );
   }
 
-
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "investigating":

@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import dbConnect from '@src/lib/database';
-import Upload from '@src/lib/models/Upload';
-import QRCode from '@src/lib/models/QRCode';
+import dbConnect from '../../../src/lib/database';
+import Upload from '../../../src/lib/models/Upload';
+import QRCode from '../../../src/lib/models/QRCode';
 import mongoose from 'mongoose';
-import { BatchDetails } from '@src/lib/types';
+import { BatchDetails } from '../../../src/lib/types';
 
 // Structured logging utility
 interface LogEntry {
@@ -423,9 +423,13 @@ export default async function handler(
     quantity: Math.max(0, batch.quantity || 0),
     manufacturer: batch.manufacturer || 'Unknown Manufacturer',
     location: batch.location || 'Unknown Location',
-    expiryDate: batch.expiryDate ? new Date(batch.expiryDate).toISOString().split('T')[0] : '',
+    expiryDate: formatYMD(batch.expiryDate),
     nafdacNumber: batch.nafdacNumber || 'NAFDAC-PENDING',
-    manufacturingDate: batch.manufacturingDate || batch.createdAt ? new Date(batch.manufacturingDate || batch.createdAt).toISOString().split('T')[0] : '',
+    // Make manufacturing date conditional explicit and reusable
+    manufacturingDate: (() => {
+      const primaryMfgDate = batch.manufacturingDate ?? batch.createdAt;
+      return formatYMD(primaryMfgDate);
+    })(),
     activeIngredient: batch.activeIngredient || 'Not specified',
     dosageForm: batch.dosageForm || 'Not specified',
     strength: batch.strength || 'Not specified',
