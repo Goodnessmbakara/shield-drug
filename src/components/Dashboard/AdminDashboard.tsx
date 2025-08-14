@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -111,6 +112,7 @@ interface AdminDashboardData {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -203,6 +205,10 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSystemSettings = () => {
+    router.push('/admin/settings');
+  };
+
   const getRoleBadge = (role: string) => {
     switch (role) {
       case "manufacturer":
@@ -278,7 +284,7 @@ export default function AdminDashboard() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="hero" size="xl">
+          <Button variant="hero" size="xl" onClick={handleSystemSettings}>
             <Settings className="mr-2 h-5 w-5" />
             System Settings
           </Button>
