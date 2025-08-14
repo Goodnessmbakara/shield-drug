@@ -158,12 +158,14 @@ export class AuditLogger {
     userRole?: string;
     requestId?: string;
     resourceId?: string;
+    resourceType?: string;
+    level?: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
     metadata?: Record<string, any>;
     error?: string;
   }): Promise<void> {
     await this.log({
       category: 'BLOCKCHAIN',
-      level: 'INFO',
+      level: data.level || 'INFO',
       ...data
     });
   }

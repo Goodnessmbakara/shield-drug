@@ -52,6 +52,18 @@ function getRequestId(req: NextApiRequest): string {
   return (req.headers['x-request-id'] as string) || generateRequestId();
 }
 
+// Helper function to format date to YYYY-MM-DD format
+function formatYMD(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return '';
+    return dateObj.toISOString().split('T')[0];
+  } catch (error) {
+    return '';
+  }
+}
+
 function log(level: 'ERROR' | 'WARN' | 'INFO', message: string, context: any = {}) {
   const logData = {
     level,
@@ -427,7 +439,7 @@ export default async function handler(
     status: mapStatus(batch.status),
     blockchainTx: batch.blockchainTx || '',
     qrCodesGenerated: Math.max(0, batch.qrCodesGenerated || stats.totalQRCodes || 0),
-    processingTime: batch.processingTime || null,
+            processingTime: batch.processingTime ?? null,
     fileHash: batch.fileHash || '',
 
     // Validation results with proper structure validation
@@ -468,11 +480,8 @@ export default async function handler(
     duration: Date.now() - startTime
   });
 
-  res.status(200).json({
-    ...batchDetails,
-    requestId,
-    timestamp: new Date().toISOString()
-  });
+  res.setHeader('X-Request-Id', requestId);
+  res.status(200).json(batchDetails);
 }
 
 // Helper function to map upload status to batch status
@@ -490,7 +499,7 @@ function mapStatus(uploadStatus: string | null | undefined): 'active' | 'pending
     case 'in-progress':
       return 'pending';
     case 'failed':
-      return 'expired';
+      return 'failed';
     default:
       return 'pending';
   }

@@ -52,10 +52,51 @@ import {
   Target,
   Award,
   Zap,
+  Loader2,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface InventoryItem {
+  id: string;
+  drugName: string;
+  genericName: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  expiryDate: string | null;
+  batchId: string;
+  manufacturer: string;
+  supplier: string;
+  purchaseDate: string;
+  status: string;
+  verificationStatus: string;
+  lastVerified: string | null;
+  verificationCount: number;
+  location: string;
+  reorderLevel: number;
+  minStock: number;
+  qrCodeId: string;
+  isScanned: boolean;
+  scannedAt: string | null;
+  scannedBy: string | null;
+}
+
+interface InventoryStats {
+  totalItems: number;
+  activeItems: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  expiringItems: number;
+  verifiedItems: number;
+  pendingVerification: number;
+  totalValue: number;
+  monthlySales: number;
+  verificationRate: number;
+}
 
 export default function PharmacistInventoryPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [userEmail, setUserEmail] = useState<string>("");
   const [isClient, setIsClient] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -64,6 +105,32 @@ export default function PharmacistInventoryPage() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  
+  // Live data states
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [stats, setStats] = useState<InventoryStats>({
+    totalItems: 0,
+    activeItems: 0,
+    lowStockItems: 0,
+    outOfStockItems: 0,
+    expiringItems: 0,
+    verifiedItems: 0,
+    pendingVerification: 0,
+    totalValue: 0,
+    monthlySales: 0,
+    verificationRate: 0,
+  });
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    hasNextPage: false,
+    hasPrevPage: false,
+    limit: 20
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -79,168 +146,64 @@ export default function PharmacistInventoryPage() {
 
       if (email) {
         setUserEmail(email);
+        fetchInventoryData(email);
       }
     }
   }, [router]);
 
-  const inventoryItems = [
-    {
-      id: "INV001",
-      drugName: "Coartem",
-      genericName: "Artemether/Lumefantrine",
-      category: "Antimalarial",
-      quantity: 150,
-      unit: "tablets",
-      expiryDate: "2025-06-15",
-      batchId: "CT2024001",
-      manufacturer: "Novartis",
-      supplier: "MedPlus Nigeria",
-      purchaseDate: "2024-01-15",
-      purchasePrice: 2500,
-      sellingPrice: 3200,
-      status: "active",
-      verificationStatus: "verified",
-      lastVerified: "2024-01-20",
-      verificationCount: 45,
-      location: "Shelf A1",
-      reorderLevel: 20,
-      minStock: 10,
-    },
-    {
-      id: "INV002",
-      drugName: "Amoxil",
-      genericName: "Amoxicillin",
-      category: "Antibiotic",
-      quantity: 85,
-      unit: "capsules",
-      expiryDate: "2025-03-20",
-      batchId: "AX2024002",
-      manufacturer: "GlaxoSmithKline",
-      supplier: "PharmAccess",
-      purchaseDate: "2024-01-10",
-      purchasePrice: 1800,
-      sellingPrice: 2400,
-      status: "active",
-      verificationStatus: "verified",
-      lastVerified: "2024-01-18",
-      verificationCount: 32,
-      location: "Shelf B2",
-      reorderLevel: 15,
-      minStock: 8,
-    },
-    {
-      id: "INV003",
-      drugName: "Panadol",
-      genericName: "Paracetamol",
-      category: "Analgesic",
-      quantity: 300,
-      unit: "tablets",
-      expiryDate: "2026-01-10",
-      batchId: "PD2024003",
-      manufacturer: "GSK Consumer",
-      supplier: "HealthPlus",
-      purchaseDate: "2024-01-05",
-      purchasePrice: 1200,
-      sellingPrice: 1800,
-      status: "active",
-      verificationStatus: "pending",
-      lastVerified: "2024-01-12",
-      verificationCount: 28,
-      location: "Shelf C1",
-      reorderLevel: 50,
-      minStock: 25,
-    },
-    {
-      id: "INV004",
-      drugName: "Augmentin",
-      genericName: "Amoxicillin/Clavulanic Acid",
-      category: "Antibiotic",
-      quantity: 8,
-      unit: "tablets",
-      expiryDate: "2024-12-05",
-      batchId: "AG2024004",
-      manufacturer: "GlaxoSmithKline",
-      supplier: "MedPlus Nigeria",
-      purchaseDate: "2023-12-01",
-      purchasePrice: 3500,
-      sellingPrice: 4500,
-      status: "low-stock",
-      verificationStatus: "verified",
-      lastVerified: "2024-01-15",
-      verificationCount: 15,
-      location: "Shelf B3",
-      reorderLevel: 20,
-      minStock: 10,
-    },
-    {
-      id: "INV005",
-      drugName: "Aspirin",
-      genericName: "Acetylsalicylic Acid",
-      category: "Analgesic",
-      quantity: 200,
-      unit: "tablets",
-      expiryDate: "2025-08-20",
-      batchId: "AS2024005",
-      manufacturer: "Bayer",
-      supplier: "PharmAccess",
-      purchaseDate: "2024-01-08",
-      purchasePrice: 800,
-      sellingPrice: 1200,
-      status: "active",
-      verificationStatus: "verified",
-      lastVerified: "2024-01-19",
-      verificationCount: 38,
-      location: "Shelf A2",
-      reorderLevel: 30,
-      minStock: 15,
-    },
-    {
-      id: "INV006",
-      drugName: "Malarone",
-      genericName: "Atovaquone/Proguanil",
-      category: "Antimalarial",
-      quantity: 0,
-      unit: "tablets",
-      expiryDate: "2024-11-15",
-      batchId: "ML2024006",
-      manufacturer: "GlaxoSmithKline",
-      supplier: "HealthPlus",
-      purchaseDate: "2023-11-01",
-      purchasePrice: 4200,
-      sellingPrice: 5500,
-      status: "out-of-stock",
-      verificationStatus: "verified",
-      lastVerified: "2024-01-10",
-      verificationCount: 22,
-      location: "Shelf A3",
-      reorderLevel: 25,
-      minStock: 12,
-    },
-  ];
-
-  const stats = {
-    totalItems: 856,
-    activeItems: 789,
-    lowStockItems: 45,
-    outOfStockItems: 22,
-    expiringItems: 18,
-    verifiedItems: 812,
-    pendingVerification: 44,
-    totalValue: 2847000,
-    monthlySales: 456000,
-    verificationRate: 94.8,
+  const fetchInventoryData = async (email: string, page: number = 1) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const params = new URLSearchParams({
+        search: searchTerm,
+        category: filterCategory,
+        status: filterStatus,
+        page: page.toString(),
+        limit: '20'
+      });
+      
+      const response = await fetch(`/api/pharmacist/inventory?${params}`, {
+        headers: {
+          'x-user-role': 'pharmacist',
+          'x-user-email': email
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch inventory data');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setInventoryItems(data.inventoryItems);
+        setStats(data.stats);
+        setCategories(data.filters.categories);
+        setPagination(data.pagination);
+      } else {
+        throw new Error(data.error || 'Failed to fetch inventory data');
+      }
+    } catch (err) {
+      console.error('Error fetching inventory data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load inventory data');
+      toast({
+        title: "Error",
+        description: "Failed to load inventory data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const categories = [
-    "Antimalarial",
-    "Antibiotic",
-    "Analgesic",
-    "Antihypertensive",
-    "Antidiabetic",
-    "Vitamins",
-    "Supplements",
-    "Other",
-  ];
+  // Refresh data when filters change
+  useEffect(() => {
+    if (userEmail) {
+      fetchInventoryData(userEmail, 1);
+    }
+  }, [searchTerm, filterCategory, filterStatus]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -248,16 +211,16 @@ export default function PharmacistInventoryPage() {
         return (
           <Badge className="bg-success text-success-foreground">Active</Badge>
         );
-      case "low-stock":
+      case "pending-verification":
         return (
           <Badge className="bg-warning text-warning-foreground">
-            Low Stock
+            Pending Verification
           </Badge>
         );
-      case "out-of-stock":
+      case "expired":
         return (
           <Badge className="bg-danger text-danger-foreground">
-            Out of Stock
+            Expired
           </Badge>
         );
       case "expiring":
@@ -313,6 +276,15 @@ export default function PharmacistInventoryPage() {
     if (quantity === 0) return "bg-danger";
     if (quantity <= minStock) return "bg-warning";
     return "bg-success";
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   const handleAddItem = () => {
@@ -375,6 +347,11 @@ export default function PharmacistInventoryPage() {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export Successful",
+      description: "Inventory data has been exported as CSV.",
+    });
   };
 
   const handleScanItem = (itemId: string) => {
@@ -387,9 +364,17 @@ export default function PharmacistInventoryPage() {
     console.log(`Deleting inventory item ${itemId}...`);
   };
 
-  const uniqueCategories = Array.from(
-    new Set(inventoryItems.map((item) => item.category))
-  );
+  const handleRefresh = () => {
+    if (userEmail) {
+      fetchInventoryData(userEmail, pagination.currentPage);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    if (userEmail) {
+      fetchInventoryData(userEmail, page);
+    }
+  };
 
   if (!isClient) {
     return null;
@@ -409,10 +394,25 @@ export default function PharmacistInventoryPage() {
               authentication
             </p>
           </div>
-          <Button variant="hero" size="xl" onClick={handleAddItem}>
-            <Plus className="mr-2 h-5 w-5" />
-            Add Item
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh
+            </Button>
+            <Button variant="hero" size="xl" onClick={handleAddItem}>
+              <Plus className="mr-2 h-5 w-5" />
+              Add Item
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -426,7 +426,7 @@ export default function PharmacistInventoryPage() {
               <div className="text-2xl font-bold">
                 {stats.totalItems.toLocaleString()}
               </div>
-              <p className="text-xs text-muted-foreground">+23 this month</p>
+              <p className="text-xs text-muted-foreground">QR code inventory</p>
             </CardContent>
           </Card>
 
@@ -441,20 +441,20 @@ export default function PharmacistInventoryPage() {
               <div className="text-2xl font-bold text-success">
                 {stats.activeItems}
               </div>
-              <p className="text-xs text-muted-foreground">In stock</p>
+              <p className="text-xs text-muted-foreground">Verified & scanned</p>
             </CardContent>
           </Card>
 
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
+              <CardTitle className="text-sm font-medium">Pending Verification</CardTitle>
               <AlertTriangle className="h-4 w-4 text-warning" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-warning">
-                {stats.lowStockItems}
+                {stats.pendingVerification}
               </div>
-              <p className="text-xs text-muted-foreground">Needs attention</p>
+              <p className="text-xs text-muted-foreground">Needs scanning</p>
             </CardContent>
           </Card>
 
@@ -524,7 +524,7 @@ export default function PharmacistInventoryPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {uniqueCategories.map((category) => (
+                    {categories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
@@ -542,132 +542,172 @@ export default function PharmacistInventoryPage() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="low-stock">Low Stock</SelectItem>
-                    <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                    <SelectItem value="pending-verification">Pending Verification</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
                     <SelectItem value="expiring">Expiring Soon</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="space-y-4">
-              {inventoryItems
-                .filter(
-                  (item) =>
-                    (filterCategory === "all" ||
-                      item.category === filterCategory) &&
-                    (filterStatus === "all" || item.status === filterStatus) &&
-                    (item.drugName
-                      .toLowerCase()
-                      .includes(searchTerm.toLowerCase()) ||
-                      item.batchId
-                        .toLowerCase()
-                        .includes(searchTerm.toLowerCase()) ||
-                      item.manufacturer
-                        .toLowerCase()
-                        .includes(searchTerm.toLowerCase()))
-                )
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 border border-border rounded-lg"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <p className="font-medium">{item.drugName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {item.genericName} | Batch: {item.batchId}
-                        </p>
+            {loading ? (
+              <div className="text-center py-8">
+                <Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin" />
+                <p className="text-muted-foreground">Loading inventory data...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <AlertTriangle className="mx-auto mb-2 h-8 w-8 text-warning" />
+                <p className="text-muted-foreground">{error}</p>
+                <Button 
+                  onClick={() => fetchInventoryData(userEmail, pagination.currentPage)}
+                  className="mt-2"
+                  variant="outline"
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {inventoryItems.length > 0 ? (
+                  inventoryItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 border border-border rounded-lg"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="font-medium">{item.drugName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.genericName} | Batch: {item.batchId}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(item.status)}
+                          {getVerificationBadge(item.verificationStatus)}
+                        </div>
                       </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                        <div>
+                          <p className="text-muted-foreground">Quantity</p>
+                          <p className="font-medium">
+                            {item.quantity} {item.unit}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Location</p>
+                          <p className="font-medium">{item.location}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Expires</p>
+                          <p className="font-medium">{formatDate(item.expiryDate)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Verifications</p>
+                          <p className="font-medium">{item.verificationCount}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mb-3">
+                        <div className="flex justify-between text-sm">
+                          <span>Stock Level</span>
+                          <span className="font-medium">
+                            {getStockLevel(item.quantity, item.minStock)}%
+                          </span>
+                        </div>
+                        <Progress
+                          value={getStockLevel(item.quantity, item.minStock)}
+                          className={`h-2 ${getStockColor(
+                            item.quantity,
+                            item.minStock
+                          )}`}
+                        />
+                      </div>
+
                       <div className="flex items-center gap-2">
-                        {getStatusBadge(item.status)}
-                        {getVerificationBadge(item.verificationStatus)}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(item.id)}
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          View Details
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditItem(item.id)}
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleScanItem(item.id)}
+                        >
+                          <ScanLine className="w-3 h-3 mr-1" />
+                          Scan
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleExportInventory()}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          Export
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-danger hover:text-danger"
+                          onClick={() => handleDeleteItem(item.id)}
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Package className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                    <p className="text-muted-foreground">No inventory items found.</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Start by adding items to your inventory.
+                    </p>
+                  </div>
+                )}
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
-                      <div>
-                        <p className="text-muted-foreground">Quantity</p>
-                        <p className="font-medium">
-                          {item.quantity} {item.unit}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Location</p>
-                        <p className="font-medium">{item.location}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Expires</p>
-                        <p className="font-medium">{item.expiryDate}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Verifications</p>
-                        <p className="font-medium">{item.verificationCount}</p>
-                      </div>
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to {Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)} of {pagination.totalItems} items
                     </div>
-
-                    <div className="space-y-2 mb-3">
-                      <div className="flex justify-between text-sm">
-                        <span>Stock Level</span>
-                        <span className="font-medium">
-                          {getStockLevel(item.quantity, item.minStock)}%
-                        </span>
-                      </div>
-                      <Progress
-                        value={getStockLevel(item.quantity, item.minStock)}
-                        className={`h-2 ${getStockColor(
-                          item.quantity,
-                          item.minStock
-                        )}`}
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
+                    <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewDetails(item.id)}
+                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        disabled={!pagination.hasPrevPage}
                       >
-                        <Eye className="w-3 h-3 mr-1" />
-                        View Details
+                        Previous
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEditItem(item.id)}
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        disabled={!pagination.hasNextPage}
                       >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleScanItem(item.id)}
-                      >
-                        <ScanLine className="w-3 h-3 mr-1" />
-                        Scan
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleExportInventory()}
-                      >
-                        <Download className="w-3 h-3 mr-1" />
-                        Export
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-danger hover:text-danger"
-                        onClick={() => handleDeleteItem(item.id)}
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        Delete
+                        Next
                       </Button>
                     </div>
                   </div>
-                ))}
-            </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -696,9 +736,9 @@ export default function PharmacistInventoryPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Verification Success Rate</span>
-                    <span className="font-medium">94.8%</span>
+                    <span className="font-medium">{stats.verificationRate}%</span>
                   </div>
-                  <Progress value={94.8} className="h-2" />
+                  <Progress value={stats.verificationRate} className="h-2" />
                 </div>
 
                 <div className="space-y-2">
@@ -713,24 +753,18 @@ export default function PharmacistInventoryPage() {
               <div className="space-y-4">
                 <h4 className="font-medium">Recent Verifications</h4>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>CT2024001</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>AX2024002</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>PD2024003</span>
-                    <Badge className="bg-warning text-warning-foreground text-xs">
-                      Pending
-                    </Badge>
-                  </div>
+                  {inventoryItems.slice(0, 3).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between text-sm">
+                      <span>{item.batchId}</span>
+                      <Badge className={`text-xs ${
+                        item.verificationStatus === 'verified' 
+                          ? 'bg-success text-success-foreground' 
+                          : 'bg-warning text-warning-foreground'
+                      }`}>
+                        {item.verificationStatus === 'verified' ? 'Success' : 'Pending'}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -739,11 +773,11 @@ export default function PharmacistInventoryPage() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Pending Txns</p>
-                    <p className="font-medium">2</p>
+                    <p className="font-medium">{stats.pendingVerification}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Daily Verifications</p>
-                    <p className="font-medium">156</p>
+                    <p className="font-medium">{Math.round(stats.monthlySales / 30)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Block Height</p>

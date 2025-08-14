@@ -19,34 +19,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, CheckCircle, Clock, Info, Shield } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, Info, Shield, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface Report {
+  _id: string;
+  userEmail: string;
+  drugName: string;
+  batchNumber: string;
+  description: string;
+  status: "pending" | "resolved";
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function ConsumerReportPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [userEmail, setUserEmail] = useState<string>("");
   const [isClient, setIsClient] = useState(false);
   const [drugName, setDrugName] = useState("");
   const [batch, setBatch] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [reports, setReports] = useState([
-    {
-      id: 1,
-      drugName: "Antibiotic X",
-      batch: "ABX202405D",
-      status: "pending",
-      submitted: "2024-06-01 15:00",
-      description: "Packaging looked suspicious and QR code did not scan.",
-    },
-    {
-      id: 2,
-      drugName: "Cough Syrup",
-      batch: "CSY202405C",
-      status: "resolved",
-      submitted: "2024-05-25 10:10",
-      description: "Seal was broken on purchase.",
-    },
-  ]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -59,9 +57,31 @@ export default function ConsumerReportPage() {
       }
       if (email) {
         setUserEmail(email);
+        fetchReports(email);
       }
     }
   }, [router]);
+
+  const fetchReports = async (email: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/consumer/reports?userEmail=${encodeURIComponent(email)}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports');
+      }
+      
+      const data = await response.json();
+      setReports(data.reports || []);
+    } catch (err) {
+      console.error('Error fetching reports:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load reports');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -84,26 +104,76 @@ export default function ConsumerReportPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!drugName.trim() || !batch.trim() || !description.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
-    setTimeout(() => {
-      setReports([
-        {
-          id: reports.length + 1,
-          drugName,
-          batch,
-          status: "pending",
-          submitted: new Date().toISOString().slice(0, 16).replace("T", " "),
-          description,
+    
+    try {
+      const response = await fetch('/api/consumer/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        ...reports,
-      ]);
-      setDrugName("");
-      setBatch("");
-      setDescription("");
+        body: JSON.stringify({
+          userEmail,
+          drugName: drugName.trim(),
+          batchNumber: batch.trim(),
+          description: description.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit report');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "Report Submitted",
+          description: "Your report has been submitted successfully.",
+        });
+        
+        // Clear form
+        setDrugName("");
+        setBatch("");
+        setDescription("");
+        
+        // Refresh reports list
+        await fetchReports(userEmail);
+      } else {
+        throw new Error(result.error || 'Failed to submit report');
+      }
+    } catch (err) {
+      console.error('Error submitting report:', err);
+      toast({
+        title: "Submission Failed",
+        description: err instanceof Error ? err.message : "Failed to submit report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setSubmitting(false);
-    }, 1200);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (!isClient) return null;
@@ -136,12 +206,14 @@ export default function ConsumerReportPage() {
                   placeholder="Drug Name"
                   value={drugName}
                   onChange={(e) => setDrugName(e.target.value)}
+                  disabled={submitting}
                 />
                 <Input
                   required
                   placeholder="Batch Number"
                   value={batch}
                   onChange={(e) => setBatch(e.target.value)}
+                  disabled={submitting}
                 />
               </div>
               <Textarea
@@ -150,9 +222,17 @@ export default function ConsumerReportPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="min-h-[80px]"
+                disabled={submitting}
               />
               <Button type="submit" disabled={submitting} className="w-full">
-                {submitting ? "Submitting..." : "Submit Report"}
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Report"
+                )}
               </Button>
             </form>
           </CardContent>
@@ -160,24 +240,54 @@ export default function ConsumerReportPage() {
 
         <Card className="shadow-soft">
           <CardHeader>
-            <CardTitle>My Reports</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>My Reports</CardTitle>
+              <Button 
+                onClick={() => fetchReports(userEmail)}
+                disabled={loading}
+                variant="outline"
+                size="sm"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Refresh
+              </Button>
+            </div>
             <CardDescription>
               Track the status of your submitted reports
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {reports.length > 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin" />
+                <p className="text-muted-foreground">Loading reports...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <AlertTriangle className="mx-auto mb-2 h-8 w-8 text-warning" />
+                <p className="text-muted-foreground">{error}</p>
+                <Button 
+                  onClick={() => fetchReports(userEmail)}
+                  className="mt-2"
+                  variant="outline"
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : reports.length > 0 ? (
               <div className="space-y-4">
                 {reports.map((report) => (
                   <div
-                    key={report.id}
+                    key={report._id}
                     className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
                   >
                     <div>
                       <p className="font-medium">
                         {report.drugName}{" "}
                         <span className="text-xs text-muted-foreground">
-                          Batch: {report.batch}
+                          Batch: {report.batchNumber}
                         </span>
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -187,7 +297,7 @@ export default function ConsumerReportPage() {
                     <div className="text-right">
                       {getStatusBadge(report.status)}
                       <p className="text-xs text-muted-foreground mt-1">
-                        {report.submitted}
+                        {formatDate(report.createdAt)}
                       </p>
                     </div>
                   </div>

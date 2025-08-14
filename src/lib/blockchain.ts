@@ -2,6 +2,7 @@ import { createPublicClient, http, createWalletClient, getContract, type Block, 
 import { privateKeyToAccount } from 'viem/accounts';
 import { avalancheFuji } from 'viem/chains';
 import { BlockchainTransaction, ValidationResult } from './types';
+import { auditLogger } from './audit-logger';
 
 // Smart Contract ABI for pharmaceutical data storage
 const PHARMACEUTICAL_CONTRACT_ABI = [
@@ -260,6 +261,30 @@ export class BlockchainService {
         // gasPrice: receipt.gasPrice?.toString() // Removed, not present in viem
       });
 
+      // Log successful blockchain transaction
+      await auditLogger.logBlockchainEvent({
+        action: 'RECORD_PHARMACEUTICAL_BATCH',
+        description: `Successfully recorded pharmaceutical batch on blockchain`,
+        userEmail: 'system',
+        userRole: 'system',
+        requestId: `blockchain_${Date.now()}`,
+        resourceId: uploadId,
+        resourceType: 'pharmaceutical_batch',
+        metadata: {
+          uploadId,
+          drugName,
+          batchId,
+          quantity,
+          manufacturer,
+          fileHash,
+          expiryDate: expiryDate.toString(),
+          transactionHash: receipt.transactionHash,
+          blockNumber: Number(receipt.blockNumber),
+          gasUsed: Number(receipt.gasUsed),
+          chain: 'avalanche_fuji'
+        }
+      });
+
       return {
         hash: receipt.transactionHash,
         status: 'confirmed',
@@ -272,6 +297,25 @@ export class BlockchainService {
 
     } catch (error) {
       console.error('Blockchain transaction failed:', error);
+      
+      // Log failed blockchain transaction
+      await auditLogger.logBlockchainEvent({
+        action: 'RECORD_PHARMACEUTICAL_BATCH',
+        description: `Failed to record pharmaceutical batch on blockchain`,
+        userEmail: 'system',
+        userRole: 'system',
+        requestId: `blockchain_${Date.now()}`,
+        resourceId: uploadId,
+        resourceType: 'pharmaceutical_batch',
+        level: 'ERROR',
+        error: error instanceof Error ? error.message : 'Unknown blockchain error',
+        metadata: {
+          uploadId,
+          drugName: validationResult.data[0]?.drug_name,
+          batchId: validationResult.data[0]?.batch_id,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      });
       
       // Check if it's an authorization error
       if (
@@ -345,6 +389,26 @@ export class BlockchainService {
       // Wait for transaction confirmation
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
+      // Log successful QR code blockchain transaction
+      await auditLogger.logBlockchainEvent({
+        action: 'RECORD_QR_CODE',
+        description: `Successfully recorded QR code on blockchain`,
+        userEmail: 'system',
+        userRole: 'system',
+        requestId: `blockchain_${Date.now()}`,
+        resourceId: qrCodeId,
+        resourceType: 'qr_code',
+        metadata: {
+          qrCodeId,
+          uploadId,
+          serialNumber,
+          transactionHash: receipt.transactionHash,
+          blockNumber: Number(receipt.blockNumber),
+          gasUsed: Number(receipt.gasUsed),
+          chain: 'avalanche_fuji'
+        }
+      });
+
       return {
         hash: receipt.transactionHash,
         status: 'confirmed',
@@ -357,6 +421,25 @@ export class BlockchainService {
 
     } catch (error) {
       console.error('QR Code blockchain transaction failed:', error);
+      
+      // Log failed QR code blockchain transaction
+      await auditLogger.logBlockchainEvent({
+        action: 'RECORD_QR_CODE',
+        description: `Failed to record QR code on blockchain`,
+        userEmail: 'system',
+        userRole: 'system',
+        requestId: `blockchain_${Date.now()}`,
+        resourceId: qrCodeId,
+        resourceType: 'qr_code',
+        level: 'ERROR',
+        error: error instanceof Error ? error.message : 'Unknown blockchain error',
+        metadata: {
+          qrCodeId,
+          uploadId,
+          serialNumber,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      });
       
       return {
         hash: '',

@@ -75,6 +75,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PharmacistScanPage() {
   const router = useRouter();
@@ -91,6 +92,20 @@ export default function PharmacistScanPage() {
   const [manualCode, setManualCode] = useState("");
   const [cameraActive, setCameraActive] = useState(false);
   const [flashActive, setFlashActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<any>({
+    totalScans: 0,
+    authenticScans: 0,
+    suspiciousScans: 0,
+    counterfeitScans: 0,
+    successRate: 0,
+    averageScanTime: 0,
+    todayScans: 0,
+    weeklyScans: 0,
+    monthlyScans: 0,
+  });
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
@@ -106,123 +121,48 @@ export default function PharmacistScanPage() {
 
       if (email) {
         setUserEmail(email);
+        fetchScanData(email);
       }
     }
   }, [router]);
 
-  const scanHistoryData = [
-    {
-      id: "SCAN001",
-      drugName: "Coartem",
-      batchId: "CT2024001",
-      qrCode: "QR2024001-001",
-      result: "authentic",
-      timestamp: "2024-01-25 14:30:22",
-      location: "Lagos, Nigeria",
-      pharmacist: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      verificationDetails: {
-        manufacturer: "Novartis",
-        expiryDate: "2025-06-15",
-        quantity: 150,
-        blockchainTx: "0x1234...5678",
-        verificationCount: 1247,
-        firstVerified: "2024-01-15",
-        lastVerified: "2024-01-25",
-      },
-    },
-    {
-      id: "SCAN002",
-      drugName: "Amoxil",
-      batchId: "AX2024002",
-      qrCode: "QR2024002-045",
-      result: "authentic",
-      timestamp: "2024-01-25 13:15:45",
-      location: "Lagos, Nigeria",
-      pharmacist: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      verificationDetails: {
-        manufacturer: "GlaxoSmithKline",
-        expiryDate: "2025-03-20",
-        quantity: 85,
-        blockchainTx: "0x8765...4321",
-        verificationCount: 892,
-        firstVerified: "2024-01-10",
-        lastVerified: "2024-01-25",
-      },
-    },
-    {
-      id: "SCAN003",
-      drugName: "Panadol",
-      batchId: "PD2024003",
-      qrCode: "QR2024003-123",
-      result: "suspicious",
-      timestamp: "2024-01-25 11:45:12",
-      location: "Lagos, Nigeria",
-      pharmacist: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      verificationDetails: {
-        manufacturer: "GSK Consumer",
-        expiryDate: "2026-01-10",
-        quantity: 300,
-        blockchainTx: "0x9999...8888",
-        verificationCount: 156,
-        firstVerified: "2024-01-05",
-        lastVerified: "2024-01-25",
-      },
-    },
-    {
-      id: "SCAN004",
-      drugName: "Augmentin",
-      batchId: "AG2024004",
-      qrCode: "QR2024004-067",
-      result: "authentic",
-      timestamp: "2024-01-25 10:20:33",
-      location: "Lagos, Nigeria",
-      pharmacist: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      verificationDetails: {
-        manufacturer: "GlaxoSmithKline",
-        expiryDate: "2024-12-05",
-        quantity: 8,
-        blockchainTx: "0x5555...4444",
-        verificationCount: 45,
-        firstVerified: "2023-12-01",
-        lastVerified: "2024-01-25",
-      },
-    },
-    {
-      id: "SCAN005",
-      drugName: "Unknown Drug",
-      batchId: "UNKNOWN",
-      qrCode: "INVALID-QR-CODE",
-      result: "counterfeit",
-      timestamp: "2024-01-25 09:15:18",
-      location: "Lagos, Nigeria",
-      pharmacist: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      verificationDetails: {
-        manufacturer: "Unknown",
-        expiryDate: "Unknown",
-        quantity: 0,
-        blockchainTx: "Failed",
-        verificationCount: 0,
-        firstVerified: "Never",
-        lastVerified: "Never",
-      },
-    },
-  ];
+  const fetchScanData = async (email: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/pharmacist/scan?userEmail=${encodeURIComponent(email)}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch scan data');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setStats(data.data.stats);
+        setScanResult(data.data.latestScanResult);
+        setScanHistory(data.data.scanHistory);
+      } else {
+        throw new Error(data.error || 'Failed to fetch scan data');
+      }
+    } catch (err) {
+      console.error('Error fetching scan data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch scan data');
+      toast({
+        title: "Error",
+        description: "Failed to load scan data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const stats = {
-    totalScans: 1247,
-    authenticScans: 1185,
-    suspiciousScans: 42,
-    counterfeitScans: 20,
-    successRate: 95.0,
-    averageScanTime: 2.3,
-    todayScans: 156,
-    weeklyScans: 892,
-    monthlyScans: 3247,
+  const handleRefreshData = () => {
+    if (userEmail) {
+      fetchScanData(userEmail);
+    }
   };
 
   const getResultBadge = (result: string) => {
@@ -280,33 +220,45 @@ export default function PharmacistScanPage() {
     console.log("Stopping QR code scan...");
   };
 
-  const handleManualScan = () => {
+  const handleManualScan = async () => {
     if (manualCode.trim()) {
-      // Simulate scan result
-      const mockResult = {
-        id: "SCAN" + Date.now(),
-        drugName: "Manual Scan Drug",
-        batchId: "MANUAL-" + manualCode.substring(0, 8),
-        qrCode: manualCode,
-        result: "authentic",
-        timestamp: new Date().toISOString(),
-        location: "Lagos, Nigeria",
-        pharmacist: userEmail,
-        pharmacy: "MedPlus Pharmacy",
-        verificationDetails: {
-          manufacturer: "Unknown Manufacturer",
-          expiryDate: "2025-12-31",
-          quantity: 100,
-          blockchainTx:
-            "0x" + Math.random().toString(16).substring(2, 10) + "...",
-          verificationCount: Math.floor(Math.random() * 1000),
-          firstVerified: "2024-01-01",
-          lastVerified: new Date().toISOString().split("T")[0],
-        },
-      };
-      setScanResult(mockResult);
-      setScanHistory([mockResult, ...scanHistoryData]);
-      setManualCode("");
+      try {
+        // In a real app, this would verify the QR code against the database
+        const mockResult = {
+          id: "SCAN" + Date.now(),
+          drugName: "Manual Scan Drug",
+          batchId: "MANUAL-" + manualCode.substring(0, 8),
+          qrCode: manualCode,
+          result: "authentic",
+          timestamp: new Date().toISOString(),
+          location: "Lagos, Nigeria",
+          pharmacist: userEmail,
+          pharmacy: "MedPlus Pharmacy",
+          verificationDetails: {
+            manufacturer: "Unknown Manufacturer",
+            expiryDate: "2025-12-31",
+            quantity: 100,
+            blockchainTx: "0x" + Math.random().toString(16).substring(2, 10) + "...",
+            verificationCount: Math.floor(Math.random() * 1000),
+            firstVerified: "2024-01-01",
+            lastVerified: new Date().toISOString().split("T")[0],
+          },
+        };
+        setScanResult(mockResult);
+        setScanHistory([mockResult, ...scanHistory]);
+        setManualCode("");
+        
+        toast({
+          title: "Scan Complete",
+          description: "Manual scan completed successfully.",
+        });
+      } catch (error) {
+        toast({
+          title: "Scan Error",
+          description: "Failed to process manual scan.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -329,7 +281,7 @@ export default function PharmacistScanPage() {
 
   const handleExportHistory = () => {
     // Export scan history as CSV
-    const csvData = scanHistoryData.map((scan) => ({
+    const csvData = scanHistory.map((scan) => ({
       id: scan.id,
       drugName: scan.drugName,
       batchId: scan.batchId,
@@ -358,20 +310,32 @@ export default function PharmacistScanPage() {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Export Complete",
+      description: "Scan history exported successfully.",
+    });
   };
 
   const handleShareResult = (scanId: string) => {
     // In a real app, this would share the scan result
     console.log(`Sharing scan result ${scanId}...`);
+    toast({
+      title: "Share",
+      description: "Share functionality would be implemented here.",
+    });
   };
 
   const handleCopyResult = (scanId: string) => {
     // Copy scan result to clipboard
-    const scan = scanHistoryData.find((s) => s.id === scanId);
+    const scan = scanHistory.find((s) => s.id === scanId);
     if (scan) {
       const resultText = `Drug: ${scan.drugName}\nBatch: ${scan.batchId}\nResult: ${scan.result}\nVerified: ${scan.timestamp}`;
       navigator.clipboard.writeText(resultText).then(() => {
-        console.log("Scan result copied to clipboard");
+        toast({
+          title: "Copied",
+          description: "Scan result copied to clipboard.",
+        });
       });
     }
   };
@@ -384,6 +348,10 @@ export default function PharmacistScanPage() {
   const handleDeleteScan = (scanId: string) => {
     // In a real app, this would show confirmation dialog
     console.log(`Deleting scan ${scanId}...`);
+    toast({
+      title: "Delete",
+      description: "Delete functionality would be implemented here.",
+    });
   };
 
   if (!isClient) {
@@ -403,10 +371,16 @@ export default function PharmacistScanPage() {
               Verify drug authenticity using blockchain-powered QR code scanning
             </p>
           </div>
-          <Button variant="hero" size="xl" onClick={handleStartScan}>
-            <ScanLine className="mr-2 h-5 w-5" />
-            Start Scan
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleRefreshData} disabled={loading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button variant="hero" size="xl" onClick={handleStartScan}>
+              <ScanLine className="mr-2 h-5 w-5" />
+              Start Scan
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -418,9 +392,9 @@ export default function PharmacistScanPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {stats.totalScans.toLocaleString()}
+                {loading ? "..." : stats.totalScans.toLocaleString()}
               </div>
-              <p className="text-xs text-muted-foreground">+156 this week</p>
+              <p className="text-xs text-muted-foreground">+{stats.todayScans} today</p>
             </CardContent>
           </Card>
 
@@ -431,11 +405,10 @@ export default function PharmacistScanPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-success">
-                {stats.authenticScans}
+                {loading ? "..." : stats.authenticScans}
               </div>
               <p className="text-xs text-muted-foreground">
-                {((stats.authenticScans / stats.totalScans) * 100).toFixed(1)}%
-                success
+                {loading ? "..." : `${((stats.authenticScans / stats.totalScans) * 100).toFixed(1)}% success`}
               </p>
             </CardContent>
           </Card>
@@ -447,7 +420,7 @@ export default function PharmacistScanPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-warning">
-                {stats.suspiciousScans}
+                {loading ? "..." : stats.suspiciousScans}
               </div>
               <p className="text-xs text-muted-foreground">Requires review</p>
             </CardContent>
@@ -462,10 +435,10 @@ export default function PharmacistScanPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-success">
-                {stats.successRate}%
+                {loading ? "..." : `${stats.successRate}%`}
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats.averageScanTime}s avg time
+                {loading ? "..." : `${stats.averageScanTime}s avg time`}
               </p>
             </CardContent>
           </Card>
@@ -476,7 +449,7 @@ export default function PharmacistScanPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.todayScans}</div>
+              <div className="text-2xl font-bold">{loading ? "..." : stats.todayScans}</div>
               <p className="text-xs text-muted-foreground">Scans today</p>
             </CardContent>
           </Card>
@@ -622,7 +595,12 @@ export default function PharmacistScanPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {scanResult ? (
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading scan data...</p>
+                </div>
+              ) : scanResult ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -645,7 +623,7 @@ export default function PharmacistScanPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Timestamp</p>
-                      <p className="font-medium">{scanResult.timestamp}</p>
+                      <p className="font-medium">{new Date(scanResult.timestamp).toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Manufacturer</p>
@@ -745,112 +723,127 @@ export default function PharmacistScanPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {scanHistoryData
-                .filter(
-                  (scan) =>
-                    (filterResult === "all" || scan.result === filterResult) &&
-                    (scan.drugName
-                      .toLowerCase()
-                      .includes(searchTerm.toLowerCase()) ||
-                      scan.batchId
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading scan history...</p>
+              </div>
+            ) : scanHistory.length > 0 ? (
+              <div className="space-y-4">
+                {scanHistory
+                  .filter(
+                    (scan) =>
+                      (filterResult === "all" || scan.result === filterResult) &&
+                      (scan.drugName
                         .toLowerCase()
                         .includes(searchTerm.toLowerCase()) ||
-                      scan.qrCode
-                        .toLowerCase()
-                        .includes(searchTerm.toLowerCase()))
-                )
-                .map((scan) => (
-                  <div
-                    key={scan.id}
-                    className="p-4 border border-border rounded-lg"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <p className="font-medium">{scan.drugName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Batch: {scan.batchId} | QR: {scan.qrCode}
-                        </p>
+                        scan.batchId
+                          .toLowerCase()
+                          .includes(searchTerm.toLowerCase()) ||
+                        scan.qrCode
+                          .toLowerCase()
+                          .includes(searchTerm.toLowerCase()))
+                  )
+                  .map((scan) => (
+                    <div
+                      key={scan.id}
+                      className="p-4 border border-border rounded-lg"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="font-medium">{scan.drugName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Batch: {scan.batchId} | QR: {scan.qrCode}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getResultBadge(scan.result)}
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(scan.timestamp).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                        <div>
+                          <p className="text-muted-foreground">Manufacturer</p>
+                          <p className="font-medium">
+                            {scan.verificationDetails.manufacturer}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Expiry Date</p>
+                          <p className="font-medium">
+                            {scan.verificationDetails.expiryDate}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Verifications</p>
+                          <p className="font-medium">
+                            {scan.verificationDetails.verificationCount}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Blockchain TX</p>
+                          <a
+                            href={`https://testnet.snowtrace.io/tx/${scan.verificationDetails.blockchainTx}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
+                            title="View on Snowtrace"
+                          >
+                            {scan.verificationDetails.blockchainTx}
+                          </a>
+                        </div>
+                      </div>
+
                       <div className="flex items-center gap-2">
-                        {getResultBadge(scan.result)}
-                        <p className="text-xs text-muted-foreground">
-                          {scan.timestamp}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
-                      <div>
-                        <p className="text-muted-foreground">Manufacturer</p>
-                        <p className="font-medium">
-                          {scan.verificationDetails.manufacturer}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Expiry Date</p>
-                        <p className="font-medium">
-                          {scan.verificationDetails.expiryDate}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Verifications</p>
-                        <p className="font-medium">
-                          {scan.verificationDetails.verificationCount}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Blockchain TX</p>
-                        <a
-                          href={`https://testnet.snowtrace.io/tx/${scan.verificationDetails.blockchainTx}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
-                          title="View on Snowtrace"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(scan.id)}
                         >
-                          {scan.verificationDetails.blockchainTx}
-                        </a>
+                          <Eye className="w-3 h-3 mr-1" />
+                          View Details
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShareResult(scan.id)}
+                        >
+                          <Share className="w-3 h-3 mr-1" />
+                          Share
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCopyResult(scan.id)}
+                        >
+                          <Copy className="w-3 h-3 mr-1" />
+                          Copy
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-danger hover:text-danger"
+                          onClick={() => handleDeleteScan(scan.id)}
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewDetails(scan.id)}
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        View Details
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleShareResult(scan.id)}
-                      >
-                        <Share className="w-3 h-3 mr-1" />
-                        Share
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCopyResult(scan.id)}
-                      >
-                        <Copy className="w-3 h-3 mr-1" />
-                        Copy
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-danger hover:text-danger"
-                        onClick={() => handleDeleteScan(scan.id)}
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </div>
+                  ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <History className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">No scan history available</p>
+                <p className="text-sm text-muted-foreground">
+                  Start scanning to build your history
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -879,15 +872,15 @@ export default function PharmacistScanPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Verification Success Rate</span>
-                    <span className="font-medium">95.0%</span>
+                    <span className="font-medium">{stats.successRate}%</span>
                   </div>
-                  <Progress value={95.0} className="h-2" />
+                  <Progress value={stats.successRate} className="h-2" />
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Average Response Time</span>
-                    <span className="font-medium">2.3s</span>
+                    <span className="font-medium">{stats.averageScanTime}s</span>
                   </div>
                   <Progress value={85} className="h-2" />
                 </div>
@@ -896,24 +889,19 @@ export default function PharmacistScanPage() {
               <div className="space-y-4">
                 <h4 className="font-medium">Recent Verifications</h4>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>CT2024001</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>AX2024002</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>PD2024003</span>
-                    <Badge className="bg-warning text-warning-foreground text-xs">
-                      Pending
-                    </Badge>
-                  </div>
+                  {scanHistory.slice(0, 3).map((scan) => (
+                    <div key={scan.id} className="flex items-center justify-between text-sm">
+                      <span>{scan.batchId}</span>
+                      <Badge className={`text-xs ${
+                        scan.result === 'authentic' ? 'bg-success text-success-foreground' :
+                        scan.result === 'suspicious' ? 'bg-warning text-warning-foreground' :
+                        'bg-danger text-danger-foreground'
+                      }`}>
+                        {scan.result === 'authentic' ? 'Success' : 
+                         scan.result === 'suspicious' ? 'Pending' : 'Failed'}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -926,7 +914,7 @@ export default function PharmacistScanPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Daily Verifications</p>
-                    <p className="font-medium">156</p>
+                    <p className="font-medium">{stats.todayScans}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Block Height</p>

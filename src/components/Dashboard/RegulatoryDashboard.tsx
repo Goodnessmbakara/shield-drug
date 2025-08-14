@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,41 +23,70 @@ import {
 } from "lucide-react";
 
 export default function RegulatoryDashboard() {
-  const [reports] = useState([
-    {
-      id: "RPT001",
-      type: "counterfeit",
-      manufacturer: "PharmaCorp",
-      drug: "Coartem",
-      status: "investigating",
-      date: "2024-01-15",
-    },
-    {
-      id: "RPT002",
-      type: "expired",
-      manufacturer: "MediCare",
-      drug: "Amoxil",
-      status: "resolved",
-      date: "2024-01-14",
-    },
-    {
-      id: "RPT003",
-      type: "counterfeit",
-      manufacturer: "DrugCo",
-      drug: "Panadol",
-      status: "pending",
-      date: "2024-01-13",
-    },
-  ]);
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const stats = {
-    totalReports: 156,
-    activeInvestigations: 23,
-    resolvedCases: 133,
-    manufacturersMonitored: 89,
-    blockchainQueries: 45670,
-    complianceRate: 94.2,
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const userEmail = localStorage.getItem('userEmail');
+        if (!userEmail) return;
+
+        const response = await fetch('/api/regulatory/dashboard', {
+          headers: {
+            'x-user-role': 'regulatory',
+            'x-user-email': userEmail
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch regulatory data');
+        }
+
+        const result = await response.json();
+        setData(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        console.error('Error fetching regulatory data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2">Loading regulatory data...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto h-8 w-8 text-red-500 mb-2" />
+          <p className="text-red-500 font-medium">Error loading data</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">No data available</p>
+      </div>
+    );
+  }
+
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -128,7 +157,7 @@ export default function RegulatoryDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalReports}</div>
+            <div className="text-2xl font-bold">{data.overview.totalReports}</div>
             <p className="text-xs text-muted-foreground">+12 this week</p>
           </CardContent>
         </Card>
@@ -142,7 +171,7 @@ export default function RegulatoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-warning">
-              {stats.activeInvestigations}
+              {data.overview.openReports + data.overview.investigatingReports}
             </div>
             <p className="text-xs text-muted-foreground">In progress</p>
           </CardContent>
@@ -157,7 +186,7 @@ export default function RegulatoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              {stats.resolvedCases}
+              {data.overview.resolvedReports}
             </div>
             <p className="text-xs text-muted-foreground">Successfully closed</p>
           </CardContent>
@@ -170,7 +199,7 @@ export default function RegulatoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.manufacturersMonitored}
+              {data.overview.totalManufacturers}
             </div>
             <p className="text-xs text-muted-foreground">Under monitoring</p>
           </CardContent>
@@ -185,7 +214,7 @@ export default function RegulatoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.blockchainQueries.toLocaleString()}
+              {data.overview.totalBlockchainTx.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
@@ -200,7 +229,7 @@ export default function RegulatoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              {stats.complianceRate}%
+              {data.overview.complianceRate}%
             </div>
             <p className="text-xs text-muted-foreground">Industry average</p>
           </CardContent>
@@ -221,7 +250,7 @@ export default function RegulatoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {reports.map((report) => (
+              {data.recentReports.map((report: any) => (
                 <div
                   key={report.id}
                   className="p-4 border border-border rounded-lg"
@@ -246,7 +275,7 @@ export default function RegulatoryDashboard() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Date</p>
-                      <p className="font-medium">{report.date}</p>
+                      <p className="font-medium">{new Date(report.date).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </div>
