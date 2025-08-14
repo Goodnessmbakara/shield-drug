@@ -4,6 +4,9 @@ import { UploadResponse, ValidationResult, UploadStatus } from '@/lib/types';
 import { blockchainService } from '@/lib/blockchain';
 import { createUpload } from '@/lib/db-utils';
 import { updateUploadProgress, estimateProcessingTime, calculateProgress } from './upload-progress';
+import QRCode from '@/lib/models/QRCode';
+import { qrCodeService } from '@/lib/qr-code';
+import mongoose from 'mongoose';
 
 export const config = {
   api: {
@@ -150,7 +153,7 @@ export default async function handler(
 
     // Start QR code generation without timeout - let it complete naturally
     console.log('⏳ Starting QR code generation...');
-    const qrCodesGenerated = await generateAndRecordQRCodes(uploadId, validationResult, totalQuantity);
+    const qrCodesGenerated = await generateAndRecordQRCodes(uploadId, validationResult, totalQuantity, userEmail as string);
     console.log(`✅ QR code generation completed: ${qrCodesGenerated} codes generated`);
 
     // Store upload record in database
@@ -249,7 +252,7 @@ export default async function handler(
 }
 
 // Generate QR codes and record them on blockchain
-async function generateAndRecordQRCodes(uploadId: string, validationResult: ValidationResult, totalQuantity: number): Promise<number> {
+async function generateAndRecordQRCodes(uploadId: string, validationResult: ValidationResult, totalQuantity: number, userEmail: string): Promise<number> {
   let totalQRCodes = 0;
   const transactionTimes: number[] = [];
   const startTime = Date.now();
@@ -290,6 +293,43 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
         if (qrTx.status === 'confirmed') {
           totalQRCodes += quantity; // Count all units in this batch
           console.log(`Batch QR Code ${qrCodeId} recorded for ${quantity} units of ${drugName} in ${txTime}ms`);
+          
+          // Store QR code in database
+          try {
+            const qrCodeData = await qrCodeService.generateQRCode(
+              uploadId,
+              drugName,
+              1, // Serial number for batch QR code
+              {
+                drugName: drugName,
+                batchId: batchId,
+                manufacturer: row.manufacturer || 'Unknown',
+                expiryDate: row.expiry_date || new Date().toISOString(),
+                quantity: quantity
+              }
+            );
+
+            const qrCodeDoc = new QRCode({
+              qrCodeId: qrCodeId,
+              uploadId: uploadId,
+              userEmail: userEmail,
+              drugCode: qrCodeData.drugCode,
+              serialNumber: 1,
+              blockchainTx: qrTx.hash,
+              verificationUrl: qrCodeData.verificationUrl,
+              imageUrl: qrCodeService.generateQRCodeImageUrl(qrCodeData),
+              metadata: qrCodeData.metadata,
+              status: 'generated',
+              downloadCount: 0,
+              verificationCount: 0
+            });
+
+            await qrCodeDoc.save();
+            console.log(`✅ QR Code ${qrCodeId} saved to database`);
+          } catch (dbError) {
+            console.error(`❌ Failed to save QR Code ${qrCodeId} to database:`, dbError);
+            // Continue with blockchain record even if DB save fails
+          }
           
           // Calculate average transaction time and estimate remaining time
           const avgTxTime = transactionTimes.reduce((sum, time) => sum + time, 0) / transactionTimes.length;
@@ -349,6 +389,43 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
           if (qrTx.status === 'confirmed') {
             totalQRCodes++;
             console.log(`QR Code ${qrCodeId} recorded on blockchain: ${qrTx.hash} in ${txTime}ms`);
+            
+            // Store QR code in database
+            try {
+              const qrCodeData = await qrCodeService.generateQRCode(
+                uploadId,
+                row.drug_name,
+                i,
+                {
+                  drugName: row.drug_name,
+                  batchId: row.batch_id,
+                  manufacturer: row.manufacturer || 'Unknown',
+                  expiryDate: row.expiry_date || new Date().toISOString(),
+                  quantity: 1
+                }
+              );
+
+              const qrCodeDoc = new QRCode({
+                qrCodeId: qrCodeId,
+                uploadId: uploadId,
+                userEmail: userEmail,
+                drugCode: qrCodeData.drugCode,
+                serialNumber: i,
+                blockchainTx: qrTx.hash,
+                verificationUrl: qrCodeData.verificationUrl,
+                imageUrl: qrCodeService.generateQRCodeImageUrl(qrCodeData),
+                metadata: qrCodeData.metadata,
+                status: 'generated',
+                downloadCount: 0,
+                verificationCount: 0
+              });
+
+              await qrCodeDoc.save();
+              console.log(`✅ QR Code ${qrCodeId} saved to database`);
+            } catch (dbError) {
+              console.error(`❌ Failed to save QR Code ${qrCodeId} to database:`, dbError);
+              // Continue with blockchain record even if DB save fails
+            }
           } else {
             console.error(`Failed to record QR Code ${qrCodeId}: ${qrTx.errorMessage}`);
           }
