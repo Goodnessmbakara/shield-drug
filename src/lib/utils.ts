@@ -8,6 +8,21 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Format date to user-friendly display format (YYYY-MM-DD)
+ * Handles both ISO strings and Date objects
+ */
+export function formatDateForDisplay(date: string | Date | null | undefined): string {
+  if (!date) return '';
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return '';
+    return dateObj.toISOString().split('T')[0];
+  } catch (error) {
+    return '';
+  }
+}
+
+/**
  * Generate unified CSV export data from batch details and QR codes
  * This function creates a standardized export format that includes all necessary fields
  * for tracking, verification, and compliance purposes.

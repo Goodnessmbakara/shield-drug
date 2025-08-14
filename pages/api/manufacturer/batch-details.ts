@@ -5,62 +5,11 @@ import QRCode from '../../../src/lib/models/QRCode';
 import mongoose from 'mongoose';
 import { BatchDetails } from '../../../src/lib/types';
 
-// Structured logging utility
-interface LogEntry {
-  level: 'ERROR' | 'WARN' | 'INFO';
-  timestamp: string;
-  requestId: string;
-  userEmail?: string;
-  userRole?: string;
-  batchId?: string;
-  message: string;
-  error?: any;
-  context?: any;
-  performance?: {
-    operation: string;
-    duration: number;
-  };
-}
 
-function logStructured(entry: LogEntry) {
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const logData = {
-    ...entry,
-    environment: process.env.NODE_ENV,
-    ...(isDevelopment && entry.error && { 
-      stack: entry.error.stack,
-      fullError: entry.error 
-    })
-  };
-  
-  if (entry.level === 'ERROR') {
-    console.error(JSON.stringify(logData, null, isDevelopment ? 2 : 0));
-  } else if (entry.level === 'WARN') {
-    console.warn(JSON.stringify(logData, null, isDevelopment ? 2 : 0));
-  } else {
-    console.log(JSON.stringify(logData, null, isDevelopment ? 2 : 0));
-  }
-}
 
 // Generate request ID for correlation
 function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// Get request ID from header or generate new one
-function getRequestId(req: NextApiRequest): string {
-  return (req.headers['x-request-id'] as string) || generateRequestId();
-}
-
-// Helper function to check if a date is valid
-function isValidDate(date: Date | string | null | undefined): boolean {
-  if (!date) return false;
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return !isNaN(dateObj.getTime());
-  } catch (error) {
-    return false;
-  }
 }
 
 // Helper function to format date to ISO string
@@ -320,7 +269,6 @@ export default async function handler(
 
   // QR Code statistics aggregation - no need to fetch individual QR code documents
 
-  // Aggregation Query Error Logging
   let aggregationStart = Date.now();
   let verificationStats;
   try {
@@ -403,12 +351,13 @@ export default async function handler(
     quantity: Math.max(0, batch.quantity || 0),
     manufacturer: batch.manufacturer || 'Unknown Manufacturer',
     location: batch.location || 'Unknown Location',
-    expiryDate: formatYMD(batch.expiryDate),
+    expiryDate: formatISO(batch.expiryDate),
     nafdacNumber: batch.nafdacNumber || 'NAFDAC-PENDING',
-    // Make manufacturing date conditional explicit and reusable
+    // Manufacturing date uses ISO format for consistency with other date fields
+    // Note: Some UI components may expect YYYY-MM-DD format - if needed, use formatYMD() instead
     manufacturingDate: (() => {
       const primaryMfgDate = batch.manufacturingDate ?? batch.createdAt;
-      return formatYMD(primaryMfgDate);
+      return formatISO(primaryMfgDate);
     })(),
     activeIngredient: batch.activeIngredient || 'Not specified',
     dosageForm: batch.dosageForm || 'Not specified',
@@ -420,7 +369,7 @@ export default async function handler(
     updatedAt: formatISO(batch.updatedAt),
 
     // Status and processing information with enhanced validation
-    status: mapStatus(batch.status),
+    status: mapStatus(batch.status, batch.expiryDate),
     blockchainTx: batch.blockchainTx || '',
     qrCodesGenerated: Math.max(0, batch.qrCodesGenerated || stats.totalQRCodes || 0),
             processingTime: batch.processingTime ?? null,
@@ -469,7 +418,12 @@ export default async function handler(
 }
 
 // Helper function to map upload status to batch status
-function mapStatus(uploadStatus: string | null | undefined): 'active' | 'pending' | 'expired' | 'failed' {
+function mapStatus(uploadStatus: string | null | undefined, expiryDate?: string): 'active' | 'pending' | 'expired' | 'failed' {
+  if (expiryDate) {
+    const e = new Date(expiryDate);
+    if (!isNaN(e.getTime()) && e < new Date()) return 'expired';
+  }
+  
   if (!uploadStatus) {
     return 'pending';
   }

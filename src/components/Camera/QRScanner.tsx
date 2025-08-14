@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatDateForDisplay } from '@/lib/utils';
 import { X, CheckCircle, AlertTriangle, Camera } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
@@ -130,10 +131,10 @@ export default function QRScanner({ onResult, onClose }: QRScannerProps) {
                   <span className="font-medium">Manufacturer:</span> {result.manufacturer}
                 </div>
                 <div>
-                  <span className="font-medium">Manufacturing Date:</span> {result.manufacturingDate}
+                  <span className="font-medium">Manufacturing Date:</span> {formatDateForDisplay(result.manufacturingDate)}
                 </div>
                 <div>
-                  <span className="font-medium">Expiry Date:</span> {result.expiryDate}
+                  <span className="font-medium">Expiry Date:</span> {formatDateForDisplay(result.expiryDate)}
                 </div>
               </div>
 

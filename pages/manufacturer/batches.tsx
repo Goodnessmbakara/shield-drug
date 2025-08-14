@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
+import { formatDateForDisplay } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -564,7 +565,7 @@ export default function BatchesPage() {
                         </div>
                         <div>
                           <p className="text-muted-foreground">Expires</p>
-                          <p className="font-medium">{batch.expiryDate}</p>
+                          <p className="font-medium">{formatDateForDisplay(batch.expiryDate)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">QR Status</p>
