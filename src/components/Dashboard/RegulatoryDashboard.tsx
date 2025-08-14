@@ -22,16 +22,71 @@ import {
   FileText,
 } from "lucide-react";
 
+// TypeScript interfaces for better type safety
+interface RegulatoryData {
+  overview: {
+    totalReports: number;
+    openReports: number;
+    investigatingReports: number;
+    resolvedReports: number;
+    totalManufacturers: number;
+    totalBlockchainTx: number;
+    complianceRate: number;
+  };
+  recentReports: Report[];
+}
+
+interface Report {
+  id: string;
+  drug: string;
+  manufacturer: string;
+  type: 'counterfeit' | 'expired' | 'quality';
+  status: 'investigating' | 'resolved' | 'pending';
+  date: string;
+}
+
 export default function RegulatoryDashboard() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<RegulatoryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Memoized components for better performance
+  const LoadingSpinner = () => (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <span className="ml-2">Loading regulatory data...</span>
+    </div>
+  );
+
+  const ErrorDisplay = ({ error }: { error: string }) => (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-center">
+        <AlertTriangle className="mx-auto h-8 w-8 text-red-500 mb-2" />
+        <p className="text-red-500 font-medium">Error loading data</p>
+        <p className="text-sm text-muted-foreground">{error}</p>
+      </div>
+    </div>
+  );
+
+  const NoDataDisplay = () => (
+    <div className="flex items-center justify-center h-64">
+      <p className="text-muted-foreground">No data available</p>
+    </div>
+  );
+
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchData = async () => {
       try {
         const userEmail = localStorage.getItem('userEmail');
-        if (!userEmail) return;
+        if (!userEmail) {
+          if (isMounted) {
+            setError('User email not found');
+            setIsLoading(false);
+          }
+          return;
+        }
 
         const response = await fetch('/api/regulatory/dashboard', {
           headers: {
@@ -41,52 +96,47 @@ export default function RegulatoryDashboard() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch regulatory data');
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         const result = await response.json();
-        setData(result);
+        
+        if (isMounted) {
+          setData(result);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
-        console.error('Error fetching regulatory data:', err);
+        if (isMounted) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to fetch data';
+          setError(errorMessage);
+          console.error('Error fetching regulatory data:', err);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2">Loading regulatory data...</span>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <AlertTriangle className="mx-auto h-8 w-8 text-red-500 mb-2" />
-          <p className="text-red-500 font-medium">Error loading data</p>
-          <p className="text-sm text-muted-foreground">{error}</p>
-        </div>
-      </div>
-    );
+    return <ErrorDisplay error={error} />;
   }
 
   if (!data) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">No data available</p>
-      </div>
-    );
+    return <NoDataDisplay />;
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: Report['status']) => {
     switch (status) {
       case "investigating":
         return (
@@ -107,7 +157,7 @@ export default function RegulatoryDashboard() {
     }
   };
 
-  const getTypeBadge = (type: string) => {
+  const getTypeBadge = (type: Report['type']) => {
     switch (type) {
       case "counterfeit":
         return (
@@ -248,7 +298,7 @@ export default function RegulatoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {data.recentReports.map((report: any) => (
+              {data.recentReports.map((report: Report) => (
                 <div
                   key={report.id}
                   className="p-4 border border-border rounded-lg"

@@ -113,6 +113,8 @@ export default function UploadPage() {
 
   // Load upload history from database
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchUploadHistory = async () => {
       if (!userEmail) return;
 
@@ -126,21 +128,26 @@ export default function UploadPage() {
             }
           }
         );
-        if (response.ok) {
+        if (response.ok && isMounted) {
           const data = await response.json();
           setUploadHistory(data.uploads || []);
-        } else {
+        } else if (isMounted) {
           console.warn("Failed to fetch upload history from database");
           setUploadHistory([]);
         }
       } catch (error) {
-        console.error("Error fetching upload history:", error);
-        // Set empty array on error
-        setUploadHistory([]);
+        if (isMounted) {
+          console.error("Error fetching upload history:", error);
+          setUploadHistory([]);
+        }
       }
     };
 
     fetchUploadHistory();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [userEmail, uploadResult]); // Reload when new upload completes
 
   // Auto-show validation results when there are validation errors
@@ -169,6 +176,8 @@ export default function UploadPage() {
 
   // Fetch upload statistics
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchStats = async () => {
       if (!userEmail) return;
 
@@ -178,16 +187,22 @@ export default function UploadPage() {
             userEmail
           )}`
         );
-        if (response.ok) {
+        if (response.ok && isMounted) {
           const data = await response.json();
           setStats(data);
         }
       } catch (error) {
-        console.error("Error fetching upload stats:", error);
+        if (isMounted) {
+          console.error("Error fetching upload stats:", error);
+        }
       }
     };
 
     fetchStats();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [userEmail]);
 
   const getStatusBadge = (status: string) => {
@@ -218,15 +233,20 @@ export default function UploadPage() {
     try {
       const text = await file.text();
       const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      if (lines.length < 2) {
+        throw new Error('CSV file must have at least a header row and one data row');
+      }
+      
+      const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
       
       const data: CSVRow[] = [];
       for (let i = 1; i < lines.length; i++) {
         if (lines[i].trim()) {
-          const values = lines[i].split(',').map(v => v.trim());
+          const values = parseCSVLine(lines[i]);
           const row: any = {};
           headers.forEach((header, index) => {
-            row[header] = values[index] || '';
+            row[header] = values[index]?.trim() || '';
           });
           data.push(row);
         }
@@ -245,25 +265,66 @@ export default function UploadPage() {
       setShowCSVPreview(true);
     } catch (error) {
       console.error('Error parsing CSV:', error);
+      // Show user-friendly error message
+      alert(`Error parsing CSV file: ${error instanceof Error ? error.message : 'Invalid file format'}`);
     }
+  };
+
+  // Helper function to properly parse CSV lines with quoted fields
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          // Escaped quote
+          current += '"';
+          i++; // Skip next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    // Add the last field
+    result.push(current);
+    return result;
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file first
-      const validation = validateFile(file);
-      if (!validation.isValid) {
-        alert(`File validation failed: ${validation.errors[0]}`);
-        return;
-      }
+      try {
+        // Validate file first
+        const validation = validateFile(file);
+        if (!validation.isValid) {
+          alert(`File validation failed: ${validation.errors[0]}`);
+          return;
+        }
 
-      setSelectedFile(file);
-      setShowValidationResults(false);
-      resetUpload();
-      
-      // Parse CSV and pre-fill form
-      await parseCSVAndPreFill(file);
+        setSelectedFile(file);
+        setShowValidationResults(false);
+        resetUpload();
+        
+        // Parse CSV and pre-fill form
+        await parseCSVAndPreFill(file);
+      } catch (error) {
+        console.error('Error handling file selection:', error);
+        alert(`Error processing file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // Reset file input
+        event.target.value = '';
+      }
     }
   };
 
@@ -290,6 +351,7 @@ export default function UploadPage() {
       setDescription("");
     } catch (err) {
       console.error("Upload failed:", err);
+      alert(`Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -357,6 +419,42 @@ export default function UploadPage() {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  };
+
+  // Safe clipboard utility function
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const result = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return result;
+      }
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      return false;
+    }
+  };
+
+  const handleCopyTransaction = async (transactionHash: string) => {
+    const success = await copyToClipboard(transactionHash);
+    if (success) {
+      // You could replace this with a proper toast notification
+      alert("Transaction hash copied to clipboard!");
+    } else {
+      alert("Failed to copy transaction hash. Please copy manually.");
+    }
   };
 
   if (!isClient) {
@@ -512,8 +610,10 @@ export default function UploadPage() {
                   placeholder="Enter drug name" 
                   value={drugName}
                   onChange={(e) => setDrugName(e.target.value)}
+                  aria-describedby="drug-help"
+                  aria-required="true"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p id="drug-help" className="text-xs text-muted-foreground">
                   Pre-filled from CSV. You can modify if needed.
                 </p>
               </div>
@@ -525,8 +625,10 @@ export default function UploadPage() {
                   placeholder="Enter batch ID" 
                   value={batchId}
                   onChange={(e) => setBatchId(e.target.value)}
+                  aria-describedby="batch-help"
+                  aria-required="true"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p id="batch-help" className="text-xs text-muted-foreground">
                   Pre-filled from CSV. You can modify if needed.
                 </p>
               </div>
@@ -538,15 +640,21 @@ export default function UploadPage() {
                   placeholder="Enter manufacturer" 
                   value={manufacturer}
                   onChange={(e) => setManufacturer(e.target.value)}
+                  aria-describedby="manufacturer-help"
+                  aria-required="true"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p id="manufacturer-help" className="text-xs text-muted-foreground">
                   Pre-filled from CSV. You can modify if needed.
                 </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="file">Upload File</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <div 
+                  className="border-2 border-dashed border-border rounded-lg p-6 text-center"
+                  role="region"
+                  aria-label="File upload area"
+                >
                   <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground mb-2">
                     Drag and drop your CSV file here, or click to browse
@@ -557,15 +665,18 @@ export default function UploadPage() {
                     accept=".csv"
                     onChange={handleFileSelect}
                     className="hidden"
+                    aria-describedby="file-help"
+                    aria-required="true"
                   />
                   <Button
                     variant="outline"
                     onClick={() => document.getElementById("file")?.click()}
+                    aria-label="Choose CSV file"
                   >
                     Choose File
                   </Button>
                   {selectedFile && (
-                    <p className="text-sm text-success mt-2">
+                    <p className="text-sm text-success mt-2" role="status">
                       Selected: {selectedFile.name}
                     </p>
                   )}
@@ -574,7 +685,7 @@ export default function UploadPage() {
                   {uploadResult?.validationResult &&
                     !uploadResult.validationResult.isValid &&
                     uploadResult.status !== "completed" && (
-                      <div className="mt-3 p-3 border border-red-200 rounded-lg bg-red-50">
+                      <div className="mt-3 p-3 border border-red-200 rounded-lg bg-red-50" role="alert">
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 text-red-500" />
                           <span className="text-sm font-medium text-red-700">
@@ -588,6 +699,9 @@ export default function UploadPage() {
                       </div>
                     )}
                 </div>
+                <p id="file-help" className="text-xs text-muted-foreground">
+                  Select a CSV file containing drug batch information
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -597,8 +711,9 @@ export default function UploadPage() {
                   placeholder="Add any special notes, handling instructions, or batch-specific information..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  aria-describedby="description-help"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p id="description-help" className="text-xs text-muted-foreground">
                   This information will be stored with your upload for future reference.
                 </p>
               </div>
@@ -975,17 +1090,11 @@ export default function UploadPage() {
                         variant="ghost"
                         size="sm"
                         className="h-6 px-2 text-xs"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(
-                              String(upload.blockchainTx)
-                            );
-                            // Simple alert for now - you could replace with a proper toast
-                            alert("Transaction hash copied to clipboard!");
-                          } catch (err) {
-                            console.error("Failed to copy:", err);
-                          }
-                        }}
+                                                  onClick={async () => {
+                            if (upload.blockchainTx) {
+                              await handleCopyTransaction(upload.blockchainTx);
+                            }
+                          }}
                         title="Copy transaction hash"
                       >
                         <Copy className="w-3 h-3" />
