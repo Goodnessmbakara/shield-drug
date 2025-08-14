@@ -101,12 +101,18 @@ importers:
       '@tensorflow/tfjs-node':
         specifier: ^4.22.0
         version: 4.22.0(seedrandom@3.0.5)
+      '@types/bcryptjs':
+        specifier: ^3.0.0
+        version: 3.0.0
       '@types/formidable':
         specifier: ^3.4.5
         version: 3.4.5
       '@types/qrcode':
         specifier: ^1.5.5
         version: 1.5.5
+      bcryptjs:
+        specifier: ^3.0.2
+        version: 3.0.2
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1630,6 +1636,10 @@ packages:
       hardhat: ^2.9.9
       typechain: ^8.3.2
 
+  '@types/bcryptjs@3.0.0':
+    resolution: {integrity: sha512-WRZOuCuaz8UcZZE4R5HXTco2goQSI2XxjGY3hbM/xDvwmqFWd4ivooImsMx65OKM6CtNKbnZ5YL+YwAwK7c1dg==}
+    deprecated: This is a stub types definition. bcryptjs provides its own type definitions, so you do not need this installed.
+
   '@types/bn.js@5.2.0':
     resolution: {integrity: sha512-DLbJ1BPqxvQhIGbeu8VbUC1DiAiahHtAYvA0ZEAa4P31F7IaArc8z3C3BRQdWX4mtLQuABG4yzp76ZrS02Ui1Q==}
 
@@ -2156,6 +2166,10 @@ packages:
 
   base-x@3.0.11:
     resolution: {integrity: sha512-xz7wQ8xDhdyP7tQxwdteLYeFfS68tSMNCZ/Y37WJ4bhGfKPpqEIlmIyueQHqOyoPhE6xNUqjzRr8ra0eF9VRvA==}
+
+  bcryptjs@3.0.2:
+    resolution: {integrity: sha512-k38b3XOZKv60C4E2hVsXTolJWfkGRMbILBIe2IBITXciy5bOsTKot5kDrf3ZfufQtQOUN5mXceUEpU1rTl9Uog==}
+    hasBin: true
 
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
@@ -6614,6 +6628,10 @@ snapshots:
       hardhat: 2.26.1(ts-node@10.9.2(@types/node@22.16.4)(typescript@5.8.3))(typescript@5.8.3)
       typechain: 8.3.2(typescript@5.8.3)
 
+  '@types/bcryptjs@3.0.0':
+    dependencies:
+      bcryptjs: 3.0.2
+
   '@types/bn.js@5.2.0':
     dependencies:
       '@types/node': 22.16.4
@@ -7151,6 +7169,8 @@ snapshots:
   base-x@3.0.11:
     dependencies:
       safe-buffer: 5.2.1
+
+  bcryptjs@3.0.2: {}
 
   binary-extensions@2.3.0: {}
 
