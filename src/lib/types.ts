@@ -29,6 +29,39 @@ export interface DrugBatch {
   updatedAt: string;
 }
 
+// Batch Details Types - Extended interface for detailed batch information
+export interface BatchDetails extends DrugBatch {
+  // Status and processing information
+  status: 'active' | 'pending' | 'expired' | 'failed';
+  blockchainTx: string;
+  qrCodesGenerated: number;
+  processingTime: number | null;
+  fileHash: string;
+  
+  // Validation results
+  validationResult: {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  };
+  
+  // Quality and compliance metrics
+  qualityScore: number;
+  complianceStatus: string;
+  regulatoryApproval: string;
+  
+  // Verification statistics
+  verifications: number;
+  authenticityRate: number;
+  
+  // Additional metadata
+  fileName: string;
+  records: number;
+  size: string;
+  temperature: string;
+  humidity: string;
+}
+
 // Upload Status Types
 export type UploadStatus = 'pending' | 'validating' | 'uploading' | 'completed' | 'failed' | 'in-progress';
 

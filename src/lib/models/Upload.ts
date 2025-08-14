@@ -32,6 +32,14 @@ export interface IUpload extends Document {
   userRole: string;
   createdAt: Date;
   updatedAt: Date;
+  // New fields for enhanced drug information
+  activeIngredient?: string;
+  dosageForm?: string;
+  strength?: string;
+  packageSize?: string;
+  storageConditions?: string;
+  nafdacNumber?: string;
+  manufacturingDate?: Date;
 }
 
 const UploadSchema: Schema = new Schema({
@@ -148,6 +156,35 @@ const UploadSchema: Schema = new Schema({
     type: String,
     required: true,
     enum: ['manufacturer', 'pharmacist', 'consumer', 'regulatory', 'admin']
+  },
+  // New fields for enhanced drug information
+  activeIngredient: {
+    type: String,
+    trim: true
+  },
+  dosageForm: {
+    type: String,
+    trim: true
+  },
+  strength: {
+    type: String,
+    trim: true
+  },
+  packageSize: {
+    type: String,
+    trim: true
+  },
+  storageConditions: {
+    type: String,
+    trim: true,
+    default: 'Store in a cool, dry place'
+  },
+  nafdacNumber: {
+    type: String,
+    trim: true
+  },
+  manufacturingDate: {
+    type: Date
   }
 }, {
   timestamps: true

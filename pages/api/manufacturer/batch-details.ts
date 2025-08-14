@@ -3,6 +3,7 @@ import dbConnect from '@src/lib/database';
 import Upload from '@src/lib/models/Upload';
 import QRCode from '@src/lib/models/QRCode';
 import mongoose from 'mongoose';
+import { BatchDetails } from '@src/lib/types';
 
 // Structured logging utility
 interface LogEntry {
@@ -222,7 +223,7 @@ export default async function handler(
 
   // Batch Query Error Logging
   let batchQueryStart = Date.now();
-  let batch;
+  let batch: any;
   try {
     // First try to find by _id (MongoDB ObjectId)
     let query: any = { userEmail: userEmail as string };
@@ -235,7 +236,7 @@ export default async function handler(
       query.batchId = batchId;
     }
     
-    batch = await Upload.findOne(query).lean() as any;
+    batch = await Upload.findOne(query).lean();
 
     log('INFO', 'Batch query executed successfully', {
       requestId,
@@ -393,7 +394,7 @@ export default async function handler(
     scannedCount: 0
   };
 
-  // Calculate authenticity rate (percentage of scanned codes)
+  // Calculate authenticity rate (percentage of scanned codes) with division by zero check
   const authenticityRate = stats.totalQRCodes > 0 
     ? Math.round((stats.scannedCount / stats.totalQRCodes) * 100 * 10) / 10
     : 0;
@@ -401,56 +402,56 @@ export default async function handler(
   // Calculate quality score based on various factors
   const qualityScore = calculateQualityScore(batch, stats);
 
-  // Map the batch data to the expected BatchDetails format
-  const batchDetails = {
-    // Core drug information
-    id: (batch._id as mongoose.Types.ObjectId).toString(),
-    drugName: batch.drug || 'Unknown Drug',
-    batchId: batch.batchId,
-    quantity: batch.quantity || 0,
+  // Enhanced field validation and default values
+  const batchDetails: BatchDetails = {
+    // Core drug information with comprehensive validation
+    id: (batch._id as mongoose.Types.ObjectId)?.toString() || '',
+    drugName: batch.drug || batch.drugName || 'Unknown Drug',
+    batchId: batch.batchId || '',
+    quantity: Math.max(0, batch.quantity || 0),
     manufacturer: batch.manufacturer || 'Unknown Manufacturer',
     location: batch.location || 'Unknown Location',
     expiryDate: batch.expiryDate ? new Date(batch.expiryDate).toISOString().split('T')[0] : '',
-    nafdacNumber: batch.nafdacNumber || 'NAFDAC-2024-001', // Default value
-    manufacturingDate: batch.manufacturingDate || batch.createdAt ? new Date(batch.createdAt).toISOString().split('T')[0] : '',
-    activeIngredient: batch.activeIngredient || 'Unknown',
-    dosageForm: batch.dosageForm || 'Unknown',
-    strength: batch.strength || 'Unknown',
-    packageSize: batch.packageSize || 'Unknown',
+    nafdacNumber: batch.nafdacNumber || 'NAFDAC-PENDING',
+    manufacturingDate: batch.manufacturingDate || batch.createdAt ? new Date(batch.manufacturingDate || batch.createdAt).toISOString().split('T')[0] : '',
+    activeIngredient: batch.activeIngredient || 'Not specified',
+    dosageForm: batch.dosageForm || 'Not specified',
+    strength: batch.strength || 'Not specified',
+    packageSize: batch.packageSize || 'Not specified',
     storageConditions: batch.storageConditions || 'Store in a cool, dry place',
     description: batch.description || '',
     createdAt: batch.createdAt ? new Date(batch.createdAt).toISOString() : '',
     updatedAt: batch.updatedAt ? new Date(batch.updatedAt).toISOString() : '',
 
-    // Status and processing information
+    // Status and processing information with enhanced validation
     status: mapStatus(batch.status),
     blockchainTx: batch.blockchainTx || '',
-    qrCodesGenerated: batch.qrCodesGenerated || stats.totalQRCodes,
+    qrCodesGenerated: Math.max(0, batch.qrCodesGenerated || stats.totalQRCodes || 0),
     processingTime: batch.processingTime || null,
     fileHash: batch.fileHash || '',
 
-    // Validation results
-    validationResult: batch.validationResult || {
-      isValid: true,
-      errors: [],
-      warnings: []
+    // Validation results with proper structure validation
+    validationResult: {
+      isValid: batch.validationResult?.isValid ?? true,
+      errors: Array.isArray(batch.validationResult?.errors) ? batch.validationResult.errors : [],
+      warnings: Array.isArray(batch.validationResult?.warnings) ? batch.validationResult.warnings : []
     },
 
-    // Quality and compliance metrics
+    // Quality and compliance metrics with enhanced defaults
     qualityScore: qualityScore,
-    complianceStatus: batch.complianceStatus || 'Compliant',
-    regulatoryApproval: batch.regulatoryApproval || 'Approved',
+    complianceStatus: batch.complianceStatus || 'Pending Review',
+    regulatoryApproval: batch.regulatoryApproval || 'Pending',
 
-    // Verification statistics
-    verifications: stats.totalVerifications,
-    authenticityRate: authenticityRate,
+    // Verification statistics with robust handling
+    verifications: Math.max(0, stats.totalVerifications || 0),
+    authenticityRate: Math.max(0, Math.min(100, authenticityRate)), // Ensure it's between 0-100
 
-    // Additional metadata
-    fileName: batch.fileName,
-    records: batch.records || 0,
-    size: batch.size,
-    temperature: batch.temperature,
-    humidity: batch.humidity
+    // Additional metadata with validation
+    fileName: batch.fileName || '',
+    records: Math.max(0, batch.records || 0),
+    size: batch.size || '',
+    temperature: batch.temperature || '',
+    humidity: batch.humidity || ''
   };
 
   log('INFO', 'Batch details successfully retrieved and formatted', {
@@ -475,7 +476,11 @@ export default async function handler(
 }
 
 // Helper function to map upload status to batch status
-function mapStatus(uploadStatus: string): string {
+function mapStatus(uploadStatus: string | null | undefined): 'active' | 'pending' | 'expired' | 'failed' {
+  if (!uploadStatus) {
+    return 'pending';
+  }
+  
   switch (uploadStatus) {
     case 'completed':
       return 'active';
@@ -491,41 +496,47 @@ function mapStatus(uploadStatus: string): string {
   }
 }
 
-// Helper function to calculate quality score
+// Helper function to calculate quality score with enhanced validation
 function calculateQualityScore(batch: any, stats: any): number {
   let score = 0;
   let factors = 0;
 
-  // Factor 1: Validation success (30 points)
-  if (batch.validationResult?.isValid) {
-    score += 30;
+  try {
+    // Factor 1: Validation success (30 points)
+    if (batch?.validationResult?.isValid) {
+      score += 30;
+    }
+    factors++;
+
+    // Factor 2: QR codes generated (20 points)
+    if (stats?.totalQRCodes > 0) {
+      score += 20;
+    }
+    factors++;
+
+    // Factor 3: Blockchain transaction (20 points)
+    if (batch?.blockchainTx) {
+      score += 20;
+    }
+    factors++;
+
+    // Factor 4: Verification activity (15 points)
+    if (stats?.totalVerifications > 0 && stats?.totalQRCodes > 0) {
+      const verificationRate = Math.min(1, stats.totalVerifications / stats.totalQRCodes);
+      score += Math.min(15, verificationRate * 15);
+    }
+    factors++;
+
+    // Factor 5: Completeness of data (15 points)
+    const requiredFields = ['drug', 'manufacturer', 'batchId', 'quantity', 'expiryDate'];
+    const completedFields = requiredFields.filter(field => batch?.[field]);
+    score += (completedFields.length / requiredFields.length) * 15;
+    factors++;
+
+    // Calculate average score with validation
+    return factors > 0 ? Math.round(score / factors) : 0;
+  } catch (error) {
+    // Return a reasonable default score if calculation fails
+    return 50;
   }
-  factors++;
-
-  // Factor 2: QR codes generated (20 points)
-  if (stats.totalQRCodes > 0) {
-    score += 20;
-  }
-  factors++;
-
-  // Factor 3: Blockchain transaction (20 points)
-  if (batch.blockchainTx) {
-    score += 20;
-  }
-  factors++;
-
-  // Factor 4: Verification activity (15 points)
-  if (stats.totalVerifications > 0) {
-    score += Math.min(15, (stats.totalVerifications / stats.totalQRCodes) * 15);
-  }
-  factors++;
-
-  // Factor 5: Completeness of data (15 points)
-  const requiredFields = ['drug', 'manufacturer', 'batchId', 'quantity', 'expiryDate'];
-  const completedFields = requiredFields.filter(field => batch[field]);
-  score += (completedFields.length / requiredFields.length) * 15;
-  factors++;
-
-  // Calculate average score
-  return factors > 0 ? Math.round(score / factors) : 0;
 }

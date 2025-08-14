@@ -36,6 +36,55 @@ export default function AdminLogsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLevel, setFilterLevel] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalLogs: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+  const [stats, setStats] = useState<any>(null);
+
+  const fetchLogs = async () => {
+    if (!userEmail) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams({
+        page: pagination.currentPage.toString(),
+        limit: '50',
+        level: filterLevel,
+        category: filterType,
+        search: searchTerm
+      });
+
+      const response = await fetch(`/api/admin/logs?${params}`, {
+        headers: {
+          'x-user-role': 'admin',
+          'x-user-email': userEmail
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch logs');
+      }
+
+      const data = await response.json();
+      setLogs(data.logs);
+      setPagination(data.pagination);
+      setStats(data.stats);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch logs');
+      console.error('Error fetching logs:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -52,153 +101,52 @@ export default function AdminLogsPage() {
     }
   }, [router]);
 
-  const logs = [
-    {
-      id: 1,
-      timestamp: "2024-06-01 15:30:22",
-      level: "info",
-      type: "user_activity",
-      message: "User login successful",
-      user: "john.smith@pfizer.com",
-      ip: "192.168.1.100",
-      details: "Manufacturer user logged in successfully",
-    },
-    {
-      id: 2,
-      timestamp: "2024-06-01 15:25:15",
-      level: "warning",
-      type: "security",
-      message: "Suspicious login attempt",
-      user: "unknown@example.com",
-      ip: "203.0.113.45",
-      details: "Multiple failed login attempts from suspicious IP",
-    },
-    {
-      id: 3,
-      timestamp: "2024-06-01 15:20:08",
-      level: "error",
-      type: "system",
-      message: "Database connection timeout",
-      user: "system",
-      ip: "127.0.0.1",
-      details: "Database connection failed after 30 seconds",
-    },
-    {
-      id: 4,
-      timestamp: "2024-06-01 15:15:42",
-      level: "info",
-      type: "audit",
-      message: "Drug verification completed",
-      user: "sarah.johnson@medplus.com",
-      ip: "192.168.1.101",
-      details: "QR code scan for batch ABX202405D verified successfully",
-    },
-    {
-      id: 5,
-      timestamp: "2024-06-01 15:10:33",
-      level: "info",
-      type: "blockchain",
-      message: "Transaction recorded",
-      user: "system",
-      ip: "127.0.0.1",
-      details: "Blockchain transaction 0x1234abcd...5678 confirmed",
-    },
-  ];
-
-  const getLevelBadge = (level: string) => {
-    switch (level) {
-      case "info":
-        return (
-          <Badge className="bg-info text-info-foreground">
-            <Info className="w-3 h-3 mr-1" />
-            Info
-          </Badge>
-        );
-      case "warning":
-        return (
-          <Badge className="bg-warning text-warning-foreground">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Warning
-          </Badge>
-        );
-      case "error":
-        return (
-          <Badge className="bg-danger text-danger-foreground">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Error
-          </Badge>
-        );
-      case "success":
-        return (
-          <Badge className="bg-success text-success-foreground">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Success
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
+  useEffect(() => {
+    if (userEmail) {
+      fetchLogs();
     }
+  }, [userEmail, pagination.currentPage, filterLevel, filterType, searchTerm]);
+
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case "user_activity":
-        return (
-          <Badge className="bg-primary text-primary-foreground">
-            User Activity
-          </Badge>
-        );
-      case "security":
-        return (
-          <Badge className="bg-danger text-danger-foreground">Security</Badge>
-        );
-      case "system":
-        return (
-          <Badge className="bg-secondary text-secondary-foreground">
-            System
-          </Badge>
-        );
-      case "audit":
-        return (
-          <Badge className="bg-warning text-warning-foreground">Audit</Badge>
-        );
-      case "blockchain":
-        return (
-          <Badge className="bg-success text-success-foreground">
-            Blockchain
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">Other</Badge>;
-    }
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, currentPage: page }));
   };
 
   const getLevelIcon = (level: string) => {
-    switch (level) {
-      case "info":
-        return <Info className="h-4 w-4 text-info" />;
-      case "warning":
-        return <AlertTriangle className="h-4 w-4 text-warning" />;
-      case "error":
-        return <AlertTriangle className="h-4 w-4 text-danger" />;
-      case "success":
-        return <CheckCircle className="h-4 w-4 text-success" />;
+    switch (level.toLowerCase()) {
+      case 'error':
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      case 'info':
+        return <Info className="h-4 w-4 text-blue-500" />;
       default:
-        return <Clock className="h-4 w-4 text-muted-foreground" />;
+        return <Info className="h-4 w-4 text-gray-500" />;
     }
   };
 
-  const filteredLogs = logs.filter((log) => {
-    const matchesSearch =
-      log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLevel = filterLevel === "all" || log.level === filterLevel;
-    const matchesType = filterType === "all" || log.type === filterType;
-    return matchesSearch && matchesLevel && matchesType;
-  });
+  const getLevelBadge = (level: string) => {
+    switch (level.toLowerCase()) {
+      case 'error':
+        return <Badge variant="destructive">Error</Badge>;
+      case 'warning':
+        return <Badge variant="secondary">Warning</Badge>;
+      case 'info':
+        return <Badge variant="default">Info</Badge>;
+      default:
+        return <Badge variant="outline">{level}</Badge>;
+    }
+  };
 
-  const handleViewDetails = (id: number) => {
+
+
+
+
+
+  const handleViewDetails = (id: string) => {
     // In a real app, show detailed log information
     alert(`View details for log ID: ${id}`);
   };
@@ -207,23 +155,33 @@ export default function AdminLogsPage() {
     // Export logs as CSV
     const csvData = logs.map((log) => ({
       id: log.id,
-      timestamp: log.timestamp,
+      timestamp: new Date(log.timestamp).toLocaleString(),
       level: log.level,
-      type: log.type,
-      message: log.message,
-      user: log.user,
-      ip: log.ip,
-      details: log.details,
+      category: log.category,
+      action: log.action,
+      description: log.description,
+      userEmail: log.userEmail || 'System',
+      ipAddress: log.ipAddress || 'N/A',
+      endpoint: log.endpoint || 'N/A',
+      method: log.method || 'N/A',
+      statusCode: log.statusCode || 'N/A',
+      responseTime: log.responseTime || 'N/A'
     }));
+    
+    if (csvData.length === 0) {
+      alert('No logs to export');
+      return;
+    }
+    
     const csv = [
       Object.keys(csvData[0]).join(","),
-      ...csvData.map((row) => Object.values(row).join(",")),
+      ...csvData.map((row) => Object.values(row).map(value => `"${value}"`).join(",")),
     ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `system-logs-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `audit-logs-${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -257,8 +215,12 @@ export default function AdminLogsPage() {
                   placeholder="Search logs..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   className="w-56"
                 />
+                <Button onClick={handleSearch} variant="outline">
+                  <Search className="h-4 w-4" />
+                </Button>
                 <Select value={filterLevel} onValueChange={setFilterLevel}>
                   <SelectTrigger className="w-32">
                     <SelectValue placeholder="All Levels" />
@@ -273,15 +235,16 @@ export default function AdminLogsPage() {
                 </Select>
                 <Select value={filterType} onValueChange={setFilterType}>
                   <SelectTrigger className="w-40">
-                    <SelectValue placeholder="All Types" />
+                    <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="user_activity">User Activity</SelectItem>
-                    <SelectItem value="security">Security</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
-                    <SelectItem value="audit">Audit</SelectItem>
-                    <SelectItem value="blockchain">Blockchain</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="API_CALL">API Calls</SelectItem>
+                    <SelectItem value="USER_ACTION">User Actions</SelectItem>
+                    <SelectItem value="SYSTEM_EVENT">System Events</SelectItem>
+                    <SelectItem value="SECURITY">Security</SelectItem>
+                    <SelectItem value="BLOCKCHAIN">Blockchain</SelectItem>
+                    <SelectItem value="DATABASE">Database</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -291,9 +254,27 @@ export default function AdminLogsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {filteredLogs.length > 0 ? (
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                Loading logs...
+              </div>
+            ) : error ? (
+              <div className="text-center text-red-500 py-8">
+                <AlertTriangle className="mx-auto mb-2 h-8 w-8" />
+                <p className="font-medium">Error loading logs</p>
+                <p className="text-sm">{error}</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-2"
+                  onClick={fetchLogs}
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : logs.length > 0 ? (
               <div className="space-y-4">
-                {filteredLogs.map((log) => (
+                {logs.map((log) => (
                   <div
                     key={log.id}
                     className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
@@ -302,16 +283,21 @@ export default function AdminLogsPage() {
                       {getLevelIcon(log.level)}
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">{log.message}</p>
+                          <p className="font-medium">{log.action}</p>
                           {getLevelBadge(log.level)}
-                          {getTypeBadge(log.type)}
+                          <Badge variant="outline">{log.category}</Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {log.details}
+                          {log.description}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          User: {log.user} | IP: {log.ip} | {log.timestamp}
+                          User: {log.userEmail || 'System'} | IP: {log.ipAddress || 'N/A'} | {new Date(log.timestamp).toLocaleString()}
                         </p>
+                        {log.endpoint && (
+                          <p className="text-xs text-muted-foreground">
+                            {log.method} {log.endpoint} | Status: {log.statusCode} | Time: {log.responseTime}ms
+                          </p>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -323,6 +309,33 @@ export default function AdminLogsPage() {
                     </Button>
                   </div>
                 ))}
+                
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {((pagination.currentPage - 1) * 50) + 1} to {Math.min(pagination.currentPage * 50, pagination.totalLogs)} of {pagination.totalLogs} logs
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!pagination.hasPrevPage}
+                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!pagination.hasNextPage}
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center text-muted-foreground py-8">
@@ -336,3 +349,4 @@ export default function AdminLogsPage() {
     </DashboardLayout>
   );
 }
+
