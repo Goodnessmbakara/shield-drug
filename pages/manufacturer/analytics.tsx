@@ -309,7 +309,7 @@ export default function AnalyticsPage() {
                 <SelectItem value="1y">Last year</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
+            <Button variant="outline" size="touch">
               <Download className="mr-2 h-4 w-4" />
               Export Report
             </Button>

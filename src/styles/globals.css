@@ -141,13 +141,7 @@ All colors MUST be HSL.
   /* Mobile-first responsive design */
   /* Base mobile styles (320px+) */
   html {
-    font-size: 14px; /* Smaller base font for mobile */
-  }
-
-  @media (min-width: 640px) {
-    html {
-      font-size: 16px; /* Standard font size for larger screens */
-    }
+    font-size: 16px; /* Standard font size for better readability */
   }
 
   /* Mobile-specific optimizations */
@@ -390,5 +384,10 @@ All colors MUST be HSL.
 
   .mobile-stack {
     @apply flex flex-col space-y-3 sm:space-y-0 sm:space-x-4 sm:flex-row;
+  }
+
+  /* Mobile grid utility */
+  .mobile-grid {
+    @apply grid grid-cols-1 gap-4 sm:gap-6;
   }
 }

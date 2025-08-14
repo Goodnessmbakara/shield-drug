@@ -589,7 +589,7 @@ export default function BatchesPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="md:size-sm"
+                          className="md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleViewDetails(batch.id)}
                         >
                           <Eye className="w-3 h-3 mr-1" />
@@ -598,7 +598,7 @@ export default function BatchesPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="md:size-sm"
+                          className="md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleEditBatch(batch.id)}
                         >
                           <Edit className="w-3 h-3 mr-1" />
@@ -607,7 +607,7 @@ export default function BatchesPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="md:size-sm"
+                          className="md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleExportBatch(batch.id)}
                         >
                           <Download className="w-3 h-3 mr-1" />
@@ -616,7 +616,7 @@ export default function BatchesPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="md:size-sm"
+                          className="md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleBatchAnalytics(batch.id)}
                         >
                           <BarChart3 className="w-3 h-3 mr-1" />
@@ -625,7 +625,7 @@ export default function BatchesPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="text-danger hover:text-danger md:size-sm"
+                          className="text-danger hover:text-danger md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleDeleteBatch(batch.id)}
                         >
                           <Trash2 className="w-3 h-3 mr-1" />
@@ -647,7 +647,7 @@ export default function BatchesPage() {
                     <Button
                       variant="outline"
                       size="touch"
-                      className="md:size-sm"
+                      className="md:h-9 md:px-3 md:text-sm"
                       onClick={() => setCurrentPage(pagination.currentPage - 1)}
                       disabled={!pagination.hasPrevPage}
                     >
@@ -661,7 +661,7 @@ export default function BatchesPage() {
                             key={pageNum}
                             variant={pageNum === pagination.currentPage ? "default" : "outline"}
                             size="touch"
-                            className="min-w-touch md:size-sm md:w-8 md:h-8 md:p-0"
+                            className="min-w-touch md:w-8 md:h-8 md:p-0"
                             onClick={() => setCurrentPage(pageNum)}
                           >
                             {pageNum}
@@ -672,7 +672,7 @@ export default function BatchesPage() {
                     <Button
                       variant="outline"
                       size="touch"
-                      className="md:size-sm"
+                      className="md:h-9 md:px-3 md:text-sm"
                       onClick={() => setCurrentPage(pagination.currentPage + 1)}
                       disabled={!pagination.hasNextPage}
                     >

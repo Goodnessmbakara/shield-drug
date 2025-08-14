@@ -420,7 +420,7 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
-            <Button variant="outline" className="w-full mt-4">
+            <Button variant="outline" size="touch" className="w-full mt-4">
               View All Users
             </Button>
           </CardContent>

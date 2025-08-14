@@ -372,7 +372,7 @@ export default function PharmacistScanPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleRefreshData} disabled={loading}>
+            <Button variant="outline" size="touch" onClick={handleRefreshData} disabled={loading}>
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
@@ -504,7 +504,7 @@ export default function PharmacistScanPage() {
                   <Button
                     variant="secondary"
                     size="touch"
-                    className="rounded-full w-12 h-12 p-0 md:size-sm md:w-10 md:h-10"
+                    className="rounded-full w-12 h-12 p-0 md:w-10 md:h-10"
                     onClick={() => setFlashActive(!flashActive)}
                   >
                     {flashActive ? (
@@ -516,7 +516,7 @@ export default function PharmacistScanPage() {
                   <Button
                     variant="secondary"
                     size="touch"
-                    className="rounded-full w-12 h-12 p-0 md:size-sm md:w-10 md:h-10"
+                    className="rounded-full w-12 h-12 p-0 md:w-10 md:h-10"
                     onClick={() => setCameraActive(!cameraActive)}
                   >
                     {cameraActive ? (
@@ -528,7 +528,7 @@ export default function PharmacistScanPage() {
                   <Button
                     variant="secondary"
                     size="touch"
-                    className="rounded-full w-12 h-12 p-0 md:size-sm md:w-10 md:h-10"
+                    className="rounded-full w-12 h-12 p-0 md:w-10 md:h-10"
                   >
                     <RotateCcw className="h-4 w-4" />
                   </Button>
@@ -546,6 +546,7 @@ export default function PharmacistScanPage() {
                     onChange={(e) => setManualCode(e.target.value)}
                   />
                   <Button
+                    size="touch"
                     onClick={handleManualScan}
                     disabled={!manualCode.trim()}
                   >
@@ -661,15 +662,15 @@ export default function PharmacistScanPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button variant="outline" size="touch" className="md:size-sm">
+                    <Button variant="outline" size="touch" className="md:h-9 md:px-3 md:text-sm">
                       <Share className="w-3 h-3 mr-1" />
                       Share
                     </Button>
-                    <Button variant="outline" size="touch" className="md:size-sm">
+                    <Button variant="outline" size="touch" className="md:h-9 md:px-3 md:text-sm">
                       <Copy className="w-3 h-3 mr-1" />
                       Copy
                     </Button>
-                    <Button variant="outline" size="touch" className="md:size-sm">
+                    <Button variant="outline" size="touch" className="md:h-9 md:px-3 md:text-sm">
                       <ExternalLink className="w-3 h-3 mr-1" />
                       Details
                     </Button>
@@ -801,7 +802,7 @@ export default function PharmacistScanPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="md:size-sm"
+                          className="md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleViewDetails(scan.id)}
                         >
                           <Eye className="w-3 h-3 mr-1" />
@@ -810,7 +811,7 @@ export default function PharmacistScanPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="md:size-sm"
+                          className="md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleShareResult(scan.id)}
                         >
                           <Share className="w-3 h-3 mr-1" />
@@ -819,7 +820,7 @@ export default function PharmacistScanPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="md:size-sm"
+                          className="md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleCopyResult(scan.id)}
                         >
                           <Copy className="w-3 h-3 mr-1" />
@@ -828,7 +829,7 @@ export default function PharmacistScanPage() {
                         <Button
                           variant="outline"
                           size="touch"
-                          className="text-danger hover:text-danger md:size-sm"
+                          className="text-danger hover:text-danger md:h-9 md:px-3 md:text-sm"
                           onClick={() => handleDeleteScan(scan.id)}
                         >
                           <Trash2 className="w-3 h-3 mr-1" />
