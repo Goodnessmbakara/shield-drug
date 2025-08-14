@@ -317,7 +317,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Overview Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -694,7 +694,7 @@ export default function AnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {data.regionalData.length > 0 ? (
                 data.regionalData.map((region: any) => (
                   <div
@@ -740,7 +740,7 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Performance Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Verification Trends */}
           <Card className="shadow-soft">
             <CardHeader>

@@ -318,7 +318,7 @@ export default function BatchesPage() {
           </div>
           <Button
             variant="hero"
-            size="lg"
+            size="touch"
             className="w-full sm:w-auto"
             onClick={() => router.push("/manufacturer/upload")}
           >
@@ -329,7 +329,7 @@ export default function BatchesPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">
@@ -588,7 +588,8 @@ export default function BatchesPage() {
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="touch"
+                          className="md:size-sm"
                           onClick={() => handleViewDetails(batch.id)}
                         >
                           <Eye className="w-3 h-3 mr-1" />
@@ -596,7 +597,8 @@ export default function BatchesPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="touch"
+                          className="md:size-sm"
                           onClick={() => handleEditBatch(batch.id)}
                         >
                           <Edit className="w-3 h-3 mr-1" />
@@ -604,7 +606,8 @@ export default function BatchesPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="touch"
+                          className="md:size-sm"
                           onClick={() => handleExportBatch(batch.id)}
                         >
                           <Download className="w-3 h-3 mr-1" />
@@ -612,7 +615,8 @@ export default function BatchesPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="touch"
+                          className="md:size-sm"
                           onClick={() => handleBatchAnalytics(batch.id)}
                         >
                           <BarChart3 className="w-3 h-3 mr-1" />
@@ -620,8 +624,8 @@ export default function BatchesPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          size="sm"
-                          className="text-danger hover:text-danger"
+                          size="touch"
+                          className="text-danger hover:text-danger md:size-sm"
                           onClick={() => handleDeleteBatch(batch.id)}
                         >
                           <Trash2 className="w-3 h-3 mr-1" />
@@ -642,7 +646,8 @@ export default function BatchesPage() {
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="touch"
+                      className="md:size-sm"
                       onClick={() => setCurrentPage(pagination.currentPage - 1)}
                       disabled={!pagination.hasPrevPage}
                     >
@@ -655,9 +660,9 @@ export default function BatchesPage() {
                           <Button
                             key={pageNum}
                             variant={pageNum === pagination.currentPage ? "default" : "outline"}
-                            size="sm"
+                            size="touch"
+                            className="min-w-touch md:size-sm md:w-8 md:h-8 md:p-0"
                             onClick={() => setCurrentPage(pageNum)}
-                            className="w-8 h-8 p-0"
                           >
                             {pageNum}
                           </Button>
@@ -666,7 +671,8 @@ export default function BatchesPage() {
                     </div>
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="touch"
+                      className="md:size-sm"
                       onClick={() => setCurrentPage(pagination.currentPage + 1)}
                       disabled={!pagination.hasNextPage}
                     >
@@ -782,10 +788,10 @@ export default function BatchesPage() {
             <CardDescription>Common batch management tasks</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <Button
                 variant="default"
-                size="lg"
+                size="touch"
                 className="h-20 flex-col"
                 onClick={() => router.push("/manufacturer/upload")}
               >
@@ -794,7 +800,7 @@ export default function BatchesPage() {
               </Button>
               <Button
                 variant="secondary"
-                size="lg"
+                size="touch"
                 className="h-20 flex-col"
                 onClick={() => handleExportBatch()}
               >
@@ -803,7 +809,7 @@ export default function BatchesPage() {
               </Button>
               <Button
                 variant="outline"
-                size="lg"
+                size="touch"
                 className="h-20 flex-col"
                 onClick={handleViewAnalytics}
               >
@@ -812,7 +818,7 @@ export default function BatchesPage() {
               </Button>
               <Button
                 variant="outline"
-                size="lg"
+                size="touch"
                 className="h-20 flex-col"
                 onClick={() => setShowReports(true)}
               >

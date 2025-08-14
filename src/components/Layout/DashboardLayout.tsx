@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import Header from "./Header";
 import AppSidebar from "./Sidebar";
 
@@ -14,8 +13,6 @@ export default function DashboardLayout({
   userRole,
   userName,
 }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gradient-subtle">
@@ -25,10 +22,9 @@ export default function DashboardLayout({
           <Header
             userRole={userRole}
             userName={userName}
-            onMenuClick={() => setSidebarOpen(!sidebarOpen)}
           />
 
-          <main className="flex-1 p-4 sm:p-6">
+          <main className="flex-1 p-3 sm:p-4 lg:p-6">
             <div className="container mx-auto max-w-7xl safe-area-padding">
               {children}
             </div>

@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Logo from "@/components/ui/logo";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
-  Menu,
-  X,
   User,
   LogOut,
   Settings,
@@ -28,13 +26,11 @@ interface HeaderProps {
     | "regulatory"
     | "admin";
   userName?: string;
-  onMenuClick?: () => void;
 }
 
 export default function Header({
   userRole,
   userName,
-  onMenuClick,
 }: HeaderProps) {
   const router = useRouter();
 
@@ -88,17 +84,7 @@ export default function Header({
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo and Brand */}
         <div className="flex items-center gap-3">
-          {onMenuClick && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onMenuClick}
-              className="md:hidden touch-target mobile-optimized"
-              aria-label="Toggle menu"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          )}
+          <SidebarTrigger className="md:hidden touch-target mobile-optimized" />
 
           <Logo size="sm" showText={false} />
           <div className="hidden sm:block">

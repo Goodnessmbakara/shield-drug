@@ -132,7 +132,7 @@ export default function ManufacturerDashboard() {
           </div>
           <Button
             variant="hero"
-            size="lg"
+            size="touch"
             className="w-full sm:w-auto"
             onClick={() => router.push("/manufacturer/upload")}
           >
@@ -167,7 +167,7 @@ export default function ManufacturerDashboard() {
           </div>
           <Button
             variant="hero"
-            size="lg"
+            size="touch"
             className="w-full sm:w-auto"
             onClick={() => router.push("/manufacturer/upload")}
           >
@@ -186,6 +186,7 @@ export default function ManufacturerDashboard() {
             <p className="text-sm text-muted-foreground mt-2">{error}</p>
             <Button
               variant="outline"
+              size="touch"
               className="mt-4"
               onClick={() => window.location.reload()}
             >
@@ -213,7 +214,7 @@ export default function ManufacturerDashboard() {
         </div>
         <Button
           variant="hero"
-          size="lg"
+          size="touch"
           className="w-full sm:w-auto"
           onClick={() => router.push("/manufacturer/upload")}
         >
@@ -224,7 +225,7 @@ export default function ManufacturerDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Batches</CardTitle>
@@ -369,6 +370,7 @@ export default function ManufacturerDashboard() {
             </div>
             <Button
               variant="outline"
+              size="touch"
               className="w-full mt-4"
               onClick={() => router.push("/manufacturer/batches")}
             >
@@ -438,10 +440,10 @@ export default function ManufacturerDashboard() {
           <CardDescription>Common manufacturing tasks</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <Button
               variant="default"
-              size="lg"
+              size="touch"
               className="h-20 flex-col"
               onClick={() => router.push("/manufacturer/upload")}
             >
@@ -450,7 +452,7 @@ export default function ManufacturerDashboard() {
             </Button>
             <Button
               variant="secondary"
-              size="lg"
+              size="touch"
               className="h-20 flex-col"
               onClick={() => router.push("/manufacturer/qr-codes")}
             >
@@ -459,7 +461,7 @@ export default function ManufacturerDashboard() {
             </Button>
             <Button
               variant="outline"
-              size="lg"
+              size="touch"
               className="h-20 flex-col"
               onClick={() => router.push("/manufacturer/analytics")}
             >
@@ -468,7 +470,7 @@ export default function ManufacturerDashboard() {
             </Button>
             <Button
               variant="outline"
-              size="lg"
+              size="touch"
               className="h-20 flex-col"
               onClick={() => router.push("/manufacturer/batches")}
             >

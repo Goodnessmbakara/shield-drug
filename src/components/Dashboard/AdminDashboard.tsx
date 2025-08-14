@@ -279,7 +279,7 @@ export default function AdminDashboard() {
           <Button 
             variant="outline" 
             onClick={() => window.location.reload()}
-            size="sm"
+            size="touch"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
@@ -292,7 +292,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -606,7 +606,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Batches</p>
                   <p className="text-2xl font-bold">{data?.uploadStats.totalBatches.toLocaleString() || '0'}</p>
@@ -663,7 +663,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Total QR Codes</p>
                   <p className="text-2xl font-bold">{data?.qrCodeStats.totalQRCodes.toLocaleString() || '0'}</p>

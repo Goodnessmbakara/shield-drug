@@ -138,35 +138,56 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 
+  /* Mobile-first responsive design */
+  /* Base mobile styles (320px+) */
+  html {
+    font-size: 14px; /* Smaller base font for mobile */
+  }
+
+  @media (min-width: 640px) {
+    html {
+      font-size: 16px; /* Standard font size for larger screens */
+    }
+  }
+
   /* Mobile-specific optimizations */
-  @media (max-width: 768px) {
-    /* Improve touch targets */
-    button, [role="button"] {
+  @media (max-width: 767px) {
+    /* Touch-friendly button class for explicit touch targets */
+    .btn-touch {
       min-height: 44px;
       min-width: 44px;
+      padding: 0.75rem 1rem;
     }
 
-    /* Better text scaling */
+    /* Better text scaling for mobile */
     h1 {
       font-size: clamp(1.5rem, 4vw, 2.5rem);
+      line-height: 1.2;
     }
 
     h2 {
       font-size: clamp(1.25rem, 3vw, 2rem);
+      line-height: 1.3;
     }
 
     h3 {
       font-size: clamp(1.125rem, 2.5vw, 1.5rem);
+      line-height: 1.4;
     }
 
     /* Improve form elements */
     input, select, textarea {
       font-size: 16px; /* Prevents zoom on iOS */
+      min-height: 44px;
     }
 
     /* Better spacing for mobile */
     .space-y-6 > * + * {
       margin-top: 1.5rem;
+    }
+
+    .space-y-4 > * + * {
+      margin-top: 1rem;
     }
 
     /* Optimize card layouts */
@@ -254,8 +275,92 @@ All colors MUST be HSL.
 
 /* Custom utility classes for mobile optimization */
 @layer utilities {
+  /* Mobile container utilities */
+  .mobile-container {
+    @apply px-3 sm:px-4 lg:px-6;
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+
+
+
+  /* Mobile card utilities */
+  .mobile-card {
+    @apply p-4 sm:p-6;
+  }
+
+  .mobile-card-header {
+    @apply p-4 sm:p-6 pb-0;
+  }
+
+  .mobile-card-content {
+    @apply p-4 sm:p-6 pt-4;
+  }
+
+  /* Touch target utilities */
+  .touch-target {
+    @apply min-h-touch min-w-touch;
+  }
+
+  .touch-target-sm {
+    @apply min-h-touch-sm min-w-touch-sm;
+  }
+
+  .touch-target-lg {
+    @apply min-h-touch-lg min-w-touch-lg;
+  }
+
+  /* Mobile spacing utilities */
+  .mobile-space-y {
+    @apply space-y-4 sm:space-y-6;
+  }
+
+  .mobile-space-x {
+    @apply space-x-3 sm:space-x-4;
+  }
+
+  .mobile-gap {
+    @apply gap-4 sm:gap-6;
+  }
+
+  /* Mobile typography utilities */
+  .mobile-text-sm {
+    @apply text-sm sm:text-base;
+  }
+
+  .mobile-text-base {
+    @apply text-base sm:text-lg;
+  }
+
+  .mobile-text-lg {
+    @apply text-lg sm:text-xl;
+  }
+
+  /* Mobile form utilities */
+  .mobile-input {
+    @apply text-base h-touch px-3 sm:px-4;
+  }
+
+  .mobile-select {
+    @apply text-base h-touch px-3 sm:px-4;
+  }
+
+  /* Mobile button utilities */
+  .mobile-btn {
+    @apply h-touch px-4 sm:px-6 text-base;
+  }
+
+  .mobile-btn-sm {
+    @apply h-touch-sm px-3 sm:px-4 text-sm sm:text-base;
+  }
+
+  .mobile-btn-lg {
+    @apply h-touch-lg px-6 sm:px-8 text-lg;
+  }
+
+  /* Mobile optimization utilities */
   .mobile-optimized {
-    @apply touch-manipulation;
+    touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -268,5 +373,22 @@ All colors MUST be HSL.
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Mobile responsive utilities */
+  .mobile-hidden {
+    @apply hidden sm:block;
+  }
+
+  .mobile-only {
+    @apply block sm:hidden;
+  }
+
+  .mobile-flex {
+    @apply flex flex-col sm:flex-row;
+  }
+
+  .mobile-stack {
+    @apply flex flex-col space-y-3 sm:space-y-0 sm:space-x-4 sm:flex-row;
   }
 }

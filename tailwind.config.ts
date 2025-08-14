@@ -10,9 +10,23 @@ export default {
 	],
 	prefix: "",
 	theme: {
+		screens: {
+			'xs': '375px',
+			'sm': '640px',
+			'md': '768px',
+			'lg': '1024px',
+			'xl': '1280px',
+			'2xl': '1536px',
+		},
 		container: {
 			center: true,
-			padding: '2rem',
+			padding: {
+				DEFAULT: '1rem',
+				sm: '1.5rem',
+				lg: '2rem',
+				xl: '2.5rem',
+				'2xl': '3rem'
+			},
 			screens: {
 				'2xl': '1400px'
 			}
@@ -101,6 +115,21 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			spacing: {
+				'touch': '44px',
+				'touch-sm': '40px',
+				'touch-lg': '48px',
+			},
+			minHeight: {
+				'touch': '44px',
+				'touch-sm': '40px',
+				'touch-lg': '48px',
+			},
+			minWidth: {
+				'touch': '44px',
+				'touch-sm': '40px',
+				'touch-lg': '48px',
+			},
 			keyframes: {
 				'accordion-down': {
 					from: {
@@ -125,5 +154,5 @@ export default {
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [require("tailwindcss-animate"), require("@tailwindcss/container-queries")],
 } satisfies Config;
