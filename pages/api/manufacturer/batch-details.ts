@@ -52,6 +52,29 @@ function getRequestId(req: NextApiRequest): string {
   return (req.headers['x-request-id'] as string) || generateRequestId();
 }
 
+// Helper function to check if a date is valid
+function isValidDate(date: Date | string | null | undefined): boolean {
+  if (!date) return false;
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return !isNaN(dateObj.getTime());
+  } catch (error) {
+    return false;
+  }
+}
+
+// Helper function to format date to ISO string
+function formatISO(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return '';
+    return dateObj.toISOString();
+  } catch (error) {
+    return '';
+  }
+}
+
 // Helper function to format date to YYYY-MM-DD format
 function formatYMD(date: Date | string | null | undefined): string {
   if (!date) return '';
@@ -109,7 +132,7 @@ export default async function handler(
     return res.status(500).json({ 
       error: 'Internal server error: Module loading failed',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -124,7 +147,7 @@ export default async function handler(
     return res.status(405).json({ 
       error: 'Method not allowed',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -159,7 +182,7 @@ export default async function handler(
     return res.status(403).json({ 
       error: 'Access denied. Manufacturer role required.',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -172,7 +195,7 @@ export default async function handler(
     return res.status(401).json({ 
       error: 'User email required',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -192,7 +215,7 @@ export default async function handler(
     return res.status(400).json({ 
       error: 'Batch ID is required',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -229,7 +252,7 @@ export default async function handler(
     return res.status(503).json({ 
       error: errorMessage,
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -275,7 +298,7 @@ export default async function handler(
     return res.status(500).json({ 
       error: 'Failed to retrieve batch information',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -292,7 +315,7 @@ export default async function handler(
     return res.status(404).json({ 
       error: 'Batch not found',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -336,7 +359,7 @@ export default async function handler(
     return res.status(500).json({ 
       error: 'Failed to retrieve QR codes information',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -395,7 +418,7 @@ export default async function handler(
     return res.status(500).json({ 
       error: 'Failed to calculate verification statistics',
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: formatISO(new Date())
     });
   }
 
@@ -436,8 +459,8 @@ export default async function handler(
     packageSize: batch.packageSize || 'Not specified',
     storageConditions: batch.storageConditions || 'Store in a cool, dry place',
     description: batch.description || '',
-    createdAt: batch.createdAt ? new Date(batch.createdAt).toISOString() : '',
-    updatedAt: batch.updatedAt ? new Date(batch.updatedAt).toISOString() : '',
+    createdAt: formatISO(batch.createdAt),
+    updatedAt: formatISO(batch.updatedAt),
 
     // Status and processing information with enhanced validation
     status: mapStatus(batch.status),
@@ -448,7 +471,7 @@ export default async function handler(
 
     // Validation results with proper structure validation
     validationResult: {
-      isValid: batch.validationResult?.isValid ?? true,
+      isValid: batch.validationResult?.isValid ?? false,
       errors: Array.isArray(batch.validationResult?.errors) ? batch.validationResult.errors : [],
       warnings: Array.isArray(batch.validationResult?.warnings) ? batch.validationResult.warnings : []
     },
@@ -547,7 +570,7 @@ function calculateQualityScore(batch: any, stats: any): number {
     factors++;
 
     // Calculate average score with validation
-    return factors > 0 ? Math.round(score / factors) : 0;
+    return Math.round(Math.min(100, score));
   } catch (error) {
     // Return a reasonable default score if calculation fails
     return 50;
