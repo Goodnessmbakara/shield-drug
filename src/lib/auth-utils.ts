@@ -69,8 +69,10 @@ export const authenticateUser = async (email: string, password: string, selected
       return {
         success: false,
         error: 'ROLE_MISMATCH',
-        message: `Please select the correct role: ${user.role}`,
-        correctRole: user.role
+        message: `This email is registered as a ${user.role}. To login as ${selectedRole}, please use a different email address or select the correct role: ${user.role}`,
+        correctRole: user.role,
+        userRole: user.role,
+        selectedRole: selectedRole
       };
     }
     

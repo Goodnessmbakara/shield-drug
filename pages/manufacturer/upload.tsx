@@ -45,10 +45,21 @@ import {
   X,
   Copy,
   ExternalLink,
+  Info,
 } from "lucide-react";
 import { useBatchUpload } from "@/hooks/useBatchUpload";
 import { ValidationResults } from "@/components/ValidationResults";
+import { CSVPreview } from "@/components/CSVPreview";
 import { UploadHistory } from "@/lib/types";
+
+interface CSVRow {
+  drug_name: string;
+  batch_id: string;
+  quantity: number;
+  expiry_date: string;
+  manufacturer: string;
+  [key: string]: any;
+}
 
 export default function UploadPage() {
   const router = useRouter();
@@ -59,6 +70,14 @@ export default function UploadPage() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showCSVPreview, setShowCSVPreview] = useState(false);
+  const [csvData, setCsvData] = useState<CSVRow[]>([]);
+  
+  // Form fields state
+  const [drugName, setDrugName] = useState("");
+  const [batchId, setBatchId] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [description, setDescription] = useState("");
 
   // Use the batch upload hook
   const {
@@ -194,7 +213,42 @@ export default function UploadPage() {
     }
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Parse CSV and pre-fill form fields
+  const parseCSVAndPreFill = async (file: File) => {
+    try {
+      const text = await file.text();
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      const data: CSVRow[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          const values = lines[i].split(',').map(v => v.trim());
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          data.push(row);
+        }
+      }
+
+      setCsvData(data);
+      
+      // Pre-fill form fields from first row
+      if (data.length > 0) {
+        const firstRow = data[0];
+        setDrugName(firstRow.drug_name || '');
+        setBatchId(firstRow.batch_id || '');
+        setManufacturer(firstRow.manufacturer || '');
+      }
+      
+      setShowCSVPreview(true);
+    } catch (error) {
+      console.error('Error parsing CSV:', error);
+    }
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       // Validate file first
@@ -207,6 +261,9 @@ export default function UploadPage() {
       setSelectedFile(file);
       setShowValidationResults(false);
       resetUpload();
+      
+      // Parse CSV and pre-fill form
+      await parseCSVAndPreFill(file);
     }
   };
 
@@ -214,8 +271,23 @@ export default function UploadPage() {
     if (!selectedFile) return;
 
     try {
-      await uploadFile(selectedFile);
+      // Include form metadata in upload
+      const metadata = {
+        drugName,
+        batchId,
+        manufacturer,
+        description
+      };
+      
+      await uploadFile(selectedFile, metadata);
       setSelectedFile(null);
+      setShowCSVPreview(false);
+      setCsvData([]);
+      // Reset form fields
+      setDrugName("");
+      setBatchId("");
+      setManufacturer("");
+      setDescription("");
     } catch (err) {
       console.error("Upload failed:", err);
     }
@@ -434,18 +506,42 @@ export default function UploadPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="drug">Drug Name</Label>
-                <Input id="drug" placeholder="Enter drug name" />
+                <Label htmlFor="drug">Primary Drug Name</Label>
+                <Input 
+                  id="drug" 
+                  placeholder="Enter drug name" 
+                  value={drugName}
+                  onChange={(e) => setDrugName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pre-filled from CSV. You can modify if needed.
+                </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="batch">Batch ID</Label>
-                <Input id="batch" placeholder="Enter batch ID" />
+                <Label htmlFor="batch">Primary Batch ID</Label>
+                <Input 
+                  id="batch" 
+                  placeholder="Enter batch ID" 
+                  value={batchId}
+                  onChange={(e) => setBatchId(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pre-filled from CSV. You can modify if needed.
+                </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="manufacturer">Manufacturer</Label>
-                <Input id="manufacturer" placeholder="Enter manufacturer" />
+                <Label htmlFor="manufacturer">Primary Manufacturer</Label>
+                <Input 
+                  id="manufacturer" 
+                  placeholder="Enter manufacturer" 
+                  value={manufacturer}
+                  onChange={(e) => setManufacturer(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pre-filled from CSV. You can modify if needed.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -495,11 +591,16 @@ export default function UploadPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
+                <Label htmlFor="description">Batch Notes (Optional)</Label>
                 <Textarea
                   id="description"
-                  placeholder="Enter any additional notes"
+                  placeholder="Add any special notes, handling instructions, or batch-specific information..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  This information will be stored with your upload for future reference.
+                </p>
               </div>
 
               {/* Upload Progress */}
@@ -648,6 +749,12 @@ export default function UploadPage() {
                       onClick={() => {
                         setSelectedFile(null);
                         resetUpload();
+                        setShowCSVPreview(false);
+                        setCsvData([]);
+                        setDrugName("");
+                        setBatchId("");
+                        setManufacturer("");
+                        setDescription("");
                       }}
                     >
                       <RefreshCw className="mr-2 h-4 w-4" />
@@ -658,107 +765,119 @@ export default function UploadPage() {
             </CardContent>
           </Card>
 
-          {/* Upload Requirements */}
-          <Card className="shadow-soft">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Upload Requirements
-              </CardTitle>
-              <CardDescription>
-                File format and data requirements
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <h4 className="font-medium">File Format</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    CSV format only (.csv extension)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    Maximum file size: 10 MB
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    UTF-8 encoding required
-                  </li>
-                </ul>
-              </div>
+          {/* CSV Preview or Upload Requirements */}
+          {showCSVPreview && csvData.length > 0 ? (
+            <CSVPreview 
+              csvData={csvData}
+              fileName={selectedFile?.name || 'Unknown'}
+              onClose={() => setShowCSVPreview(false)}
+            />
+          ) : (
+            <Card className="shadow-soft">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Upload Requirements
+                </CardTitle>
+                <CardDescription>
+                  File format and data requirements
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <h4 className="font-medium">File Format</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      CSV format only (.csv extension)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      Maximum file size: 10 MB
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      UTF-8 encoding required
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      Supports up to 100+ records per file
+                    </li>
+                  </ul>
+                </div>
 
-              <div className="space-y-3">
-                <h4 className="font-medium">Required Columns</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    drug_name (string)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    batch_id (string)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    quantity (integer)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    expiry_date (YYYY-MM-DD)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    manufacturer (string)
-                  </li>
-                </ul>
-              </div>
+                <div className="space-y-3">
+                  <h4 className="font-medium">Required Columns</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      drug_name (string)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      batch_id (string)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      quantity (integer)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      expiry_date (YYYY-MM-DD)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      manufacturer (string)
+                    </li>
+                  </ul>
+                </div>
 
-              <div className="space-y-3">
-                <h4 className="font-medium">Data Validation</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    All required fields must be present
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    Dates must be in valid format
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-success" />
-                    Quantities must be positive integers
-                  </li>
-                </ul>
-              </div>
+                <div className="space-y-3">
+                  <h4 className="font-medium">Data Validation</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      All required fields must be present
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      Dates must be in valid format
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      Quantities must be positive integers
+                    </li>
+                  </ul>
+                </div>
 
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleDownloadTemplate}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Template
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    const a = document.createElement("a");
-                    a.href = "/sample-batch.csv";
-                    a.download = "sample-batch.csv";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                  }}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Sample File
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleDownloadTemplate}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Template
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = "/sample-batch.csv";
+                      a.download = "sample-batch.csv";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Sample File
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Validation Results */}

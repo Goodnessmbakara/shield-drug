@@ -36,6 +36,10 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [roleMismatch, setRoleMismatch] = useState<{
+    userRole: string;
+    selectedRole: string;
+  } | null>(null);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,9 +98,25 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         } else if (data.error === 'ROLE_MISMATCH') {
           toast({
             title: "Role Mismatch",
-            description: `Please select the correct role: ${data.correctRole}`,
+            description: data.message,
             variant: "destructive",
           });
+          
+          // Set role mismatch state for UI indication
+          setRoleMismatch({
+            userRole: data.userRole,
+            selectedRole: data.selectedRole
+          });
+          
+          // Show additional guidance
+          setTimeout(() => {
+            toast({
+              title: "Need to login as a different role?",
+              description: `Use a different email address to login as ${data.selectedRole}, or select ${data.userRole} for this email.`,
+              variant: "default",
+            });
+          }, 2000);
+          
           setRole(data.correctRole);
         } else if (data.error === 'ACCOUNT_DISABLED') {
           toast({
@@ -265,6 +285,9 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                     <SelectItem value="admin">Administrator</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Each email can only be registered for one role. Use different emails for different roles.
+                </p>
               </div>
 
               <div className="space-y-2">

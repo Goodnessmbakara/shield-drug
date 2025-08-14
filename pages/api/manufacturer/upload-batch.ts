@@ -40,12 +40,21 @@ export default async function handler(
       return res.status(401).json({ error: 'User email required' });
     }
 
-    // Get file data from request
-    const { fileContent, fileName, fileSize } = req.body;
+    // Get file data and metadata from request
+    const { fileContent, fileName, fileSize, metadata } = req.body;
 
     if (!fileContent || !fileName) {
       return res.status(400).json({ error: 'File content and name are required' });
     }
+
+    // Extract metadata (optional)
+    const formMetadata = metadata || {};
+    const {
+      drugName: formDrugName,
+      batchId: formBatchId,
+      manufacturer: formManufacturer,
+      description: formDescription
+    } = formMetadata;
 
     // Create a mock File object for validation
     const mockFile = new File([fileContent], fileName, { type: 'text/csv' });
@@ -169,16 +178,16 @@ export default async function handler(
 
     const uploadData = {
       fileName,
-      drug: validationResult.data[0]?.drug_name || 'Unknown',
+      drug: formDrugName || validationResult.data[0]?.drug_name || 'Unknown',
       quantity: validationResult.data.reduce((sum, row) => sum + parseInt(row.quantity.toString()), 0),
       status: 'completed' as UploadStatus,
       date: new Date(),
       size: `${(fileSize / 1024 / 1024).toFixed(2)} MB`,
       records: validationResult.totalRows,
       blockchainTx: blockchainTx.hash,
-      description: `Uploaded by ${userEmail}`,
-      manufacturer: validationResult.data[0]?.manufacturer || 'Unknown',
-      batchId: validationResult.data[0]?.batch_id || uploadId,
+      description: formDescription || `Uploaded by ${userEmail}`,
+      manufacturer: formManufacturer || validationResult.data[0]?.manufacturer || 'Unknown',
+      batchId: formBatchId || validationResult.data[0]?.batch_id || uploadId,
       expiryDate: new Date(validationResult.data[0]?.expiry_date || Date.now() + 365 * 24 * 60 * 60 * 1000),
       validationResult: {
         isValid: validationResult.isValid,
@@ -195,7 +204,14 @@ export default async function handler(
       complianceStatus: 'Compliant',
       regulatoryApproval: 'NAFDAC Approved',
       userEmail: userEmail as string,
-      userRole: 'manufacturer'
+      userRole: 'manufacturer',
+      // Store form metadata for future reference
+      formMetadata: {
+        drugName: formDrugName,
+        batchId: formBatchId,
+        manufacturer: formManufacturer,
+        description: formDescription
+      }
     };
 
     let savedUpload;

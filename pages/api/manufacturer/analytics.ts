@@ -2,6 +2,9 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '@/lib/database';
 import Upload from '@/lib/models/Upload';
 import QRCode from '@/lib/models/QRCode';
+import Report from '@/lib/models/Report';
+import User from '@/lib/models/User';
+import BlockchainTransaction from '@/lib/models/BlockchainTransaction';
 import mongoose from 'mongoose';
 
 export default async function handler(
@@ -60,7 +63,7 @@ export default async function handler(
     // 3. Top Drugs
     const topDrugs = await getTopDrugs(userEmail as string, startDate);
 
-    // 4. Regional Data
+    // 4. Regional Data (REAL DATA)
     const regionalData = await getRegionalData(userEmail as string, startDate);
 
     // 5. Monthly Statistics
@@ -69,6 +72,9 @@ export default async function handler(
     // 6. Recent Activity
     const recentActivity = await getRecentActivity(userEmail as string);
 
+    // 7. Blockchain Analytics (REAL DATA)
+    const blockchainAnalytics = await getBlockchainAnalytics(userEmail as string, startDate);
+
     res.status(200).json({
       overview: overviewStats,
       trends: trendsData,
@@ -76,6 +82,7 @@ export default async function handler(
       regionalData,
       monthlyStats,
       recentActivity,
+      blockchainAnalytics,
       timeRange: timeRange as string,
       lastUpdated: new Date().toISOString()
     });
@@ -95,7 +102,9 @@ async function getOverviewStats(userEmail: string, startDate: Date) {
     totalQRCodes,
     totalVerifications,
     activeBatches,
-    totalRevenue
+    totalRevenue,
+    blockchainSuccess,
+    activePharmacies
   ] = await Promise.all([
     Upload.countDocuments({ userEmail, createdAt: { $gte: startDate } }),
     QRCode.countDocuments({ userEmail, createdAt: { $gte: startDate } }),
@@ -104,13 +113,33 @@ async function getOverviewStats(userEmail: string, startDate: Date) {
     Upload.aggregate([
       { $match: { userEmail, createdAt: { $gte: startDate } } },
       { $group: { _id: null, total: { $sum: '$quantity' } } }
-    ])
+    ]),
+    // Real blockchain success rate
+    BlockchainTransaction.aggregate([
+      { $match: { userEmail, createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          successful: { $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] } }
+        }
+      }
+    ]),
+    // Real active pharmacies count
+    User.countDocuments({ 
+      role: 'pharmacist', 
+      lastLogin: { $gte: startDate },
+      isActive: true
+    })
   ]);
 
   const authenticityRate = totalQRCodes > 0 ? (totalVerifications / totalQRCodes * 100) : 0;
   const complianceRate = totalBatches > 0 ? (activeBatches / totalBatches * 100) : 0;
-  const blockchainSuccess = 99.8; // Mock value for now
-  const activePharmacies = 2047; // Mock value for now
+  
+  // Calculate real blockchain success rate
+  const blockchainSuccessRate = blockchainSuccess[0]?.total > 0 
+    ? (blockchainSuccess[0].successful / blockchainSuccess[0].total * 100) 
+    : 0;
 
   return {
     totalBatches,
@@ -118,7 +147,7 @@ async function getOverviewStats(userEmail: string, startDate: Date) {
     totalVerifications,
     authenticityRate: Math.round(authenticityRate * 10) / 10,
     complianceRate: Math.round(complianceRate * 10) / 10,
-    blockchainSuccess,
+    blockchainSuccess: Math.round(blockchainSuccessRate * 10) / 10,
     activePharmacies,
     totalRevenue: totalRevenue[0]?.total || 0
   };
@@ -164,11 +193,30 @@ async function getTrendsData(userEmail: string, startDate: Date, timeRange: stri
     { $limit: 7 }
   ]);
 
+  // Real counterfeit data from reports
+  const counterfeits = await Report.aggregate([
+    { 
+      $match: { 
+        manufacturer: userEmail, 
+        type: 'counterfeit',
+        createdAt: { $gte: startDate } 
+      } 
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { _id: 1 } },
+    { $limit: 7 }
+  ]);
+
   return {
     verifications: verifications.map(v => v.count),
     qrGenerations: qrGenerations.map(q => q.count),
     uploads: uploads.map(u => u.count),
-    counterfeits: [3, 5, 2, 8, 4, 6, 3] // Mock data for now
+    counterfeits: counterfeits.map(c => c.count)
   };
 }
 
@@ -191,44 +239,82 @@ async function getTopDrugs(userEmail: string, startDate: Date) {
     name: drug._id,
     verifications: drug.verifications,
     qrCodes: drug.qrCodes,
-    authenticity: 98.5 // Mock value for now
+    authenticity: 98.5 // Mock value for now - could be calculated from verification success rate
   }));
 }
 
 async function getRegionalData(userEmail: string, startDate: Date) {
-  // Mock regional data for now - in a real app, this would come from QR scan locations
-  return [
-    {
-      region: "Lagos",
-      verifications: 45620,
-      pharmacies: 450,
-      counterfeits: 12,
+  // REAL regional data from QR scan locations
+  const regionalStats = await QRCode.aggregate([
+    { 
+      $match: { 
+        userEmail, 
+        isScanned: true, 
+        scannedAt: { $gte: startDate },
+        scannedLocation: { $exists: true, $ne: null }
+      } 
     },
     {
-      region: "Abuja",
-      verifications: 34200,
-      pharmacies: 320,
-      counterfeits: 8,
+      $group: {
+        _id: '$scannedLocation',
+        verifications: { $sum: 1 },
+        uniquePharmacies: { $addToSet: '$scannedBy' }
+      }
+    },
+    { $sort: { verifications: -1 } },
+    { $limit: 10 }
+  ]);
+
+  // Get counterfeit reports by region
+  const counterfeitReports = await Report.aggregate([
+    { 
+      $match: { 
+        manufacturer: userEmail, 
+        type: 'counterfeit',
+        createdAt: { $gte: startDate },
+        location: { $exists: true, $ne: null }
+      } 
     },
     {
-      region: "Port Harcourt",
-      verifications: 28900,
-      pharmacies: 280,
-      counterfeits: 15,
+      $group: {
+        _id: '$location',
+        counterfeits: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Get pharmacy counts by region
+  const pharmacyCounts = await User.aggregate([
+    { 
+      $match: { 
+        role: 'pharmacist', 
+        location: { $exists: true, $ne: null },
+        lastLogin: { $gte: startDate }
+      } 
     },
     {
-      region: "Kano",
-      verifications: 21000,
-      pharmacies: 220,
-      counterfeits: 6,
-    },
-    {
-      region: "Ibadan",
-      verifications: 15950,
-      pharmacies: 180,
-      counterfeits: 9,
-    },
-  ];
+      $group: {
+        _id: '$location',
+        pharmacies: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Combine the data
+  const regionalData = regionalStats.map(region => {
+    const counterfeitCount = counterfeitReports.find(r => r._id === region._id)?.counterfeits || 0;
+    const pharmacyCount = pharmacyCounts.find(p => p._id === region._id)?.pharmacies || 0;
+    
+    return {
+      region: region._id,
+      verifications: region.verifications,
+      pharmacies: pharmacyCount,
+      counterfeits: counterfeitCount
+    };
+  });
+
+  // If no real data, return empty array instead of mock data
+  return regionalData.length > 0 ? regionalData : [];
 }
 
 async function getMonthlyStats(userEmail: string, startDate: Date) {
@@ -273,4 +359,76 @@ async function getRecentActivity(userEmail: string) {
       blockchainTx: upload.blockchainTx
     }
   }));
+}
+
+async function getBlockchainAnalytics(userEmail: string, startDate: Date) {
+  // REAL blockchain analytics
+  const [
+    transactionStats,
+    recentTransactions,
+    networkStats
+  ] = await Promise.all([
+    // Transaction performance stats
+    BlockchainTransaction.aggregate([
+      { $match: { userEmail, createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          successful: { $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] } },
+          failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          totalGasUsed: { $sum: '$gasUsed' },
+          avgGasUsed: { $avg: '$gasUsed' },
+          totalGasPrice: { $sum: '$gasPrice' },
+          avgGasPrice: { $avg: '$gasPrice' }
+        }
+      }
+    ]),
+    
+    // Recent transactions
+    BlockchainTransaction.find({ userEmail })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean(),
+    
+    // Network stats (mock for now, would come from blockchain node)
+    Promise.resolve({
+      pendingTxns: 3,
+      dailyVolume: 12847,
+      blockHeight: 45892147,
+      gasPrice: 25
+    })
+  ]);
+
+  const stats = transactionStats[0] || {
+    total: 0,
+    successful: 0,
+    failed: 0,
+    pending: 0,
+    totalGasUsed: 0,
+    avgGasUsed: 0,
+    totalGasPrice: 0,
+    avgGasPrice: 0
+  };
+
+  const successRate = stats.total > 0 ? (stats.successful / stats.total * 100) : 0;
+  const avgConfirmationTime = 2.3; // Mock for now, would be calculated from confirmedAt - timestamp
+
+  return {
+    transactionPerformance: {
+      successRate: Math.round(successRate * 10) / 10,
+      averageGasUsed: Math.round(stats.avgGasUsed || 0),
+      blockConfirmation: avgConfirmationTime
+    },
+    networkStats,
+    recentTransactions: recentTransactions.map(tx => ({
+      id: tx.resourceId,
+      type: tx.type,
+      status: tx.status,
+      hash: tx.transactionHash,
+      gasUsed: tx.gasUsed,
+      blockNumber: tx.blockNumber
+    }))
+  };
 }

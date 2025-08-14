@@ -10,7 +10,7 @@ interface UseBatchUploadReturn {
   error: string | null;
   
   // Actions
-  uploadFile: (file: File) => Promise<void>;
+  uploadFile: (file: File, metadata?: any) => Promise<void>;
   validateFile: (file: File) => { isValid: boolean; errors: string[] };
   downloadTemplate: () => void;
   resetUpload: () => void;
@@ -81,7 +81,7 @@ export function useBatchUpload(): UseBatchUploadReturn {
     };
   }, []);
 
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFile = useCallback(async (file: File, metadata?: any) => {
     try {
       setIsUploading(true);
       setError(null);
@@ -113,7 +113,8 @@ export function useBatchUpload(): UseBatchUploadReturn {
       const uploadData = {
         fileContent,
         fileName: file.name,
-        fileSize: file.size
+        fileSize: file.size,
+        metadata
       };
 
       // Get user info from localStorage (in a real app, this would come from auth context)

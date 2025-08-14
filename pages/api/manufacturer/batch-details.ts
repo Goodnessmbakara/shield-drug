@@ -260,16 +260,15 @@ export default async function handler(
   let batchQueryStart = Date.now();
   let batch: any;
   try {
-    // First try to find by _id (MongoDB ObjectId)
-    let query: any = { userEmail: userEmail as string };
-    
-    // Check if batchId is a valid MongoDB ObjectId
-    if (mongoose.Types.ObjectId.isValid(batchId)) {
-      query._id = new mongoose.Types.ObjectId(batchId);
-    } else {
-      // If not a valid ObjectId, try to find by batchId field
-      query.batchId = batchId;
-    }
+    // Build a filter that tries both _id and batchId when the string is ObjectId-like
+    const idOrBatchFilter = mongoose.Types.ObjectId.isValid(batchId)
+      ? { $or: [
+          { _id: new mongoose.Types.ObjectId(batchId) },
+          { batchId }
+        ] }
+      : { batchId };
+
+    const query = { userEmail: userEmail as string, ...idOrBatchFilter };
     
     batch = await Upload.findOne(query).lean();
 
@@ -319,49 +318,7 @@ export default async function handler(
     });
   }
 
-  // QR Code Query Error Logging
-  let qrQueryStart = Date.now();
-  let qrCodes;
-  try {
-    // Find QR codes for this batch - try both uploadId and metadata.batchId
-    qrCodes = await QRCode.find({ 
-      $or: [
-        { uploadId: batchId },
-        { 'metadata.batchId': batchId },
-        { uploadId: batch._id?.toString() },
-        { 'metadata.batchId': batch.batchId }
-      ],
-      userEmail: userEmail as string 
-    }).lean();
-
-    log('INFO', 'QR codes query executed successfully', {
-      requestId,
-      userEmail: userEmail as string,
-      userRole: userRole as string,
-      batchId,
-      qrCodesFound: qrCodes.length,
-      operation: 'qr_codes_query',
-      duration: Date.now() - qrQueryStart
-    });
-  } catch (error) {
-    log('ERROR', 'QR codes query failed in batch-details API', {
-      requestId,
-      userEmail: userEmail as string,
-      userRole: userRole as string,
-      batchId,
-      error: error instanceof Error ? error.message : String(error),
-      query: { 'metadata.batchId': batchId, userEmail },
-      collection: 'QRCode',
-      operation: 'qr_codes_query',
-      duration: Date.now() - qrQueryStart
-    });
-    
-    return res.status(500).json({ 
-      error: 'Failed to retrieve QR codes information',
-      requestId,
-      timestamp: formatISO(new Date())
-    });
-  }
+  // QR Code statistics aggregation - no need to fetch individual QR code documents
 
   // Aggregation Query Error Logging
   let aggregationStart = Date.now();

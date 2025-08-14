@@ -26,7 +26,49 @@ import {
   Download,
   Info,
   Shield,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
 } from "lucide-react";
+
+interface Report {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  submitted: string;
+  location: string;
+  reporter: string;
+  description: string;
+  drugName?: string;
+  manufacturer?: string;
+  batchNumber?: string;
+  evidence?: string[];
+  priority?: string;
+  assignedTo?: string;
+  updatedAt: string;
+}
+
+interface ReportsData {
+  reports: Report[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalReports: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+  statistics: {
+    total: number;
+    open: number;
+    investigating: number;
+    resolved: number;
+    counterfeit: number;
+    quality: number;
+    compliance: number;
+  };
+  recentActivity: number;
+}
 
 export default function RegulatoryReportsPage() {
   const router = useRouter();
@@ -34,6 +76,11 @@ export default function RegulatoryReportsPage() {
   const [isClient, setIsClient] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [reportsData, setReportsData] = useState<ReportsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -50,40 +97,45 @@ export default function RegulatoryReportsPage() {
     }
   }, [router]);
 
-  const reports = [
-    {
-      id: 1,
-      type: "counterfeit",
-      title: "Counterfeit Alert - Antibiotic X",
-      status: "open",
-      submitted: "2024-06-01 15:00",
-      location: "Lagos",
-      reporter: "MedPlus Pharmacy",
-      description:
-        "Suspected counterfeit batch ABX202405D reported by pharmacist.",
-    },
-    {
-      id: 2,
-      type: "compliance",
-      title: "Compliance Violation - Cough Syrup",
-      status: "resolved",
-      submitted: "2024-05-25 10:10",
-      location: "Abuja",
-      reporter: "City Pharmacy",
-      description:
-        "Batch CSY202405C found non-compliant with NAFDAC standards.",
-    },
-    {
-      id: 3,
-      type: "counterfeit",
-      title: "Counterfeit Alert - Vitamin C",
-      status: "investigating",
-      submitted: "2024-05-20 12:30",
-      location: "Port Harcourt",
-      reporter: "Health Plus",
-      description: "Unusual packaging and failed QR scan for batch VTC202405B.",
-    },
-  ];
+  useEffect(() => {
+    if (userEmail) {
+      fetchReports();
+    }
+  }, [userEmail, currentPage, searchTerm, filterStatus, filterType]);
+
+  const fetchReports = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '20',
+        ...(filterStatus !== 'all' && { status: filterStatus }),
+        ...(filterType !== 'all' && { type: filterType }),
+        ...(searchTerm && { search: searchTerm })
+      });
+
+      const response = await fetch(`/api/regulatory/reports?${params}`, {
+        headers: {
+          'x-user-role': 'regulatory',
+          'x-user-email': userEmail
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports');
+      }
+
+      const data = await response.json();
+      setReportsData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch reports');
+      console.error('Error fetching reports:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -121,10 +173,22 @@ export default function RegulatoryReportsPage() {
             Counterfeit
           </Badge>
         );
+      case "quality":
+        return (
+          <Badge className="bg-warning text-warning-foreground">
+            Quality Issue
+          </Badge>
+        );
       case "compliance":
         return (
           <Badge className="bg-primary text-primary-foreground">
             Compliance
+          </Badge>
+        );
+      case "safety":
+        return (
+          <Badge className="bg-destructive text-destructive-foreground">
+            Safety Issue
           </Badge>
         );
       default:
@@ -132,37 +196,50 @@ export default function RegulatoryReportsPage() {
     }
   };
 
-  const filteredReports = reports.filter((report) => {
-    const matchesSearch =
-      report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.reporter.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      filterStatus === "all" || report.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case "critical":
+        return <Badge className="bg-destructive text-destructive-foreground">Critical</Badge>;
+      case "high":
+        return <Badge className="bg-warning text-warning-foreground">High</Badge>;
+      case "medium":
+        return <Badge className="bg-secondary text-secondary-foreground">Medium</Badge>;
+      case "low":
+        return <Badge className="bg-muted text-muted-foreground">Low</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
 
-  const handleViewDetails = (id: number) => {
-    // In a real app, navigate to a report details page
-    alert(`View details for report ID: ${id}`);
+  const handleViewDetails = (id: string) => {
+    // Navigate to report details page
+    router.push(`/regulatory/reports/${id}`);
   };
 
   const handleExport = () => {
+    if (!reportsData?.reports) return;
+    
     // Export reports as CSV
-    const csvData = reports.map((report) => ({
+    const csvData = reportsData.reports.map((report) => ({
       id: report.id,
       type: report.type,
       title: report.title,
       status: report.status,
-      submitted: report.submitted,
+      submitted: new Date(report.submitted).toLocaleString(),
       location: report.location,
       reporter: report.reporter,
       description: report.description,
+      drugName: report.drugName || '',
+      manufacturer: report.manufacturer || '',
+      batchNumber: report.batchNumber || '',
+      priority: report.priority || ''
     }));
+    
     const csv = [
       Object.keys(csvData[0]).join(","),
-      ...csvData.map((row) => Object.values(row).join(",")),
+      ...csvData.map((row) => Object.values(row).map(v => `"${v}"`).join(",")),
     ].join("\n");
+    
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -176,23 +253,91 @@ export default function RegulatoryReportsPage() {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const handleStatusFilter = (value: string) => {
+    setFilterStatus(value);
+    setCurrentPage(1);
+  };
+
+  const handleTypeFilter = (value: string) => {
+    setFilterType(value);
+    setCurrentPage(1);
+  };
+
   if (!isClient) return null;
 
   return (
     <DashboardLayout userRole="regulatory" userName={userEmail}>
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Reports</h1>
             <p className="text-muted-foreground">
-              Counterfeit and compliance reports submitted by pharmacies
+              Live reports from pharmacies and consumers - {reportsData?.statistics.total || 0} total reports
             </p>
           </div>
-          <Button variant="outline" onClick={handleExport}>
+          <Button variant="outline" onClick={handleExport} disabled={!reportsData?.reports.length}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
         </div>
+
+        {/* Statistics Cards */}
+        {reportsData && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="shadow-soft">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Reports</p>
+                    <p className="text-2xl font-bold">{reportsData.statistics.total}</p>
+                  </div>
+                  <FileText className="h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-soft">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Open</p>
+                    <p className="text-2xl font-bold text-warning">{reportsData.statistics.open}</p>
+                  </div>
+                  <AlertTriangle className="h-8 w-8 text-warning" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-soft">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Investigating</p>
+                    <p className="text-2xl font-bold text-secondary">{reportsData.statistics.investigating}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-secondary" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-soft">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Resolved</p>
+                    <p className="text-2xl font-bold text-success">{reportsData.statistics.resolved}</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-success" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <Card className="shadow-soft">
           <CardHeader>
@@ -202,10 +347,22 @@ export default function RegulatoryReportsPage() {
                 <Input
                   placeholder="Search reports..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearch(e.target.value)}
                   className="w-56"
                 />
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <Select value={filterType} onValueChange={handleTypeFilter}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="counterfeit">Counterfeit</SelectItem>
+                    <SelectItem value="quality">Quality</SelectItem>
+                    <SelectItem value="compliance">Compliance</SelectItem>
+                    <SelectItem value="safety">Safety</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterStatus} onValueChange={handleStatusFilter}>
                   <SelectTrigger className="w-36">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
@@ -219,41 +376,91 @@ export default function RegulatoryReportsPage() {
               </div>
             </div>
             <CardDescription>
-              Click on a report to view more details
+              Click on a report to view more details • {reportsData?.recentActivity || 0} new reports in the last 7 days
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {filteredReports.length > 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading reports...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center text-red-500 py-8">
+                <AlertTriangle className="mx-auto mb-2 h-8 w-8" />
+                <p>Error loading reports: {error}</p>
+                <Button variant="outline" onClick={fetchReports} className="mt-2">
+                  Try Again
+                </Button>
+              </div>
+            ) : reportsData?.reports.length ? (
               <div className="space-y-4">
-                {filteredReports.map((report) => (
+                {reportsData.reports.map((report) => (
                   <div
                     key={report.id}
                     className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
                     onClick={() => handleViewDetails(report.id)}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-1">
                       <FileText className="h-5 w-5 text-primary" />
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium">{report.title}</p>
                         <p className="text-xs text-muted-foreground">
                           {report.reporter} &bull; {report.location}
+                          {report.drugName && ` &bull; ${report.drugName}`}
+                          {report.manufacturer && ` &bull; ${report.manufacturer}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {report.description.length > 100 
+                            ? `${report.description.substring(0, 100)}...` 
+                            : report.description}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       {getTypeBadge(report.type)}
                       {getStatusBadge(report.status)}
+                      {report.priority && getPriorityBadge(report.priority)}
                       <p className="text-xs text-muted-foreground ml-2">
-                        {report.submitted}
+                        {new Date(report.submitted).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                 ))}
+                
+                {/* Pagination */}
+                {reportsData.pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {((reportsData.pagination.currentPage - 1) * 20) + 1} to {Math.min(reportsData.pagination.currentPage * 20, reportsData.pagination.totalReports)} of {reportsData.pagination.totalReports} reports
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={!reportsData.pagination.hasPrevPage}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={!reportsData.pagination.hasNextPage}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center text-muted-foreground py-8">
                 <Info className="mx-auto mb-2 h-8 w-8" />
-                No reports found.
+                No reports found matching your criteria.
               </div>
             )}
           </CardContent>
