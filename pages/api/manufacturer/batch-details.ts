@@ -224,10 +224,18 @@ export default async function handler(
   let batchQueryStart = Date.now();
   let batch;
   try {
-    batch = await Upload.findOne({ 
-      batchId: batchId,
-      userEmail: userEmail as string 
-    }).lean() as any;
+    // First try to find by _id (MongoDB ObjectId)
+    let query: any = { userEmail: userEmail as string };
+    
+    // Check if batchId is a valid MongoDB ObjectId
+    if (mongoose.Types.ObjectId.isValid(batchId)) {
+      query._id = new mongoose.Types.ObjectId(batchId);
+    } else {
+      // If not a valid ObjectId, try to find by batchId field
+      query.batchId = batchId;
+    }
+    
+    batch = await Upload.findOne(query).lean() as any;
 
     log('INFO', 'Batch query executed successfully', {
       requestId,
@@ -279,8 +287,14 @@ export default async function handler(
   let qrQueryStart = Date.now();
   let qrCodes;
   try {
+    // Find QR codes for this batch - try both uploadId and metadata.batchId
     qrCodes = await QRCode.find({ 
-      'metadata.batchId': batchId,
+      $or: [
+        { uploadId: batchId },
+        { 'metadata.batchId': batchId },
+        { uploadId: batch._id?.toString() },
+        { 'metadata.batchId': batch.batchId }
+      ],
       userEmail: userEmail as string 
     }).lean();
 
@@ -320,7 +334,12 @@ export default async function handler(
     verificationStats = await QRCode.aggregate([
       { 
         $match: { 
-          'metadata.batchId': batchId,
+          $or: [
+            { uploadId: batchId },
+            { 'metadata.batchId': batchId },
+            { uploadId: batch._id?.toString() },
+            { 'metadata.batchId': batch.batchId }
+          ],
           userEmail: userEmail as string 
         } 
       },

@@ -2,7 +2,18 @@ import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.DATABASE_URL!;
 
-console.log('MONGODB_URI:', MONGODB_URI);
+function maskMongoUri(uri: string) {
+  try {
+    const url = new URL(uri);
+    if (url.username) url.username = '****';
+    if (url.password) url.password = '****';
+    return url.toString();
+  } catch {
+    return '[invalid-mongodb-uri]';
+  }
+}
+
+console.log('MONGODB_URI:', maskMongoUri(MONGODB_URI));
 
 if (!MONGODB_URI) {
   throw new Error('Please define the DATABASE_URL environment variable inside .env.local');

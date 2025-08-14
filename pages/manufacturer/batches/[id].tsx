@@ -81,11 +81,20 @@ const fetchBatchDetails = async (batchId: string, userEmail: string) => {
     if (response.ok) {
       return await response.json();
     } else {
-      throw new Error('Failed to fetch batch details');
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error(`Batch with ID "${batchId}" not found. Please check the batch ID and try again.`);
+      } else if (response.status === 403) {
+        throw new Error('Access denied. You do not have permission to view this batch.');
+      } else if (response.status === 401) {
+        throw new Error('Authentication required. Please log in again.');
+      } else {
+        throw new Error(errorData.error || `Failed to fetch batch details (${response.status})`);
+      }
     }
   } catch (error) {
     console.error('Error fetching batch details:', error);
-    return null;
+    throw error;
   }
 };
 
@@ -166,15 +175,11 @@ export default function BatchDetailsPage() {
           fetchQRCodes(id as string, userEmail)
         ]);
         
-        if (details) {
-          setBatchDetails(details);
-        } else {
-          setError('Batch not found');
-        }
-        
+        setBatchDetails(details);
         setQrCodes(codes);
       } catch (err) {
-        setError('Failed to load batch details');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load batch details';
+        setError(errorMessage);
         console.error('Error loading data:', err);
       } finally {
         setIsLoading(false);
@@ -300,13 +305,28 @@ export default function BatchDetailsPage() {
     return (
       <DashboardLayout userRole="manufacturer" userName={userEmail}>
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-danger" />
-            <p className="text-danger">Failed to load batch details</p>
-            <Button onClick={handleBack} className="mt-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Batches
-            </Button>
+          <div className="text-center max-w-md">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
+            <h3 className="text-lg font-semibold text-destructive mb-2">
+              {error ? 'Error Loading Batch' : 'Batch Not Found'}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {error || 'The requested batch could not be found in the database.'}
+            </p>
+            <div className="space-y-2">
+              <Button onClick={handleBack} className="w-full">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Batches
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.reload()} 
+                className="w-full"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+            </div>
           </div>
         </div>
       </DashboardLayout>
