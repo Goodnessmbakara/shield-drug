@@ -330,11 +330,22 @@ The consumer interface provides:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 📚 Documentation
+
+For comprehensive documentation:
+- **Business Overview**: [BUSINESS_OVERVIEW.md](./BUSINESS_OVERVIEW.md) - Complete business analysis and market impact
+- **User Guide**: [USER_GUIDE.md](./USER_GUIDE.md) - Detailed instructions for all stakeholders
+- **Technical Overview**: [TECHNICAL_OVERVIEW.md](./TECHNICAL_OVERVIEW.md) - Architecture and implementation details
+- **AI/ML Implementation**: [AI_ML_IMPLEMENTATION.md](./AI_ML_IMPLEMENTATION.md) - AI capabilities and drug recognition
+- **Blockchain Integration**: [BLOCKCHAIN_INTEGRATION.md](./BLOCKCHAIN_INTEGRATION.md) - Blockchain implementation guide
+- **API Documentation**: [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) - Complete API reference
+- **Next.js Architecture**: [NEXTJS_ARCHITECTURE.md](./NEXTJS_ARCHITECTURE.md) - Frontend architecture details
+- **CSV Schema**: [UNIFIED_CSV_SCHEMA.md](./UNIFIED_CSV_SCHEMA.md) - Data format specifications
+
 ## 🆘 Support
 
 For support and questions:
-- **Documentation**: [docs.drugshield.com](https://docs.drugshield.com)
-- **Email**: support@drugshield.com
+- **Email**: support@drugshield.ng
 - **Phone**: +234 XXX XXX XXXX
 - **NAFDAC Support**: [nafdac.gov.ng](https://nafdac.gov.ng)
 
