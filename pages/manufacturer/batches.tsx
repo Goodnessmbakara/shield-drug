@@ -148,7 +148,7 @@ export default function BatchesPage() {
           <div className="text-center">
             <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-destructive" />
             <p className="text-destructive">Failed to load batches: {error}</p>
-            <Button onClick={() => window.location.reload()} className="mt-4">
+            <Button onClick={() => window.location.reload()} size="touch" className="mt-4">
               <RefreshCw className="w-4 h-4 mr-2" />
               Retry
             </Button>

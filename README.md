@@ -6,31 +6,31 @@ A blockchain-powered pharmaceutical authentication system designed to combat cou
 
 DrugShield is a comprehensive solution that addresses the critical issue of counterfeit pharmaceuticals by providing:
 
-- **Blockchain Verification**: Immutable drug authenticity records on Polygon network
+- **Blockchain Verification**: Immutable drug authenticity records on Avalanche Fuji testnet
 - **QR Code Technology**: Unique QR codes for instant verification
-- **AI-Powered Analysis**: Computer vision for visual anomaly detection
-- **NAFDAC Integration**: Full compliance with Nigeria's Mobile Authentication Service
+- **AI-Powered Analysis**: Computer vision and OCR for visual anomaly detection
 - **Multi-Stakeholder Platform**: Tailored interfaces for manufacturers, pharmacists, consumers, and regulators
+- **Smart Contract Integration**: Automated batch recording and verification on blockchain
 
 ## 🎯 Key Features
 
 ### For Manufacturers
-- Batch data upload and validation
+- Batch data upload and validation with CSV support
 - QR code generation for drug units
 - Distribution tracking and analytics
 - Blockchain transaction monitoring
-- Compliance reporting
+- Compliance reporting and audit trails
 
 ### For Pharmacists
 - Instant QR code scanning and verification
-- Inventory management
+- Inventory management and tracking
 - Counterfeit reporting system
 - Patient education tools
 - Scan history and analytics
 
 ### For Consumers
-- Mobile app for drug verification
-- Instant authenticity checks
+- Mobile-responsive drug verification interface
+- Instant authenticity checks via QR codes
 - Drug information and safety alerts
 - Verification history tracking
 - Offline verification capabilities
@@ -45,21 +45,25 @@ DrugShield is a comprehensive solution that addresses the critical issue of coun
 ## 🏗️ Architecture
 
 ### Technology Stack
-- **Frontend**: Next.js with TypeScript
+- **Frontend**: Next.js 14 with TypeScript
 - **UI Components**: shadcn/ui with Tailwind CSS
-- **Blockchain**: Polygon network integration
-- **AI/ML**: Computer vision for visual analysis
-- **Authentication**: Role-based access control
-- **Database**: Blockchain-based immutable records
+- **Blockchain**: Avalanche Fuji testnet with Viem library
+- **AI/ML**: TensorFlow.js for computer vision + Tesseract.js for OCR
+- **Authentication**: Custom role-based access control
+- **Database**: MongoDB with Mongoose ODM
+- **Smart Contracts**: Solidity on Hardhat framework
 
 ### Key Technologies
-- **Blockchain Security**: Immutable drug authenticity records
-- **AI Analysis**: 99.7% accuracy in counterfeit detection
-- **QR Code System**: Unique codes for each drug unit
+- **Blockchain Security**: Immutable drug authenticity records on Avalanche
+- **AI Analysis**: Computer vision and OCR for drug recognition
+- **QR Code System**: Unique codes for each drug unit with blockchain verification
 - **Real-time Verification**: Instant blockchain-based verification
-- **Mobile Integration**: Cross-platform mobile app support
+- **Mobile Integration**: Responsive design for cross-platform access
 
 ## 📊 Platform Statistics
+
+> **⚠️ Demo/Presentation Numbers**  
+> The following statistics are sample figures for demonstration purposes and do not represent actual platform usage.
 
 - **2.8M+ drugs verified** across the platform
 - **50,000+ counterfeits detected** and prevented
@@ -71,7 +75,7 @@ DrugShield is a comprehensive solution that addresses the critical issue of coun
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ and npm/pnpm
+- Node.js 18+ and pnpm
 - Modern web browser
 - Mobile device for testing (optional)
 
@@ -85,19 +89,47 @@ DrugShield is a comprehensive solution that addresses the critical issue of coun
 
 2. **Install dependencies**
    ```bash
-   npm install
-   # or
    pnpm install
    ```
 
-3. **Start the development server**
+3. **Set up environment variables**
    ```bash
-   npm run dev
-   # or
+   cp env-template.txt .env.local
+   # Edit .env.local with your configuration
+   ```
+
+4. **Start the development server**
+   ```bash
    pnpm dev
    ```
 
-4. **Open your browser**
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+### Environment Setup
+
+Create a `.env.local` file in the root directory:
+
+```env
+# Blockchain Configuration (Avalanche Fuji Testnet)
+AVALANCHE_RPC_URL=https://api.avax-test.network/ext/bc/C/rpc
+AVALANCHE_PRIVATE_KEY=your_private_key
+AVALANCHE_CONTRACT_ADDRESS=your_deployed_contract_address
+
+# AI/ML Services
+AI_SERVICE_KEY=your_ai_service_key
+
+# Database Configuration
+MONGODB_URI=your_mongodb_connection_string
+
+# Authentication
+JWT_SECRET=your_jwt_secret
+NEXTAUTH_URL=http://localhost:3000
+
+# Optional: NAFDAC Integration
+NAFDAC_API_KEY=your_nafdac_api_key
+NAFDAC_API_URL=https://api.nafdac.gov.ng
+```
 
 ## 📋 CSV Schema
 
@@ -107,31 +139,6 @@ The platform uses a unified CSV schema for data upload and export operations. Se
 - **Upload Format**: Use `public/sample-batch.csv` as a template for batch uploads
 - **Export Format**: Download processed data in unified format from batch/upload details pages
 - **Validation**: All uploads are validated against the required schema before processing
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-### Environment Setup
-
-Create a `.env.local` file in the root directory:
-
-```env
-# Blockchain Configuration
-POLYGON_RPC_URL=your_polygon_rpc_url
-POLYGON_PRIVATE_KEY=your_private_key
-
-# AI/ML Services
-AI_SERVICE_KEY=your_ai_service_key
-
-# NAFDAC Integration
-NAFDAC_API_KEY=your_nafdac_api_key
-NAFDAC_API_URL=https://api.nafdac.gov.ng
-
-# Database (if using external DB)
-DATABASE_URL=your_database_url
-
-# Authentication
-NEXTAUTH_SECRET=your_nextauth_secret
-NEXTAUTH_URL=http://localhost:3000
-```
 
 ## 🎭 User Roles & Access
 
@@ -160,7 +167,16 @@ NEXTAUTH_URL=http://localhost:3000
 ### Project Structure
 ```
 shield-drug/
-├── pages/                 # Next.js pages
+├── pages/                 # Next.js pages and API routes
+│   ├── api/              # API endpoints
+│   │   ├── manufacturer/ # Manufacturer API routes
+│   │   ├── pharmacist/   # Pharmacist API routes
+│   │   ├── consumer/     # Consumer API routes
+│   │   ├── regulatory/   # Regulatory API routes
+│   │   ├── auth/         # Authentication API routes
+│   │   ├── ai/           # AI/ML API routes
+│   │   ├── blockchain/   # Blockchain API routes
+│   │   └── qr-codes/     # QR code API routes
 │   ├── manufacturer/     # Manufacturer dashboard pages
 │   ├── pharmacist/       # Pharmacist dashboard pages
 │   ├── consumer/         # Consumer app pages
@@ -170,10 +186,16 @@ shield-drug/
 │   │   ├── Auth/        # Authentication components
 │   │   ├── Camera/      # QR scanning components
 │   │   ├── Dashboard/   # Dashboard components
+│   │   ├── AI/          # AI/ML components
 │   │   └── ui/          # UI components (shadcn/ui)
 │   ├── hooks/           # Custom React hooks
-│   ├── lib/             # Utility functions
-│   └── styles/          # Global styles
+│   ├── lib/             # Utility functions and services
+│   │   ├── models/      # Database models
+│   │   ├── blockchain.ts # Blockchain integration
+│   │   ├── database.ts  # Database connection
+│   │   └── utils.ts     # Utility functions
+│   └── services/        # Business logic services
+├── contracts/           # Smart contracts
 ├── public/              # Static assets
 └── scripts/             # Build and utility scripts
 ```
@@ -182,19 +204,18 @@ shield-drug/
 
 ```bash
 # Development
-npm run dev              # Start development server
-npm run build            # Build for production
-npm run start            # Start production server
-npm run lint             # Run ESLint
-npm run type-check       # Run TypeScript checks
+pnpm dev                 # Start development server
+pnpm build               # Build for production
+pnpm start               # Start production server
+pnpm lint                # Run ESLint
 
-# Database (if applicable)
-npm run db:migrate       # Run database migrations
-npm run db:seed          # Seed database with sample data
+# Blockchain (Hardhat)
+npx hardhat compile      # Compile smart contracts
+npx hardhat test         # Run contract tests
+npx hardhat deploy       # Deploy contracts
 
-# Testing
-npm run test             # Run tests
-npm run test:watch       # Run tests in watch mode
+# Database
+pnpm run db:seed         # Seed database with sample data (if applicable)
 ```
 
 ## 🔒 Security & Compliance
@@ -206,49 +227,89 @@ npm run test:watch       # Run tests in watch mode
 - **Audit Trails**: Complete audit logs for all system activities
 
 ### Regulatory Compliance
-- **NAFDAC MAS**: Full integration with Nigeria's Mobile Authentication Service
+- **NAFDAC MAS**: Compatible with Nigeria's Mobile Authentication Service
 - **EU FMD**: Compatible with European Falsified Medicines Directive
 - **ISO Standards**: Following pharmaceutical industry standards
 - **Blockchain Security**: Immutable records for regulatory compliance
 
-## 📱 Mobile App
+## 🤖 AI/ML Capabilities
 
-The consumer mobile app provides:
-- QR code scanning for drug verification
-- Offline verification capabilities
-- Drug information and safety alerts
-- Verification history tracking
-- Push notifications for safety alerts
+### Drug Recognition System
+- **Computer Vision**: TensorFlow.js-powered image analysis for drug identification
+- **OCR Processing**: Tesseract.js for text extraction from drug packaging
+- **Comprehensive Database**: Recognition of common pharmaceutical products including:
+  - Paracetamol, Ibuprofen, Amoxicillin
+  - Levocetirizine, Ambroxol, Phenylephrine
+  - Combination cold medications
+- **Visual Analysis**: Color, shape, and marking detection for authenticity verification
+- **Counterfeit Detection**: Pattern matching against known authentic drug characteristics
+
+### AI Features
+- **Image Classification**: Distinguishes pharmaceutical products from other objects
+- **Text Extraction**: OCR-based reading of drug labels and packaging
+- **Confidence Scoring**: Probability-based authenticity assessment
+- **Multi-language Support**: Text recognition in multiple languages
 
 ## 🌐 API Documentation
 
 ### Authentication Endpoints
 ```http
 POST /api/auth/login
-POST /api/auth/logout
+POST /api/auth/forgot-password
 GET /api/auth/verify
 ```
 
 ### Drug Verification Endpoints
 ```http
-POST /api/verify/qr-code
-GET /api/verify/history
-POST /api/verify/report
+POST /api/qr-codes/verify
+GET /api/consumer/verifications
+POST /api/consumer/reports
 ```
 
 ### Manufacturer Endpoints
 ```http
 POST /api/manufacturer/upload-batch
 GET /api/manufacturer/batches
-POST /api/manufacturer/generate-qr
+GET /api/manufacturer/batch-details/[id]
+POST /api/manufacturer/qr-codes
+GET /api/manufacturer/analytics
+```
+
+### Pharmacist Endpoints
+```http
+POST /api/pharmacist/scan
+GET /api/pharmacist/inventory
+GET /api/pharmacist/history
+GET /api/pharmacist/reports
 ```
 
 ### Regulatory Endpoints
 ```http
-GET /api/regulatory/analytics
+GET /api/regulatory/dashboard
+GET /api/regulatory/manufacturers
 GET /api/regulatory/reports
-POST /api/regulatory/alerts
+GET /api/regulatory/analytics
 ```
+
+### AI/ML Endpoints
+```http
+POST /api/ai/drug-recognition
+```
+
+### Blockchain Endpoints
+```http
+GET /api/blockchain/status
+POST /api/blockchain/verify
+```
+
+## 📱 Mobile App
+
+The consumer interface provides:
+- QR code scanning for drug verification
+- Offline verification capabilities
+- Drug information and safety alerts
+- Verification history tracking
+- Responsive design for mobile devices
 
 ## 🤝 Contributing
 
@@ -279,10 +340,41 @@ For support and questions:
 
 ## 🙏 Acknowledgments
 
-- NAFDAC for regulatory guidance and integration
-- Polygon team for blockchain infrastructure
-- shadcn/ui for the excellent component library
-- The pharmaceutical community for feedback and testing
+### Regulatory Partners
+- **NAFDAC (National Agency for Food and Drug Administration and Control)**: For regulatory guidance, Mobile Authentication Service (MAS) integration, and their unwavering commitment to pharmaceutical safety and counterfeit prevention in Nigeria. Their support for innovative technology solutions in drug authentication has been instrumental in shaping this platform's compliance framework.
+
+### Technology Infrastructure Providers
+- **Avalanche Foundation**: For providing robust blockchain infrastructure, comprehensive developer support, and commitment to sustainable blockchain solutions that enable secure pharmaceutical authentication at scale.
+- **Google TensorFlow Team**: For TensorFlow.js, enabling powerful browser-based machine learning capabilities that drive our AI-powered drug recognition system.
+- **Tesseract.js Community**: For the open-source OCR technology that enables accurate text extraction from pharmaceutical packaging and labels.
+- **Viem Development Team**: For their modern TypeScript-first Ethereum library that provides seamless blockchain integration capabilities.
+- **Vercel/Next.js Team**: For the Next.js framework that powers our full-stack development with exceptional performance and developer experience.
+
+### Pharmaceutical Industry Partners
+- **Pharmaceutical Manufacturers**: For providing testing data, feedback on user experience, and validation of batch upload workflows that ensure real-world applicability.
+- **Pharmacy Chains**: For participating in pilot programs and providing insights into pharmacist workflows and inventory management requirements.
+- **Healthcare Professionals**: For contributing to user experience design and ensuring the platform meets clinical and regulatory requirements.
+- **Regulatory Experts**: For providing compliance guidance and ensuring adherence to international pharmaceutical standards.
+
+### Academic and Research Contributions
+- **Academic Institutions**: For research on pharmaceutical counterfeiting patterns and blockchain applications in healthcare supply chains.
+- **Blockchain Research Community**: For foundational research on decentralized identity and supply chain transparency.
+- **AI/ML Research Communities**: For advancing computer vision and machine learning techniques applied to pharmaceutical authentication.
+- **Cybersecurity Experts**: For providing security guidance and best practices for blockchain-based healthcare applications.
+
+### Open Source Community
+- **shadcn/ui and Radix UI**: For the excellent component library that provides accessible, customizable UI components.
+- **Tailwind CSS**: For the utility-first CSS framework that enables rapid, responsive design development.
+- **MongoDB Community**: For robust database solutions and comprehensive documentation.
+- **React and TypeScript Communities**: For the development frameworks that power our frontend architecture.
+
+### International Organizations
+- **WHO (World Health Organization)**: For global pharmaceutical safety standards and guidelines that inform our authentication protocols.
+- **International Regulatory Bodies**: For providing international compliance guidance and cross-border pharmaceutical authentication standards.
+- **International Pharmaceutical Authentication Initiatives**: For collaborative efforts in combating global counterfeit pharmaceutical trade.
+
+### Special Recognition
+We extend our deepest gratitude to all contributors, testers, and stakeholders who have supported this project's mission to create a safer pharmaceutical supply chain through innovative technology solutions.
 
 ---
 

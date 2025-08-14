@@ -83,6 +83,10 @@ export default {
 					foreground: 'hsl(var(--danger-foreground))',
 					light: 'hsl(var(--danger-light))'
 				},
+				info: {
+					DEFAULT: 'hsl(200 100% 50%)',
+					foreground: 'hsl(0 0% 100%)'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',

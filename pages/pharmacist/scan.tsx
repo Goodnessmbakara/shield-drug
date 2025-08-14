@@ -560,6 +560,7 @@ export default function PharmacistScanPage() {
                 {isScanning ? (
                   <Button
                     variant="destructive"
+                    size="touch"
                     className="flex-1"
                     onClick={handleStopScan}
                   >
@@ -569,6 +570,7 @@ export default function PharmacistScanPage() {
                 ) : (
                   <Button
                     variant="default"
+                    size="touch"
                     className="flex-1"
                     onClick={handleStartScan}
                   >
@@ -576,7 +578,7 @@ export default function PharmacistScanPage() {
                     Start Scan
                   </Button>
                 )}
-                <Button variant="outline" onClick={handleViewHistory}>
+                <Button variant="outline" size="touch" onClick={handleViewHistory}>
                   <History className="mr-2 h-4 w-4" />
                   History
                 </Button>

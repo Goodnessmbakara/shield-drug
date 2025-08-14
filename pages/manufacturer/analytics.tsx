@@ -131,7 +131,7 @@ export default function AnalyticsPage() {
           <div className="text-center">
             <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-danger" />
             <p className="text-danger">Failed to load analytics: {error}</p>
-            <Button onClick={() => window.location.reload()} className="mt-4">
+            <Button onClick={() => window.location.reload()} size="touch" className="mt-4">
               <RefreshCw className="w-4 h-4 mr-2" />
               Retry
             </Button>
@@ -694,7 +694,7 @@ export default function AnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-5 gap-4">
               {data.regionalData.length > 0 ? (
                 data.regionalData.map((region: any) => (
                   <div

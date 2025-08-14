@@ -251,6 +251,7 @@ export default function AdminDashboard() {
             <p className="text-muted-foreground mb-4">{error}</p>
             <Button 
               variant="outline" 
+              size="touch"
               onClick={() => window.location.reload()} 
               className="w-full"
             >

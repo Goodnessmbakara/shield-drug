@@ -231,12 +231,6 @@ All colors MUST be HSL.
 
   /* Touch-friendly interactions */
   @media (hover: none) and (pointer: coarse) {
-    /* Larger touch targets */
-    .touch-target {
-      min-height: 48px;
-      min-width: 48px;
-    }
-
     /* Better hover states for touch */
     .touch-hover:hover {
       transform: none;
