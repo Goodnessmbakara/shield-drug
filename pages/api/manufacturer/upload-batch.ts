@@ -6,6 +6,7 @@ import { createUpload } from '@/lib/db-utils';
 import { updateUploadProgress, estimateProcessingTime, calculateProgress } from './upload-progress';
 import QRCode from '@/lib/models/QRCode';
 import { qrCodeService } from '@/lib/qr-code';
+import { generateUniqueQRCodeId, sanitizeQRCodeData, validateQRCodeId } from '@/lib/utils';
 import mongoose from 'mongoose';
 
 export const config = {
@@ -297,8 +298,8 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
            isComplete: false
          });
         
-        // Create a single QR code for this drug batch
-        const qrCodeId = `${uploadId}-${batchId}`;
+                  // Create a unique QR code for this drug batch
+          const qrCodeId = generateUniqueQRCodeId(uploadId, drugName, 1, batchId);
         
         // Record batch QR code on blockchain with time tracking
         const txStartTime = Date.now();
@@ -325,7 +326,12 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
               }
             );
 
-            const qrCodeDoc = new QRCode({
+            // Validate and sanitize QR code data before saving
+            if (!validateQRCodeId(qrCodeId)) {
+              throw new Error(`Invalid QR Code ID format: ${qrCodeId}`);
+            }
+
+            const qrCodeDataToSave = sanitizeQRCodeData({
               qrCodeId: qrCodeId,
               uploadId: uploadId,
               userEmail: userEmail,
@@ -340,6 +346,7 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
               verificationCount: 0
             });
 
+            const qrCodeDoc = new QRCode(qrCodeDataToSave);
             await qrCodeDoc.save();
             console.log(`✅ QR Code ${qrCodeId} saved to database`);
           } catch (dbError) {
@@ -394,7 +401,7 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
             });
           }
           
-          const qrCodeId = `${uploadId}-QR-${i.toString().padStart(6, '0')}`;
+          const qrCodeId = generateUniqueQRCodeId(uploadId, row.drug_name, i);
           
           // Record QR code on blockchain with time tracking
           const txStartTime = Date.now();
@@ -421,7 +428,12 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
                 }
               );
 
-              const qrCodeDoc = new QRCode({
+              // Validate and sanitize QR code data before saving
+              if (!validateQRCodeId(qrCodeId)) {
+                throw new Error(`Invalid QR Code ID format: ${qrCodeId}`);
+              }
+
+              const qrCodeDataToSave = sanitizeQRCodeData({
                 qrCodeId: qrCodeId,
                 uploadId: uploadId,
                 userEmail: userEmail,
@@ -436,6 +448,7 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
                 verificationCount: 0
               });
 
+              const qrCodeDoc = new QRCode(qrCodeDataToSave);
               await qrCodeDoc.save();
               console.log(`✅ QR Code ${qrCodeId} saved to database`);
             } catch (dbError) {

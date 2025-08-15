@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 import { UnifiedCSVExport } from './types';
+import crypto from 'crypto';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -106,4 +107,91 @@ export function convertToCSV(data: UnifiedCSVExport[]): string {
   );
   
   return [csvHeaders, ...csvRows].join('\n');
+}
+
+/**
+ * Generate a unique QR code ID with guaranteed uniqueness
+ */
+export function generateUniqueQRCodeId(
+  uploadId: string, 
+  drugCode: string, 
+  serialNumber: number,
+  batchId?: string
+): string {
+  try {
+    // Use crypto.randomUUID for guaranteed uniqueness
+    const uuid = crypto.randomUUID();
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(36).substring(2, 8);
+    
+    // Create a unique string combining all elements
+    const uniqueString = batchId 
+      ? `${uploadId}-${batchId}-${timestamp}-${uuid}-${randomPart}`
+      : `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${uuid}-${randomPart}`;
+    
+    // Use SHA-256 hash for better distribution and uniqueness
+    const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
+    
+    // Take first 8 characters and convert to uppercase for readability
+    const shortHash = hash.substring(0, 8).toUpperCase();
+    
+    // Add a prefix to make it more identifiable
+    return `QR-${shortHash}`;
+  } catch (error) {
+    // Fallback method if crypto.randomUUID is not available
+    console.warn('crypto.randomUUID not available, using fallback method');
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(36).substring(2, 10);
+    const uniqueString = batchId 
+      ? `${uploadId}-${batchId}-${timestamp}-${randomPart}`
+      : `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${randomPart}`;
+    
+    // Use SHA-256 hash
+    const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
+    const shortHash = hash.substring(0, 8).toUpperCase();
+    
+    return `QR-${shortHash}`;
+  }
+}
+
+/**
+ * Validate QR code ID format
+ */
+export function validateQRCodeId(qrCodeId: string): boolean {
+  if (!qrCodeId || typeof qrCodeId !== 'string') {
+    return false;
+  }
+  
+  // Check if it starts with QR- and has at least 8 characters after
+  const qrCodePattern = /^QR-[A-F0-9]{8,}$/;
+  return qrCodePattern.test(qrCodeId);
+}
+
+/**
+ * Sanitize and validate QR code data before saving
+ */
+export function sanitizeQRCodeData(data: any): any {
+  const sanitized = { ...data };
+  
+  // Ensure qrCodeId is not null or empty
+  if (!sanitized.qrCodeId || sanitized.qrCodeId.trim() === '') {
+    throw new Error('QR Code ID cannot be null or empty');
+  }
+  
+  // Trim all string fields
+  if (sanitized.uploadId) sanitized.uploadId = sanitized.uploadId.trim();
+  if (sanitized.userEmail) sanitized.userEmail = sanitized.userEmail.trim();
+  if (sanitized.drugCode) sanitized.drugCode = sanitized.drugCode.trim();
+  if (sanitized.verificationUrl) sanitized.verificationUrl = sanitized.verificationUrl.trim();
+  if (sanitized.imageUrl) sanitized.imageUrl = sanitized.imageUrl.trim();
+  
+  // Validate metadata
+  if (sanitized.metadata) {
+    if (sanitized.metadata.drugName) sanitized.metadata.drugName = sanitized.metadata.drugName.trim();
+    if (sanitized.metadata.batchId) sanitized.metadata.batchId = sanitized.metadata.batchId.trim();
+    if (sanitized.metadata.manufacturer) sanitized.metadata.manufacturer = sanitized.metadata.manufacturer.trim();
+    if (sanitized.metadata.expiryDate) sanitized.metadata.expiryDate = sanitized.metadata.expiryDate.trim();
+  }
+  
+  return sanitized;
 }

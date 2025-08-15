@@ -1,0 +1,11 @@
+drug_name,manufacturer,batch_number,manufacturing_date,expiry_date,quantity,active_ingredient,strength,packaging_type,registration_number,nafdac_number,price_per_unit,storage_conditions,prescription_required,controlled_substance
+Artemether-Lumefantrine 20/120mg,Emzor Pharmaceuticals,BATCH-MAL001,2024-01-15,2027-01-15,5000,Artemether-Lumefantrine,20/120mg,Blister Pack,NAFDAC/REG/2024/001,NAFDAC/2024/001,150.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 40/240mg,Emzor Pharmaceuticals,BATCH-MAL002,2024-01-20,2027-01-20,3000,Artemether-Lumefantrine,40/240mg,Blister Pack,NAFDAC/REG/2024/002,NAFDAC/2024/002,250.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 80/480mg,Emzor Pharmaceuticals,BATCH-MAL003,2024-01-25,2027-01-25,2000,Artemether-Lumefantrine,80/480mg,Blister Pack,NAFDAC/REG/2024/003,NAFDAC/2024/003,350.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 20/120mg,May & Baker Nigeria,BATCH-MAL004,2024-02-01,2027-02-01,4000,Artemether-Lumefantrine,20/120mg,Blister Pack,NAFDAC/REG/2024/004,NAFDAC/2024/004,160.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 40/240mg,May & Baker Nigeria,BATCH-MAL005,2024-02-05,2027-02-05,2500,Artemether-Lumefantrine,40/240mg,Blister Pack,NAFDAC/REG/2024/005,NAFDAC/2024/005,260.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 80/480mg,May & Baker Nigeria,BATCH-MAL006,2024-02-10,2027-02-10,1500,Artemether-Lumefantrine,80/480mg,Blister Pack,NAFDAC/REG/2024/006,NAFDAC/2024/006,360.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 20/120mg,Swipha Nigeria,BATCH-MAL007,2024-02-15,2027-02-15,3500,Artemether-Lumefantrine,20/120mg,Blister Pack,NAFDAC/REG/2024/007,NAFDAC/2024/007,155.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 40/240mg,Swipha Nigeria,BATCH-MAL008,2024-02-20,2027-02-20,2200,Artemether-Lumefantrine,40/240mg,Blister Pack,NAFDAC/REG/2024/008,NAFDAC/2024/008,255.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 80/480mg,Swipha Nigeria,BATCH-MAL009,2024-02-25,2027-02-25,1200,Artemether-Lumefantrine,80/480mg,Blister Pack,NAFDAC/REG/2024/009,NAFDAC/2024/009,355.00,Store below 30°C,Yes,No
+Artemether-Lumefantrine 20/120mg,Neimeth Pharmaceuticals,BATCH-MAL010,2024-03-01,2027-03-01,3000,Artemether-Lumefantrine,20/120mg,Blister Pack,NAFDAC/REG/2024/010,NAFDAC/2024/010,158.00,Store below 30°C,Yes,No

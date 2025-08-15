@@ -1,7 +1,18 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   X,
   Camera,
@@ -11,10 +22,8 @@ import {
   Upload,
   Trash2,
 } from "lucide-react";
-import {
-  aiDrugAnalysis,
-  type DrugAnalysisResult,
-} from "@/services/aiDrugAnalysis";
+import type { DrugAnalysisResult } from "@/services/aiDrugAnalysis";
+import { useToast } from "@/hooks/use-toast";
 
 interface PhotoCaptureProps {
   onResult: (imageData: string) => void;
@@ -52,18 +61,120 @@ interface UploadedPhoto {
   analysis: AnalysisResult | null;
 }
 
+// Hook to detect touch devices
+const useIsTouchDevice = () => {
+  const [isTouch, setIsTouch] = useState(false);
+  
+  useEffect(() => {
+    setIsTouch('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
+  
+  return isTouch;
+};
+
+// Reusable component for displaying issues with overflow handling
+interface IssuesOverflowProps {
+  issues: string[];
+  className?: string;
+}
+
+const IssuesOverflow = ({ issues, className = "" }: IssuesOverflowProps) => {
+  const isTouch = useIsTouchDevice();
+  
+  if (issues.length === 0) return null;
+  
+  const firstIssue = issues[0];
+  const remainingIssues = issues.slice(1);
+  
+  if (issues.length === 1) {
+    return <span className={className}>{firstIssue}</span>;
+  }
+  
+  const triggerElement = (
+    <button
+      type="button"
+      className="cursor-help underline decoration-dotted bg-transparent p-0 text-inherit"
+      aria-label={`Show ${remainingIssues.length} more issues`}
+    >
+      {` (+${remainingIssues.length} more)`}
+    </button>
+  );
+  
+  const content = (
+    <div className="space-y-1">
+      <p className="font-medium text-xs">Additional Issues:</p>
+      {remainingIssues.map((issue, index) => (
+        <p key={index} className="text-xs">
+          • {issue}
+        </p>
+      ))}
+    </div>
+  );
+  
+  if (isTouch) {
+    return (
+      <span className={className}>
+        {firstIssue}
+        <Popover>
+          <PopoverTrigger asChild>
+            {triggerElement}
+          </PopoverTrigger>
+          <PopoverContent className="max-w-xs max-h-60 overflow-auto pr-1">
+            {content}
+          </PopoverContent>
+        </Popover>
+      </span>
+    );
+  }
+  
+  return (
+    <span className={className}>
+      {firstIssue}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {triggerElement}
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs max-h-60 overflow-auto pr-1">
+          {content}
+        </TooltipContent>
+      </Tooltip>
+    </span>
+  );
+};
+
 export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
+  const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraDebug, setCameraDebug] = useState<string>("");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
 
   const startCamera = useCallback(async () => {
+    setCameraLoading(true);
     try {
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Camera access is not supported in this browser");
+      }
+
+      // Check if running on HTTPS (required for camera access in most browsers)
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        setCameraDebug(`Protocol: ${window.location.protocol}, Hostname: ${window.location.hostname}`);
+        toast({
+          title: "HTTPS Required",
+          description: "Camera access requires a secure connection (HTTPS). Please use the deployed version or localhost for testing.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "environment",
@@ -76,11 +187,61 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
         videoRef.current.srcObject = mediaStream;
         setStream(mediaStream);
         setCameraActive(true);
+        setCameraError(null); // Clear any previous errors
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
+      
+      // Provide specific error messages based on the error type
+      let errorMessage = "Failed to access camera";
+      let errorTitle = "Camera Error";
+      
+      if (error instanceof Error) {
+        if (error.name === "NotAllowedError") {
+          errorTitle = "Permission Denied";
+          errorMessage = "Camera access was denied. Please allow camera permissions in your browser settings and try again.";
+        } else if (error.name === "NotFoundError") {
+          errorTitle = "No Camera Found";
+          errorMessage = "No camera was found on this device. Please connect a camera and try again.";
+        } else if (error.name === "NotSupportedError") {
+          errorTitle = "Browser Not Supported";
+          errorMessage = "Camera access is not supported in this browser. Please try using Chrome, Firefox, or Safari.";
+        } else if (error.name === "NotReadableError") {
+          errorTitle = "Camera in Use";
+          errorMessage = "Camera is already in use by another application. Please close other camera applications and try again.";
+        } else if (error.name === "OverconstrainedError") {
+          errorTitle = "Camera Constraints";
+          errorMessage = "Camera does not meet the required specifications. Please try a different camera.";
+        } else if (error.name === "TypeError") {
+          errorTitle = "HTTPS Required";
+          errorMessage = "Camera access requires HTTPS. Please use the deployed version or localhost for testing.";
+        } else {
+          errorMessage = error.message || "Unknown camera error occurred.";
+        }
+      }
+      
+      // Show error to user using toast
+      toast({
+        title: errorTitle,
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      // Store error for UI display
+      setCameraError(errorMessage);
+    } finally {
+      setCameraLoading(false);
     }
-  }, []);
+  }, [toast]);
+
+  // Cleanup camera on component unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [stream]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -114,10 +275,20 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
     setAnalysis({ status: "analyzing", confidence: 0, issues: [] });
 
     try {
-      // Use real AI analysis service
-      const result: DrugAnalysisResult = await aiDrugAnalysis.analyzeImage(
-        imageData
-      );
+      // Use API route for image analysis
+      const response = await fetch('/api/ai/analyze-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageData }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Analysis failed: ${response.statusText}`);
+      }
+
+      const result: DrugAnalysisResult = await response.json();
 
       const analysisResult: AnalysisResult = {
         status: result.status,
@@ -155,10 +326,20 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
     );
 
     try {
-      // Use real AI analysis service
-      const result: DrugAnalysisResult = await aiDrugAnalysis.analyzeImage(
-        imageData
-      );
+      // Use API route for image analysis
+      const response = await fetch('/api/ai/analyze-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageData }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Analysis failed: ${response.statusText}`);
+      }
+
+      const result: DrugAnalysisResult = await response.json();
 
       const analysisResult: AnalysisResult = {
         status: result.status,
@@ -332,57 +513,111 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] shadow-strong overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Camera className="h-5 w-5" />
-            Photo Analysis
-          </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-          {!capturedImage && uploadedPhotos.length === 0 ? (
-            <>
-              {cameraActive ? (
-                <div className="space-y-4">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full h-48 object-cover rounded-lg bg-muted"
-                  />
-                  <div className="flex gap-2">
-                    <Button onClick={capturePhoto} className="flex-1">
-                      <Camera className="mr-2 h-4 w-4" />
-                      Capture
-                    </Button>
-                    <Button variant="outline" onClick={stopCamera}>
-                      Cancel
-                    </Button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <TooltipProvider>
+        <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-xl">📸 Photo Capture</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!capturedImage && uploadedPhotos.length === 0 ? (
+              <>
+                {cameraActive ? (
+                  <div className="space-y-4">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-48 object-cover rounded-lg bg-muted"
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={capturePhoto} className="flex-1">
+                        <Camera className="mr-2 h-4 w-4" />
+                        Capture
+                      </Button>
+                      <Button variant="outline" onClick={stopCamera}>
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : (
+                              ) : (
                 <div className="space-y-4">
                   <div className="h-48 bg-muted rounded-lg flex items-center justify-center">
                     <div className="text-center">
-                      <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        Camera not active
-                      </p>
+                      {cameraLoading ? (
+                        <>
+                          <div className="h-12 w-12 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">
+                            Starting camera...
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          {cameraError ? (
+                            <>
+                              <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-2" />
+                              <p className="text-sm text-destructive font-medium">
+                                Camera Error
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs">
+                                {cameraError}
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-sm text-muted-foreground">
+                                Camera not active
+                              </p>
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                            Requires HTTPS or localhost
+                          </p>
+                          {cameraDebug && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              Debug: {cameraDebug}
+                            </p>
+                          )}
+                            </>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Button onClick={startCamera} className="w-full">
-                      <Camera className="mr-2 h-4 w-4" />
-                      Start Camera
+                    <Button 
+                      onClick={() => {
+                        setCameraError(null);
+                        startCamera();
+                      }} 
+                      className="w-full"
+                      disabled={cameraLoading}
+                      variant={cameraError ? "destructive" : "default"}
+                    >
+                      {cameraLoading ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Starting Camera...
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="mr-2 h-4 w-4" />
+                          {cameraError ? "Retry Camera" : "Start Camera"}
+                        </>
+                      )}
                     </Button>
                     <Button
                       variant="outline"
                       className="w-full"
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={cameraLoading}
                     >
                       <Upload className="mr-2 h-4 w-4" />
                       Upload Photos
@@ -390,335 +625,324 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
                   </div>
                 </div>
               )}
-            </>
-          ) : (
-            <div className="space-y-4">
-              {/* Camera captured image */}
-              {capturedImage && (
-                <div className="space-y-4">
-                  <img
-                    src={capturedImage}
-                    alt="Captured medication"
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
+              </>
+            ) : (
+              <div className="space-y-4">
+                {/* Camera captured image */}
+                {capturedImage && (
+                  <div className="space-y-4">
+                    <img
+                      src={capturedImage}
+                      alt="Captured medication"
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
 
-                  {analysis && (
-                    <Card className="mt-4">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            📊 Photo Analysis
-                            {analysis.status === "authentic" && (
-                              <CheckCircle className="w-5 h-5 text-green-500" />
+                    {analysis && (
+                      <Card className="mt-4">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              📊 Photo Analysis
+                              {analysis.status === "authentic" && (
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                              )}
+                              {analysis.status === "suspicious" && (
+                                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                              )}
+                              {analysis.status === "counterfeit" && (
+                                <AlertTriangle className="w-5 h-5 text-red-500" />
+                              )}
+                            </CardTitle>
+                            <Badge
+                              variant={
+                                analysis.status === "authentic"
+                                  ? "default"
+                                  : analysis.status === "suspicious"
+                                  ? "secondary"
+                                  : "destructive"
+                              }
+                              className={
+                                analysis.status === "authentic"
+                                  ? "bg-green-500 hover:bg-green-600"
+                                  : analysis.status === "suspicious"
+                                  ? "bg-yellow-500 hover:bg-yellow-600"
+                                  : "bg-red-500 hover:bg-red-600"
+                              }
+                            >
+                              {analysis.status === "authentic" &&
+                                "✓ Likely Authentic"}
+                              {analysis.status === "suspicious" && "⚠ Suspicious"}
+                              {analysis.status === "counterfeit" &&
+                                "✗ Likely Counterfeit"}
+                              {analysis.status === "analyzing" &&
+                                "🔄 Analyzing..."}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {analysis.drugName &&
+                            analysis.status !== "analyzing" && (
+                              <div>
+                                <p className="text-sm font-medium text-gray-600">
+                                  Detected:
+                                </p>
+                                <p className="text-lg font-semibold">
+                                  {analysis.drugName}
+                                </p>
+                              </div>
                             )}
-                            {analysis.status === "suspicious" && (
-                              <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                            )}
-                            {analysis.status === "counterfeit" && (
-                              <AlertTriangle className="w-5 h-5 text-red-500" />
-                            )}
-                          </CardTitle>
-                          <Badge
-                            variant={
-                              analysis.status === "authentic"
-                                ? "default"
-                                : analysis.status === "suspicious"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                            className={
-                              analysis.status === "authentic"
-                                ? "bg-green-500 hover:bg-green-600"
-                                : analysis.status === "suspicious"
-                                ? "bg-yellow-500 hover:bg-yellow-600"
-                                : "bg-red-500 hover:bg-red-600"
-                            }
-                          >
-                            {analysis.status === "authentic" &&
-                              "✓ Likely Authentic"}
-                            {analysis.status === "suspicious" && "⚠ Suspicious"}
-                            {analysis.status === "counterfeit" &&
-                              "✗ Likely Counterfeit"}
-                            {analysis.status === "analyzing" &&
-                              "🔄 Analyzing..."}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {analysis.drugName &&
-                          analysis.status !== "analyzing" && (
+
+                          {analysis.confidence > 0 && (
                             <div>
                               <p className="text-sm font-medium text-gray-600">
-                                Detected:
+                                Confidence:
                               </p>
                               <p className="text-lg font-semibold">
-                                {analysis.drugName}
+                                {analysis.confidence}%
                               </p>
                             </div>
                           )}
 
-                        {analysis.confidence > 0 && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">
-                              Confidence:
-                            </p>
-                            <p className="text-lg font-semibold">
-                              {analysis.confidence}%
-                            </p>
-                          </div>
-                        )}
-
-                        {analysis.extractedText &&
-                          analysis.extractedText.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium text-gray-600">
-                                Extracted Text:
-                              </p>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {analysis.extractedText.map((text, index) => (
-                                  <Badge
-                                    key={index}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {text}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                        {analysis.visualFeatures && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">
-                              Visual Features:
-                            </p>
-                            <div className="grid grid-cols-2 gap-2 mt-1 text-sm">
+                          {analysis.extractedText &&
+                            analysis.extractedText.length > 0 && (
                               <div>
-                                Color:{" "}
-                                <span className="font-medium">
-                                  {analysis.visualFeatures.color}
-                                </span>
-                              </div>
-                              <div>
-                                Shape:{" "}
-                                <span className="font-medium">
-                                  {analysis.visualFeatures.shape}
-                                </span>
-                              </div>
-                            </div>
-                            {analysis.visualFeatures.markings.length > 0 && (
-                              <div className="mt-1">
-                                <span className="text-sm text-gray-600">
-                                  Markings:{" "}
-                                </span>
-                                {analysis.visualFeatures.markings.map(
-                                  (marking, index) => (
+                                <p className="text-sm font-medium text-gray-600">
+                                  Extracted Text:
+                                </p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {analysis.extractedText.map((text, index) => (
                                     <Badge
                                       key={index}
                                       variant="outline"
-                                      className="text-xs ml-1"
+                                      className="text-xs"
                                     >
-                                      {marking}
+                                      {text}
                                     </Badge>
-                                  )
-                                )}
+                                  ))}
+                                </div>
                               </div>
                             )}
-                          </div>
-                        )}
 
-                        {analysis.issues.length > 0 && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">
-                              {analysis.status === "not_a_drug"
-                                ? "Why this image was rejected:"
-                                : "Issues Detected:"}
-                            </p>
-                            <ul className="text-sm text-gray-700 mt-1 space-y-1">
-                              {analysis.issues.map((issue, index) => (
-                                <li
-                                  key={index}
-                                  className="flex items-center gap-2"
-                                >
-                                  <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                                  {issue}
-                                </li>
-                              ))}
-                            </ul>
-
-                            {analysis.status === "not_a_drug" && (
-                              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-sm font-medium text-blue-800 mb-2">
-                                  💡 How to take a good drug photo:
-                                </p>
-                                <ul className="text-xs text-blue-700 space-y-1">
-                                  <li>
-                                    • Focus on the medication packaging or
-                                    tablets
-                                  </li>
-                                  <li>
-                                    • Ensure good lighting and clear focus
-                                  </li>
-                                  <li>
-                                    • Include text showing drug name, dosage,
-                                    and manufacturer
-                                  </li>
-                                  <li>
-                                    • Avoid personal photos, logos, or
-                                    non-medical objects
-                                  </li>
-                                  <li>
-                                    • Make sure the image shows pharmaceutical
-                                    information clearly
-                                  </li>
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setCapturedImage(null);
-                              setAnalysis(null);
-                              startCamera();
-                            }}
-                          >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Retake
-                          </Button>
-                          <Button size="sm" onClick={onClose}>
-                            Done
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )}
-
-              {/* Uploaded photos */}
-              {uploadedPhotos.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                      Uploaded Photos ({uploadedPhotos.length})
-                    </h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="mr-2 h-4 w-4" />
-                      Add More
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {uploadedPhotos.map((photo) => (
-                      <Card key={photo.id} className="relative">
-                        <CardContent className="p-4">
-                          <div className="relative">
-                            <img
-                              src={photo.imageData}
-                              alt={photo.fileName}
-                              className="w-full h-32 object-cover rounded-lg"
-                            />
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-2 right-2 h-6 w-6 p-0"
-                              onClick={() => removePhoto(photo.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-
-                          <div className="mt-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-medium truncate">
-                                {photo.fileName}
+                          {analysis.visualFeatures && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">
+                                Visual Features:
                               </p>
-                              {getPhotoStatusIcon(photo.analysis)}
-                            </div>
-
-                            {getPhotoStatusBadge(photo.analysis)}
-
-                            {photo.analysis &&
-                              photo.analysis.status !== "analyzing" && (
-                                <div className="space-y-1 text-xs">
-                                  {photo.analysis.drugName && (
-                                    <p>
-                                      <span className="font-medium">Drug:</span>{" "}
-                                      {photo.analysis.drugName}
-                                    </p>
-                                  )}
-                                  {photo.analysis.confidence > 0 && (
-                                    <p>
-                                      <span className="font-medium">
-                                        Confidence:
-                                      </span>{" "}
-                                      {photo.analysis.confidence}%
-                                    </p>
-                                  )}
-                                  {photo.analysis.issues.length > 0 && (
-                                    <p className="text-red-600">
-                                      <span className="font-medium">
-                                        Issues:
-                                      </span>{" "}
-                                      {photo.analysis.issues[0]}
-                                      {photo.analysis.issues.length > 1 &&
-                                        ` (+${
-                                          photo.analysis.issues.length - 1
-                                        } more)`}
-                                    </p>
+                              <div className="grid grid-cols-2 gap-2 mt-1 text-sm">
+                                <div>
+                                  Color:{" "}
+                                  <span className="font-medium">
+                                    {analysis.visualFeatures.color}
+                                  </span>
+                                </div>
+                                <div>
+                                  Shape:{" "}
+                                  <span className="font-medium">
+                                    {analysis.visualFeatures.shape}
+                                  </span>
+                                </div>
+                              </div>
+                              {analysis.visualFeatures.markings.length > 0 && (
+                                <div className="mt-1">
+                                  <span className="text-sm text-gray-600">
+                                    Markings:{" "}
+                                  </span>
+                                  {analysis.visualFeatures.markings.map(
+                                    (marking, index) => (
+                                      <Badge
+                                        key={index}
+                                        variant="outline"
+                                        className="text-xs ml-1"
+                                      >
+                                        {marking}
+                                      </Badge>
+                                    )
                                   )}
                                 </div>
                               )}
+                            </div>
+                          )}
+
+                          {analysis.issues.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">
+                                {analysis.status === "not_a_drug"
+                                  ? "Why this image was rejected:"
+                                  : "Issues Detected:"}
+                              </p>
+                              <p className="text-sm text-gray-700 mt-1">
+                                <IssuesOverflow issues={analysis.issues} />
+                              </p>
+                            </div>
+                          )}
+
+                          {analysis.status === "not_a_drug" && (
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-sm font-medium text-blue-800 mb-2">
+                                💡 How to take a good drug photo:
+                              </p>
+                              <ul className="text-xs text-blue-700 space-y-1">
+                                <li>
+                                  • Focus on the medication packaging or
+                                  tablets
+                                </li>
+                                <li>
+                                  • Ensure good lighting and clear focus
+                                </li>
+                                <li>
+                                  • Include text showing drug name, dosage,
+                                  and manufacturer
+                                </li>
+                                <li>
+                                  • Avoid personal photos, logos, or
+                                  non-medical objects
+                                </li>
+                                <li>
+                                  • Make sure the image shows pharmaceutical
+                                  information clearly
+                                </li>
+                              </ul>
+                            </div>
+                          )}
+
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setCapturedImage(null);
+                                setAnalysis(null);
+                                startCamera();
+                              }}
+                            >
+                              <RotateCcw className="w-4 h-4 mr-2" />
+                              Retake
+                            </Button>
+                            <Button size="sm" onClick={onClose}>
+                              Done
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                    )}
                   </div>
+                )}
 
-                  {uploadedPhotos.length > 0 && !capturedImage && (
-                    <div className="flex gap-2 pt-2">
+                {/* Uploaded photos */}
+                {uploadedPhotos.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">
+                        Uploaded Photos ({uploadedPhotos.length})
+                      </h3>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          setUploadedPhotos([]);
-                          startCamera();
-                        }}
+                        onClick={() => fileInputRef.current?.click()}
                       >
-                        <Camera className="w-4 h-4 mr-2" />
-                        Take Photo
-                      </Button>
-                      <Button size="sm" onClick={onClose}>
-                        Done
+                        <Upload className="mr-2 h-4 w-4" />
+                        Add More
                       </Button>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <canvas ref={canvasRef} className="hidden" />
-        </CardContent>
-      </Card>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {uploadedPhotos.map((photo) => (
+                        <Card key={photo.id} className="relative">
+                          <CardContent className="p-4">
+                            <div className="relative">
+                              <img
+                                src={photo.imageData}
+                                alt={photo.fileName}
+                                className="w-full h-32 object-cover rounded-lg"
+                              />
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="absolute top-2 right-2 h-6 w-6 p-0"
+                                onClick={() => removePhoto(photo.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+
+                            <div className="mt-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium truncate">
+                                  {photo.fileName}
+                                </p>
+                                {getPhotoStatusIcon(photo.analysis)}
+                              </div>
+
+                              {getPhotoStatusBadge(photo.analysis)}
+
+                              {photo.analysis &&
+                                photo.analysis.status !== "analyzing" && (
+                                  <div className="space-y-1 text-xs">
+                                    {photo.analysis.drugName && (
+                                      <p>
+                                        <span className="font-medium">Drug:</span>{" "}
+                                        {photo.analysis.drugName}
+                                      </p>
+                                    )}
+                                    {photo.analysis.confidence > 0 && (
+                                      <p>
+                                        <span className="font-medium">
+                                          Confidence:
+                                        </span>{" "}
+                                        {photo.analysis.confidence}%
+                                      </p>
+                                    )}
+                                    {photo.analysis.issues.length > 0 && (
+                                      <p className="text-red-600">
+                                        <span className="font-medium">
+                                          Issues:
+                                        </span>{" "}
+                                        <IssuesOverflow issues={photo.analysis.issues} />
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {uploadedPhotos.length > 0 && !capturedImage && (
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setUploadedPhotos([]);
+                            startCamera();
+                          }}
+                        >
+                          <Camera className="w-4 h-4 mr-2" />
+                          Take Photo
+                        </Button>
+                        <Button size="sm" onClick={onClose}>
+                          Done
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <canvas ref={canvasRef} className="hidden" />
+          </CardContent>
+        </Card>
+      </TooltipProvider>
     </div>
   );
 }

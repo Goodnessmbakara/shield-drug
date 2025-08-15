@@ -68,7 +68,7 @@ const AuditLogSchema: Schema = new Schema({
   },
   userRole: {
     type: String,
-    enum: ['manufacturer', 'pharmacist', 'consumer', 'regulatory', 'admin'],
+    enum: ['manufacturer', 'pharmacist', 'consumer', 'regulatory', 'admin', 'system'],
     index: true
   },
   ipAddress: {

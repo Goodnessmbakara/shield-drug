@@ -1,4 +1,5 @@
 import { blockchainService } from './blockchain';
+import crypto from 'crypto';
 
 export interface QRCodeData {
   qrCodeId: string;
@@ -44,8 +45,8 @@ export class QRCodeService {
     }
   ): Promise<QRCodeData> {
     try {
-      // Generate unique QR code ID
-      const qrCodeId = this.generateQRCodeId(uploadId, drugCode, serialNumber);
+      // Generate unique QR code ID with improved uniqueness
+      const qrCodeId = this.generateUniqueQRCodeId(uploadId, drugCode, serialNumber);
       
       // Record QR code on blockchain
       console.log('🔗 Recording QR code on blockchain...');
@@ -97,21 +98,39 @@ export class QRCodeService {
   }
 
   /**
-   * Generate unique QR code ID
+   * Generate unique QR code ID with improved uniqueness
    */
-  private generateQRCodeId(uploadId: string, drugCode: string, serialNumber: number): string {
+  private generateUniqueQRCodeId(uploadId: string, drugCode: string, serialNumber: number): string {
+    // Use crypto.randomUUID for guaranteed uniqueness
+    const uuid = crypto.randomUUID();
     const timestamp = Date.now();
-    const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}`;
     
-    // Simple hash function for demo (in production, use crypto)
-    let hash = 0;
-    for (let i = 0; i < uniqueString.length; i++) {
-      const char = uniqueString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
+    // Create a unique string combining all elements
+    const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${uuid}`;
     
-    return `QR-${Math.abs(hash).toString(16).substring(0, 8).toUpperCase()}`;
+    // Use SHA-256 hash for better distribution and uniqueness
+    const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
+    
+    // Take first 8 characters and convert to uppercase for readability
+    const shortHash = hash.substring(0, 8).toUpperCase();
+    
+    // Add a prefix to make it more identifiable
+    return `QR-${shortHash}`;
+  }
+
+  /**
+   * Generate QR code ID with fallback method (for environments without crypto.randomUUID)
+   */
+  private generateQRCodeIdFallback(uploadId: string, drugCode: string, serialNumber: number): string {
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(36).substring(2, 10);
+    const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${randomPart}`;
+    
+    // Use SHA-256 hash
+    const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
+    const shortHash = hash.substring(0, 8).toUpperCase();
+    
+    return `QR-${shortHash}`;
   }
 
   /**

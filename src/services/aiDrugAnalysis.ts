@@ -1,5 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
-import { createWorker, PSM } from 'tesseract.js';
+import { recognizePharmaceuticalText, calculatePharmaceuticalConfidence } from '@/lib/ocr-service';
+import { preprocessForOCR, assessImageQuality } from '@/lib/image-preprocessing';
+import { validatePharmaceuticalText, extractDrugInfo, correctOCRErrors } from '@/lib/pharmaceutical-patterns';
 
 // Enhanced drug database with comprehensive patterns
 const DRUG_DATABASE = {
@@ -242,8 +244,8 @@ class AIDrugAnalysisService {
       
       img.dispose();
       
-      // Very lenient thresholds to avoid rejecting legitimate drugs
-      const isPharmaceutical = pharmaceuticalIndicators.score > 0.1 && nonDrugIndicators.score < 0.8;
+      // Much more lenient thresholds to avoid rejecting legitimate drugs
+      const isPharmaceutical = pharmaceuticalIndicators.score > 0.05 && nonDrugIndicators.score < 0.9;
       const confidence = Math.max(pharmaceuticalIndicators.score, 1 - nonDrugIndicators.score);
       
       console.log('🔍 Classification analysis:', {
@@ -277,49 +279,83 @@ class AIDrugAnalysisService {
     let score = 0;
     const objects: string[] = [];
     
-    // Check for pharmaceutical colors
-    const pharmaColors = ['white', 'off-white', 'cream', 'pink', 'yellow', 'orange'];
+    // Check for pharmaceutical colors - more inclusive
+    const pharmaColors = ['white', 'off-white', 'cream', 'pink', 'yellow', 'orange', 'blue', 'light-blue', 'gray'];
     if (pharmaColors.includes(colorAnalysis.dominantColor)) {
       score += 0.2;
       objects.push('pharmaceutical_color');
     }
     
-    // Check for pill/tablet shapes
-    const pharmaShapes = ['round', 'oval', 'capsule'];
+    // Check for pill/tablet shapes - more inclusive
+    const pharmaShapes = ['round', 'oval', 'capsule', 'square', 'rectangular'];
     if (pharmaShapes.includes(shapeAnalysis.primaryShape)) {
       score += 0.3;
       objects.push('pharmaceutical_shape');
     }
     
-    // Check for pharmaceutical text patterns
+    // Check for pharmaceutical text patterns - much more comprehensive
     const pharmaTextPatterns = [
-      'mg', 'tablet', 'capsule', 'oral', 'paracetamol', 'ibuprofen', 'amoxicillin',
-      'levocetirizine', 'ambroxol', 'phenylephrine', 'sycold', 'cetirizine',
-      'exp', 'batch', 'manufacturer', 'pharmaceutical', 'medicine', 'drug',
-      'hcl', 'di-hcl', 'combination', 'tablets'
+      // Drug names
+      'paracetamol', 'acetaminophen', 'ibuprofen', 'amoxicillin', 'levocetirizine', 'ambroxol', 'phenylephrine',
+      'tylenol', 'panadol', 'advil', 'motrin', 'nurofen', 'amoxil', 'trimox', 'xyzal', 'levocet', 'cetirizine',
+      'mucosolvan', 'ambrohexal', 'sudafed', 'neo-synephrine', 'sycold', 'cold', 'flu', 'combination',
+      
+      // Dosages and units
+      'mg', 'mcg', 'g', 'ml', 'tablet', 'capsule', 'oral', 'liquid', 'suspension', 'syrup',
+      
+      // Pharmaceutical terms
+      'medicine', 'drug', 'pharmaceutical', 'medication', 'prescription', 'over-the-counter', 'otc',
+      'pain', 'relief', 'fever', 'reducer', 'antibiotic', 'antihistamine', 'decongestant', 'mucolytic',
+      
+      // Manufacturer and regulatory terms
+      'gsk', 'pfizer', 'johnson', 'bayer', 'sandoz', 'teva', 'generic', 'novartis', 'merck', 'astrazeneca',
+      'manufacturer', 'producer', 'pharmaceuticals', 'ltd', 'inc', 'corp', 'company',
+      
+      // Packaging and labeling terms
+      'exp', 'expiry', 'expires', 'expiration', 'batch', 'lot', 'serial', 'barcode', 'qr', 'code',
+      'effective', 'gentle', 'strong', 'easy', 'swallow', 'film-coated', 'coated', 'tablets',
+      
+      // Instructions and safety
+      'take', 'dose', 'dosage', 'directions', 'instructions', 'use', 'store', 'storage', 'temperature',
+      'refrigerate', 'keep', 'cool', 'dry', 'place', 'away', 'children', 'adults', 'consult', 'doctor'
     ];
     
     console.log('📋 Looking for pharmaceutical patterns:', pharmaTextPatterns);
+    console.log('📝 Extracted text:', textAnalysis);
     
     const textContent = textAnalysis.join(' ').toLowerCase();
     let textScore = 0;
+    let matchedPatterns: string[] = [];
+    
     for (const pattern of pharmaTextPatterns) {
       if (textContent.includes(pattern)) {
-        textScore += 0.1;
+        textScore += 0.05; // Reduced weight per pattern
+        matchedPatterns.push(pattern);
       }
     }
     
-    if (textScore > 0.3) {
+    console.log('🎯 Matched patterns:', matchedPatterns);
+    console.log('📊 Text score:', textScore);
+    
+    // Much more lenient text scoring - only need a few matches
+    if (textScore > 0.1) {
       score += 0.4;
       objects.push('pharmaceutical_text');
     }
     
     // Check for uniform, clean appearance (typical of pharmaceutical products)
-    if (colorAnalysis.distribution && Object.keys(colorAnalysis.distribution).length <= 3) {
+    if (colorAnalysis.distribution && Object.keys(colorAnalysis.distribution).length <= 5) {
       score += 0.1;
       objects.push('uniform_appearance');
     }
     
+    // Bonus for having any text at all (likely a drug package)
+    if (textAnalysis.length > 0) {
+      score += 0.1;
+      objects.push('has_text_content');
+    }
+    
+    console.log('🏥 Final pharmaceutical score:', score);
     return { score: Math.min(score, 1), objects };
   }
 
@@ -333,27 +369,33 @@ class AIDrugAnalysisService {
     // Check for people/faces with more comprehensive patterns
     const peoplePatterns = [
       'person', 'face', 'smile', 'glasses', 'hair', 'skin', 'eye', 'mouth', 'nose',
-      'cheek', 'forehead', 'chin', 'ear', 'lip', 'brow', 'facial', 'portrait'
+      'cheek', 'forehead', 'chin', 'ear', 'lip', 'brow', 'facial', 'portrait', 'selfie'
     ];
     const textContent = textAnalysis.join(' ').toLowerCase();
     
     for (const pattern of peoplePatterns) {
       if (textContent.includes(pattern)) {
-        score += 0.5; // Increased weight for people detection
+        score += 0.6; // High weight for people detection
         objects.push('person_detected');
         break;
       }
     }
     
-    // Check for logo/brand indicators
+    // Check for logo/brand indicators - but be careful not to flag pharmaceutical logos
     const logoPatterns = [
       'logo', 'brand', 'company', 'corporate', 'trademark', 'symbol', 'emblem',
       'icon', 'mark', 'signature', 'identity'
     ];
     for (const pattern of logoPatterns) {
       if (textContent.includes(pattern)) {
-        score += 0.4; // Increased weight for logo detection
-        objects.push('logo_detected');
+        // Don't penalize pharmaceutical companies
+        const pharmaCompanies = ['gsk', 'pfizer', 'johnson', 'bayer', 'sandoz', 'teva', 'novartis', 'merck', 'astrazeneca'];
+        const hasPharmaCompany = pharmaCompanies.some(company => textContent.includes(company));
+        
+        if (!hasPharmaCompany) {
+          score += 0.3; // Reduced weight for logo detection
+          objects.push('logo_detected');
+        }
         break;
       }
     }
@@ -361,40 +403,40 @@ class AIDrugAnalysisService {
     // Check for social media or app indicators
     const socialPatterns = [
       'x', 'twitter', 'facebook', 'instagram', 'snapchat', 'tiktok', 'youtube',
-      'linkedin', 'whatsapp', 'telegram', 'discord', 'reddit'
+      'linkedin', 'whatsapp', 'telegram', 'discord', 'reddit', 'social', 'media'
     ];
     for (const pattern of socialPatterns) {
       if (textContent.includes(pattern)) {
-        score += 0.6; // High weight for social media detection
+        score += 0.7; // High weight for social media detection
         objects.push('social_media_detected');
         break;
       }
     }
     
-    // Check for non-pharmaceutical colors
-    const nonPharmaColors = ['black', 'blue', 'green', 'purple', 'multicolor', 'rainbow'];
+    // Check for non-pharmaceutical colors - but be more lenient
+    const nonPharmaColors = ['black', 'green', 'purple', 'multicolor', 'rainbow'];
     if (nonPharmaColors.includes(colorAnalysis.dominantColor)) {
-      score += 0.2;
+      score += 0.1; // Reduced weight
       objects.push('non_pharmaceutical_color');
     }
     
-    // Check for non-pharmaceutical shapes
-    const nonPharmaShapes = ['square', 'triangular', 'irregular', 'complex'];
+    // Check for non-pharmaceutical shapes - but be more lenient
+    const nonPharmaShapes = ['triangular', 'irregular', 'complex'];
     if (nonPharmaShapes.includes(shapeAnalysis.primaryShape)) {
-      score += 0.2;
+      score += 0.1; // Reduced weight
       objects.push('non_pharmaceutical_shape');
     }
     
-    // Check for too much text (likely not a drug)
-    if (textAnalysis.length > 10) {
-      score += 0.3;
+    // Check for too much text (likely not a drug) - but be more lenient
+    if (textAnalysis.length > 15) {
+      score += 0.2; // Reduced weight
       objects.push('excessive_text');
     }
     
-    // Check for very little text (likely not a drug package)
-    if (textAnalysis.length < 2) {
-      score += 0.2;
-      objects.push('insufficient_text');
+    // Check for very little text (likely not a drug package) - but be more lenient
+    if (textAnalysis.length === 0) {
+      score += 0.3; // Only penalize if no text at all
+      objects.push('no_text');
     }
     
     // Check for common non-drug objects
@@ -403,27 +445,31 @@ class AIDrugAnalysisService {
       'keyboard', 'mouse', 'cable', 'wire', 'electronic', 'device', 'gadget',
       'book', 'magazine', 'newspaper', 'document', 'paper', 'card', 'money',
       'coin', 'bill', 'currency', 'food', 'drink', 'beverage', 'snack',
-      'clothing', 'shirt', 'dress', 'pants', 'shoe', 'hat', 'bag', 'accessory'
+      'clothing', 'shirt', 'dress', 'pants', 'shoe', 'hat', 'bag', 'accessory',
+      'pet', 'dog', 'cat', 'animal', 'beach', 'water', 'landscape', 'nature'
     ];
     
     for (const object of nonDrugObjects) {
       if (textContent.includes(object)) {
-        score += 0.3;
+        score += 0.4; // Increased weight for non-drug objects
         objects.push('non_drug_object_detected');
         break;
       }
     }
     
+    console.log('🚫 Non-drug score:', score);
     return { score: Math.min(score, 1), objects };
   }
 
   private validatePharmaceuticalText(extractedText: string[]): string[] {
     const validatedText: string[] = [];
     
+    console.log('🔍 Validating pharmaceutical text:', extractedText);
+    
     for (const text of extractedText) {
       const lowerText = text.toLowerCase();
       
-      // Must contain pharmaceutical indicators
+      // Must contain pharmaceutical indicators - much more lenient
       const hasDrugName = Object.values(DRUG_DATABASE).some(drug => 
         drug.names.some(name => lowerText.includes(name))
       );
@@ -432,22 +478,27 @@ class AIDrugAnalysisService {
       const hasManufacturer = /(GSK|Johnson|Pfizer|Bayer|Sandoz|Teva|Generic|Novartis|Merck|AstraZeneca)/i.test(text);
       const hasExpiry = /(exp|expiry|expires?|expiration)/i.test(text);
       const hasBatch = /(batch|lot|serial)/i.test(text);
-      const hasPharmaTerm = /(tablet|capsule|oral|medicine|drug|pharmaceutical|medication|prescription)/i.test(text);
+      const hasPharmaTerm = /(tablet|capsule|oral|medicine|drug|pharmaceutical|medication|prescription|pain|relief|fever|effective|gentle|strong|easy|swallow|coated)/i.test(text);
       const hasInstructions = /(take|dose|dosage|directions|instructions|use)/i.test(text);
-      const hasStorage = /(store|storage|temperature|refrigerate|keep)/i.test(text);
+      const hasStorage = /(store|storage|temperature|refrigerate|keep|cool|dry|place)/i.test(text);
       
-      // More lenient validation: require fewer indicators for legitimate drugs
+      // Much more lenient validation: require fewer indicators for legitimate drugs
       const indicators = [hasDrugName, hasDosage, hasManufacturer, hasExpiry, hasBatch, hasPharmaTerm, hasInstructions, hasStorage];
       const validIndicators = indicators.filter(Boolean).length;
       
       // Accept text with fewer indicators if it contains drug names or pharmaceutical terms
       const hasEssentialInfo = hasDrugName || hasDosage || hasPharmaTerm;
       
-      if ((validIndicators >= 2 && hasEssentialInfo) || hasDrugName) {
+      // Very lenient: accept if it has any pharmaceutical content
+      if (validIndicators >= 1 || hasEssentialInfo || hasPharmaTerm) {
         validatedText.push(text);
+        console.log('✅ Validated text:', text);
+      } else {
+        console.log('❌ Rejected text:', text);
       }
     }
     
+    console.log('📋 Final validated text:', validatedText);
     return validatedText;
   }
 
@@ -552,77 +603,73 @@ class AIDrugAnalysisService {
 
   private async extractTextFromImage(imageData: string): Promise<string[]> {
     try {
-      const worker = await createWorker('eng');
+      console.log('🔍 Starting pharmaceutical OCR analysis...');
       
-      await worker.setParameters({
-        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:-/ ',
-        tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-      });
+      // Assess image quality first
+      const qualityAssessment = assessImageQuality(imageData);
+      console.log('📊 Image quality assessment:', qualityAssessment);
       
-      const { data: { text } } = await worker.recognize(imageData);
-      await worker.terminate();
+      // Preprocess image for optimal OCR
+      const preprocessedImage = await preprocessForOCR(imageData);
+      console.log('🖼️ Image preprocessing completed');
       
-      const lines = text.split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 1)
-        .filter(line => /[a-zA-Z0-9]/.test(line));
+      // Perform pharmaceutical-optimized OCR
+      const rawText = await recognizePharmaceuticalText(preprocessedImage);
+      console.log('📝 Raw pharmaceutical OCR text:', rawText);
       
-      const extractedTexts: string[] = [];
+      // Apply OCR error correction
+      const correctedText = rawText.map(line => correctOCRErrors(line));
+      console.log('🔧 OCR error correction applied');
       
-      for (const line of lines) {
-        // Look for drug names with comprehensive matching
-        const drugNameMatch = line.match(/(paracetamol|acetaminophen|ibuprofen|amoxicillin|tylenol|advil|motrin|panadol|levocetirizine|ambroxol|phenylephrine|sycold|cetirizine)/i);
-        if (drugNameMatch) {
-          extractedTexts.push(line);
-          continue;
-        }
-        
-        // Look for dosage information
-        const dosageMatch = line.match(/\d+\s*mg/i);
-        if (dosageMatch) {
-          extractedTexts.push(line);
-          continue;
-        }
-        
-        // Look for expiry dates
-        const expiryMatch = line.match(/(exp|expiry|expires?)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2})/i);
-        if (expiryMatch) {
-          extractedTexts.push(`Exp: ${expiryMatch[2]}`);
-          continue;
-        }
-        
-        // Look for batch numbers
-        const batchMatch = line.match(/(batch|lot)[:\s]*([a-zA-Z0-9]+)/i);
-        if (batchMatch) {
-          extractedTexts.push(`Batch: ${batchMatch[2]}`);
-          continue;
-        }
-        
-        // Look for manufacturer names
-        const mfgMatch = line.match(/(GSK|Johnson|Pfizer|Bayer|Sandoz|Teva|Generic)/i);
-        if (mfgMatch) {
-          extractedTexts.push(line);
-          continue;
-        }
-        
-        // Look for pharmaceutical terms
-        const pharmaMatch = line.match(/(tablet|capsule|oral|medicine|drug|pharmaceutical)/i);
-        if (pharmaMatch) {
-          extractedTexts.push(line);
-          continue;
-        }
+      // Validate and filter pharmaceutical text
+      const pharmaceuticalText = validatePharmaceuticalText(correctedText);
+      console.log('💊 Validated pharmaceutical text:', pharmaceuticalText);
+      
+      // Calculate confidence score
+      const confidence = calculatePharmaceuticalConfidence(pharmaceuticalText);
+      console.log('📊 Pharmaceutical confidence score:', confidence);
+      
+      // Extract comprehensive drug information
+      const drugInfo = extractDrugInfo(pharmaceuticalText);
+      if (drugInfo) {
+        console.log('💊 Extracted drug information:', drugInfo);
       }
       
-      return extractedTexts.slice(0, 6);
+      // Return pharmaceutical-relevant text with enhanced filtering
+      const finalText = pharmaceuticalText.filter(line => {
+        // Ensure line contains meaningful pharmaceutical content
+        return line.length > 2 && (
+          /[a-zA-Z]/.test(line) || // Contains letters
+          /\d/.test(line) || // Contains numbers
+          /[mg|ml|mcg|g|IU|units?|tablets?|capsules?|pills?|drops?|sprays?|injections?|patches?|suppositories?]/i.test(line) // Contains pharmaceutical units
+        );
+      });
+      
+      console.log('📋 Final extracted pharmaceutical texts:', finalText);
+      return finalText.slice(0, 15); // Increased limit for comprehensive analysis
       
     } catch (error) {
-      console.error('OCR extraction failed:', error);
-      return [];
+      console.error('Pharmaceutical OCR extraction failed:', error);
+      
+      // Fallback to basic text extraction if OCR fails
+      try {
+        console.log('🔄 Attempting fallback OCR...');
+        const fallbackText = await recognizePharmaceuticalText(imageData, { 
+          psm: 6, // SPARSE_TEXT mode
+          retries: 1 
+        });
+        return fallbackText.slice(0, 10);
+      } catch (fallbackError) {
+        console.error('Fallback OCR also failed:', fallbackError);
+        return [];
+      }
     }
   }
 
   private identifyDrug(visualFeatures: any, extractedText: string[]): any {
     let bestMatch = { name: 'Unknown', strength: 'Unknown', confidence: 0 };
+    
+    console.log('🔍 Identifying drug from text:', extractedText);
     
     for (const [drugKey, drugData] of Object.entries(DRUG_DATABASE)) {
       let confidence = 0;
@@ -630,15 +677,29 @@ class AIDrugAnalysisService {
       // Check text matches with comprehensive validation
       for (const text of extractedText) {
         const lowerText = text.toLowerCase();
+        
+        // Check for drug names - more flexible matching
         if (drugData.names.some(name => lowerText.includes(name))) {
-          confidence += 0.4;
+          confidence += 0.5; // Increased weight for drug name
+          console.log(`💊 Found drug name match for ${drugKey}:`, text);
         }
+        
+        // Check for partial matches (e.g., "para" for paracetamol)
+        if (drugKey === 'paracetamol' && (lowerText.includes('para') || lowerText.includes('acet'))) {
+          confidence += 0.3;
+          console.log(`💊 Found partial paracetamol match:`, text);
+        }
+        
         if (drugData.strengths.some(strength => lowerText.includes(strength))) {
           confidence += 0.3;
+          console.log(`💪 Found strength match for ${drugKey}:`, text);
         }
+        
         if (drugData.manufacturers.some(mfg => lowerText.includes(mfg.toLowerCase()))) {
-          confidence += 0.1;
+          confidence += 0.15; // Increased weight for manufacturer
+          console.log(`🏭 Found manufacturer match for ${drugKey}:`, text);
         }
+        
         // Check for combination drug patterns
         if (drugKey === 'combination_cold' && lowerText.includes('combination')) {
           confidence += 0.3;
@@ -648,17 +709,20 @@ class AIDrugAnalysisService {
       // Check visual matches
       if (drugData.colors.includes(visualFeatures.dominantColor)) {
         confidence += 0.15;
+        console.log(`🎨 Color match for ${drugKey}:`, visualFeatures.dominantColor);
       }
       if (drugData.shapes.includes(visualFeatures.shape)) {
         confidence += 0.1;
+        console.log(`🔵 Shape match for ${drugKey}:`, visualFeatures.shape);
       }
       if (visualFeatures.detectedMarkings.some((marking: string) => 
           drugData.markings.includes(marking))) {
         confidence += 0.2;
+        console.log(`🏷️ Marking match for ${drugKey}:`, visualFeatures.detectedMarkings);
       }
       
-      // Lower minimum confidence threshold for better detection
-      if (confidence > bestMatch.confidence && confidence > 0.2) {
+      // Much lower minimum confidence threshold for better detection
+      if (confidence > bestMatch.confidence && confidence > 0.1) {
         const strengthMatch = drugData.strengths.find(strength => 
           extractedText.some(text => text.includes(strength))
         ) || drugData.strengths[0];
@@ -677,9 +741,12 @@ class AIDrugAnalysisService {
             confidence: Math.min(confidence, 0.95)
           };
         }
+        
+        console.log(`🎯 New best match: ${bestMatch.name} (confidence: ${bestMatch.confidence})`);
       }
     }
     
+    console.log(`🏆 Final drug identification: ${bestMatch.name} (${bestMatch.confidence})`);
     return bestMatch;
   }
 

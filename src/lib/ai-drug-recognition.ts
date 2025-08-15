@@ -1,6 +1,9 @@
 import * as tf from '@tensorflow/tfjs-node';
 import sharp from 'sharp';
 import { blockchainService } from './blockchain';
+import { recognizePharmaceuticalText, calculatePharmaceuticalConfidence } from './ocr-service';
+import { preprocessForOCR, assessImageQuality } from './image-preprocessing';
+import { validatePharmaceuticalText, extractDrugInfo, correctOCRErrors } from './pharmaceutical-patterns';
 
 export interface DrugIdentificationResult {
   drugName: string;
@@ -143,40 +146,121 @@ export class AIDrugRecognitionService {
   }
 
   /**
-   * Preprocess image for AI analysis
+   * Preprocess image for AI analysis using pharmaceutical-optimized preprocessing
    */
   private async preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
     try {
-      // Resize image to standard size
-      const processedImage = await sharp(imageBuffer)
-        .resize(224, 224) // Standard size for many ML models
-        .jpeg({ quality: 90 })
-        .toBuffer();
-
-      return processedImage;
+      console.log('🖼️ Starting pharmaceutical image preprocessing...');
+      
+      // Use the new pharmaceutical preprocessing utility
+      const preprocessedImage = await preprocessForOCR(imageBuffer, {
+        contrast: 1.3,
+        brightness: 1.15,
+        noiseReduction: true,
+        deskew: true,
+        resize: {
+          width: 1500,
+          maintainAspectRatio: true
+        },
+        enhancement: {
+          sharpen: true,
+          gamma: 1.1
+        }
+      });
+      
+      // Ensure we return a Buffer for compatibility
+      if (Buffer.isBuffer(preprocessedImage)) {
+        return preprocessedImage;
+      } else {
+        // Convert base64 string to Buffer if needed
+        const base64Data = preprocessedImage.replace(/^data:image\/[a-z]+;base64,/, '');
+        return Buffer.from(base64Data, 'base64');
+      }
+      
     } catch (error) {
-      console.error('Image preprocessing failed:', error);
-      throw error;
+      console.error('Pharmaceutical image preprocessing failed:', error);
+      
+      // Fallback to basic preprocessing
+      try {
+        console.log('🔄 Attempting fallback preprocessing...');
+        const fallbackImage = await sharp(imageBuffer)
+          .resize(224, 224)
+          .jpeg({ quality: 90 })
+          .toBuffer();
+        return fallbackImage;
+      } catch (fallbackError) {
+        console.error('Fallback preprocessing also failed:', fallbackError);
+        throw error;
+      }
     }
   }
 
   /**
-   * Extract text from image (OCR simulation)
+   * Extract text from image using pharmaceutical-optimized OCR
    */
   private async extractText(imageBuffer: Buffer): Promise<string[]> {
-    // In a real implementation, this would use Tesseract.js or similar OCR
-    // For demo purposes, we'll simulate OCR extraction
-    
-    const mockTexts = [
-      'PARACETAMOL 500mg',
-      'Batch: B2024001',
-      'Exp: 12/2025',
-      'GSK Pharmaceuticals',
-      'Take 1-2 tablets every 4-6 hours',
-      'Store in a cool, dry place',
-    ];
-
-    return mockTexts;
+    try {
+      console.log('🔍 Starting pharmaceutical OCR analysis...');
+      
+      // Assess image quality first
+      const qualityAssessment = assessImageQuality(imageBuffer);
+      console.log('📊 Image quality assessment:', qualityAssessment);
+      
+      // Preprocess image for optimal OCR
+      const preprocessedImage = await preprocessForOCR(imageBuffer);
+      console.log('🖼️ Image preprocessing completed');
+      
+      // Perform pharmaceutical-optimized OCR
+      const rawText = await recognizePharmaceuticalText(preprocessedImage);
+      console.log('📝 Raw pharmaceutical OCR text:', rawText);
+      
+      // Apply OCR error correction
+      const correctedText = rawText.map(line => correctOCRErrors(line));
+      console.log('🔧 OCR error correction applied');
+      
+      // Validate and filter pharmaceutical text
+      const pharmaceuticalText = validatePharmaceuticalText(correctedText);
+      console.log('💊 Validated pharmaceutical text:', pharmaceuticalText);
+      
+      // Calculate confidence score
+      const confidence = calculatePharmaceuticalConfidence(pharmaceuticalText);
+      console.log('📊 Pharmaceutical confidence score:', confidence);
+      
+      // Extract comprehensive drug information
+      const drugInfo = extractDrugInfo(pharmaceuticalText);
+      if (drugInfo) {
+        console.log('💊 Extracted drug information:', drugInfo);
+      }
+      
+      // Return pharmaceutical-relevant text with enhanced filtering
+      const finalText = pharmaceuticalText.filter(line => {
+        // Ensure line contains meaningful pharmaceutical content
+        return line.length > 2 && (
+          /[a-zA-Z]/.test(line) || // Contains letters
+          /\d/.test(line) || // Contains numbers
+          /[mg|ml|mcg|g|IU|units?|tablets?|capsules?|pills?|drops?|sprays?|injections?|patches?|suppositories?]/i.test(line) // Contains pharmaceutical units
+        );
+      });
+      
+      console.log('📋 Final extracted pharmaceutical texts:', finalText);
+      return finalText.slice(0, 15); // Increased limit for comprehensive analysis
+      
+    } catch (error) {
+      console.error('Pharmaceutical OCR extraction failed:', error);
+      
+      // Fallback to basic text extraction if OCR fails
+      try {
+        console.log('🔄 Attempting fallback OCR...');
+        const fallbackText = await recognizePharmaceuticalText(imageBuffer, { 
+          psm: 6, // SPARSE_TEXT mode
+          retries: 1 
+        });
+        return fallbackText.slice(0, 10);
+      } catch (fallbackError) {
+        console.error('Fallback OCR also failed:', fallbackError);
+        return [];
+      }
+    }
   }
 
   /**
@@ -234,16 +318,17 @@ export class AIDrugRecognitionService {
   }
 
   /**
-   * Detect counterfeit drugs using AI
+   * Detect counterfeit drugs using AI and OCR quality metrics
    */
   private async detectCounterfeit(drugIdentification: Partial<DrugIdentificationResult>, imageAnalysis: ImageAnalysisResult): Promise<{ isCounterfeit: boolean; riskScore: number }> {
     let riskScore = 0;
     const riskFactors: string[] = [];
 
-    // Check package quality
-    if (imageAnalysis.quality < 0.7) {
+    // Check package quality using OCR confidence
+    const ocrConfidence = calculatePharmaceuticalConfidence(imageAnalysis.text);
+    if (ocrConfidence < 0.6) {
       riskScore += 0.3;
-      riskFactors.push('Low image quality');
+      riskFactors.push(`Low OCR confidence: ${ocrConfidence.toFixed(2)}`);
     }
 
     // Check for suspicious patterns
@@ -260,11 +345,19 @@ export class AIDrugRecognitionService {
       riskFactors.push('Color inconsistency');
     }
 
-    // Check text quality
-    const textQuality = this.analyzeTextQuality(imageAnalysis.text);
-    if (textQuality < 0.8) {
+    // Check text quality using pharmaceutical validation
+    const pharmaceuticalText = validatePharmaceuticalText(imageAnalysis.text);
+    const textQuality = pharmaceuticalText.length / Math.max(imageAnalysis.text.length, 1);
+    if (textQuality < 0.7) {
       riskScore += 0.2;
-      riskFactors.push('Poor text quality');
+      riskFactors.push(`Poor pharmaceutical text quality: ${textQuality.toFixed(2)}`);
+    }
+
+    // Check for OCR error patterns that might indicate counterfeit
+    const ocrErrors = this.detectOCRErrorPatterns(imageAnalysis.text);
+    if (ocrErrors.length > 0) {
+      riskScore += 0.15;
+      riskFactors.push(`OCR error patterns detected: ${ocrErrors.join(', ')}`);
     }
 
     // Check for missing security features
@@ -274,12 +367,22 @@ export class AIDrugRecognitionService {
       riskFactors.push('Missing security features');
     }
 
+    // Check for inconsistent drug information
+    const drugInfo = extractDrugInfo(imageAnalysis.text);
+    if (drugInfo && drugInfo.confidence < 0.5) {
+      riskScore += 0.2;
+      riskFactors.push(`Low drug information confidence: ${drugInfo.confidence.toFixed(2)}`);
+    }
+
     const isCounterfeit = riskScore > 0.5;
 
-    console.log('🔍 Counterfeit detection results:', {
+    console.log('🔍 Enhanced counterfeit detection results:', {
       riskScore,
       isCounterfeit,
       riskFactors,
+      ocrConfidence,
+      textQuality,
+      drugInfoConfidence: drugInfo?.confidence
     });
 
     return { isCounterfeit, riskScore };
@@ -403,8 +506,41 @@ export class AIDrugRecognitionService {
   }
 
   private analyzeTextQuality(texts: string[]): number {
-    // Simulate text quality analysis
-    return 0.85;
+    // Use pharmaceutical confidence for text quality analysis
+    return calculatePharmaceuticalConfidence(texts);
+  }
+
+  private detectOCRErrorPatterns(texts: string[]): string[] {
+    const errorPatterns: string[] = [];
+    
+    for (const text of texts) {
+      // Check for common OCR errors that might indicate counterfeit
+      if (/\b5OOmg\b/gi.test(text)) {
+        errorPatterns.push('OCR dosage error (5OOmg)');
+      }
+      if (/\b1OOmg\b/gi.test(text)) {
+        errorPatterns.push('OCR dosage error (1OOmg)');
+      }
+      if (/\bparacetamOl\b/gi.test(text)) {
+        errorPatterns.push('OCR drug name error (paracetamOl)');
+      }
+      if (/\baspir1n\b/gi.test(text)) {
+        errorPatterns.push('OCR drug name error (aspir1n)');
+      }
+      if (/\bamox1cillin\b/gi.test(text)) {
+        errorPatterns.push('OCR drug name error (amox1cillin)');
+      }
+      
+      // Check for inconsistent character patterns
+      if (/[0-9]{2,}[O]{2,}/.test(text)) {
+        errorPatterns.push('Inconsistent number patterns');
+      }
+      if (/[A-Z]{2,}[0]{2,}/.test(text)) {
+        errorPatterns.push('Inconsistent letter patterns');
+      }
+    }
+    
+    return errorPatterns;
   }
 
   private checkSecurityFeatures(imageAnalysis: ImageAnalysisResult): { hasHologram: boolean; hasWatermark: boolean } {

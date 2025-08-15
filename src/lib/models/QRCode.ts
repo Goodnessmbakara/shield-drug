@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IQRCode extends Document {
+export interface IQRCode {
   qrCodeId: string;
   uploadId: string;
   userEmail: string;
@@ -32,12 +32,18 @@ export interface IQRCode extends Document {
   updatedAt: Date;
 }
 
-const QRCodeSchema: Schema = new Schema({
+const QRCodeSchema = new Schema({
   qrCodeId: {
     type: String,
     required: true,
     unique: true,
-    trim: true
+    trim: true,
+    validate: {
+      validator: function(v: string): boolean {
+        return Boolean(v && v.length > 0 && v !== null && v !== undefined);
+      },
+      message: 'QR Code ID cannot be null or empty'
+    }
   },
   uploadId: {
     type: String,
@@ -56,7 +62,8 @@ const QRCodeSchema: Schema = new Schema({
   },
   serialNumber: {
     type: Number,
-    required: true
+    required: true,
+    min: [1, 'Serial number must be at least 1']
   },
   blockchainTx: {
     hash: {
@@ -108,21 +115,28 @@ const QRCodeSchema: Schema = new Schema({
     },
     quantity: {
       type: Number,
-      required: true
+      required: true,
+      min: [1, 'Quantity must be at least 1']
     }
   },
   status: {
     type: String,
     default: 'generated',
-    trim: true
+    trim: true,
+    enum: {
+      values: ['generated', 'verified', 'expired', 'recalled', 'invalid'],
+      message: 'Status must be one of: generated, verified, expired, recalled, invalid'
+    }
   },
   downloadCount: {
     type: Number,
-    default: 0
+    default: 0,
+    min: [0, 'Download count cannot be negative']
   },
   verificationCount: {
     type: Number,
-    default: 0
+    default: 0,
+    min: [0, 'Verification count cannot be negative']
   },
   isScanned: {
     type: Boolean,
@@ -143,11 +157,22 @@ const QRCodeSchema: Schema = new Schema({
   timestamps: true
 });
 
-// Create indexes for better query performance
+// Create indexes for better query performance and uniqueness
+QRCodeSchema.index({ qrCodeId: 1 }, { unique: true });
 QRCodeSchema.index({ uploadId: 1 });
 QRCodeSchema.index({ batchId: 1 });
 QRCodeSchema.index({ isScanned: 1 });
 QRCodeSchema.index({ manufacturer: 1 });
 QRCodeSchema.index({ drugName: 1 });
+QRCodeSchema.index({ userEmail: 1 });
+QRCodeSchema.index({ createdAt: -1 });
+
+// Pre-save middleware to ensure qrCodeId is not null
+QRCodeSchema.pre('save', function(next) {
+  if (!this.qrCodeId || (typeof this.qrCodeId === 'string' && this.qrCodeId.trim() === '')) {
+    return next(new Error('QR Code ID cannot be null or empty'));
+  }
+  next();
+});
 
 export default mongoose.models.QRCode || mongoose.model<IQRCode>('QRCode', QRCodeSchema);

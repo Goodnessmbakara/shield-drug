@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .camera-container {
+            margin: 20px 0;
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .error {
+            color: red;
+            background: #ffe6e6;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: green;
+            background: #e6ffe6;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Camera Access Test</h1>
+    <p>This page tests camera access on localhost to help debug camera issues.</p>
+    
+    <div class="camera-container">
+        <button onclick="startCamera()">Start Camera</button>
+        <button onclick="stopCamera()">Stop Camera</button>
+    </div>
+    
+    <video id="video" autoplay playsinline></video>
+    
+    <div id="status"></div>
+    
+    <script>
+        let stream = null;
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        
+        function updateStatus(message, isError = false) {
+            status.innerHTML = `<div class="${isError ? 'error' : 'success'}">${message}</div>`;
+        }
+        
+        async function startCamera() {
+            try {
+                updateStatus('Checking camera support...');
+                
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera access is not supported in this browser');
+                }
+                
+                updateStatus('Requesting camera permissions...');
+                
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                
+                video.srcObject = stream;
+                updateStatus('Camera started successfully! You should see video above.');
+                
+            } catch (error) {
+                console.error('Camera error:', error);
+                let errorMessage = 'Failed to access camera';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Camera access denied. Please allow camera permissions in your browser settings.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'No camera found on this device.';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage = 'Camera access is not supported in this browser.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = 'Camera is already in use by another application.';
+                } else if (error.name === 'OverconstrainedError') {
+                    errorMessage = 'Camera does not meet the required specifications.';
+                } else if (error.name === 'TypeError') {
+                    errorMessage = 'Camera access requires HTTPS. Please use localhost or HTTPS.';
+                } else {
+                    errorMessage = error.message || 'Unknown camera error occurred.';
+                }
+                
+                updateStatus(`Error: ${errorMessage}`, true);
+            }
+        }
+        
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+                updateStatus('Camera stopped.');
+            }
+        }
+        
+        // Check protocol
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+            updateStatus('Warning: Camera access typically requires HTTPS or localhost. You may experience issues.', true);
+        }
+    </script>
+</body>
+</html>
