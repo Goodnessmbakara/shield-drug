@@ -217,9 +217,8 @@ async function preprocessImageNode(
       }
     }
 
-    // Apply contrast and brightness
-    if (options.contrast !== undefined || options.brightness !== undefined) {
-      const contrast = options.contrast || 1.0;
+    // Apply brightness
+    if (options.brightness !== undefined) {
       const brightness = options.brightness || 1.0;
       pipeline = pipeline.modulate({
         brightness: brightness
