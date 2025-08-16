@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { DrugAnalysisResult } from "@/services/aiDrugAnalysis";
 import { useToast } from "@/hooks/use-toast";
+import QrScanner from 'qr-scanner';
 
 interface PhotoCaptureProps {
   onResult: (imageData: string) => void;
@@ -147,87 +148,46 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const scannerRef = useRef<QrScanner | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [cameraDebug, setCameraDebug] = useState<string>("");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
 
   const startCamera = useCallback(async () => {
     setCameraLoading(true);
+    setCameraError(null);
+    
     try {
-      // Check if getUserMedia is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Camera access is not supported in this browser");
-      }
-
-      // Check if running on HTTPS (required for camera access in most browsers)
-      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-        setCameraDebug(`Protocol: ${window.location.protocol}, Hostname: ${window.location.hostname}`);
-        toast({
-          title: "HTTPS Required",
-          description: "Camera access requires a secure connection (HTTPS). Please use the deployed version or localhost for testing.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        setStream(mediaStream);
-        setCameraActive(true);
-        setCameraError(null); // Clear any previous errors
-      }
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      
-      // Provide specific error messages based on the error type
-      let errorMessage = "Failed to access camera";
-      let errorTitle = "Camera Error";
-      
-      if (error instanceof Error) {
-        if (error.name === "NotAllowedError") {
-          errorTitle = "Permission Denied";
-          errorMessage = "Camera access was denied. Please allow camera permissions in your browser settings and try again.";
-        } else if (error.name === "NotFoundError") {
-          errorTitle = "No Camera Found";
-          errorMessage = "No camera was found on this device. Please connect a camera and try again.";
-        } else if (error.name === "NotSupportedError") {
-          errorTitle = "Browser Not Supported";
-          errorMessage = "Camera access is not supported in this browser. Please try using Chrome, Firefox, or Safari.";
-        } else if (error.name === "NotReadableError") {
-          errorTitle = "Camera in Use";
-          errorMessage = "Camera is already in use by another application. Please close other camera applications and try again.";
-        } else if (error.name === "OverconstrainedError") {
-          errorTitle = "Camera Constraints";
-          errorMessage = "Camera does not meet the required specifications. Please try a different camera.";
-        } else if (error.name === "TypeError") {
-          errorTitle = "HTTPS Required";
-          errorMessage = "Camera access requires HTTPS. Please use the deployed version or localhost for testing.";
-        } else {
-          errorMessage = error.message || "Unknown camera error occurred.";
+      // Use QrScanner for camera access (works better than getUserMedia)
+      const scanner = new QrScanner(
+        videoRef.current!,
+        (result) => {
+          // This won't be used for photo capture, but we need to handle it
+          console.log("QR code detected:", result);
         }
+      );
+
+      await scanner.start();
+      scannerRef.current = scanner;
+      setCameraActive(true);
+      
+    } catch (error) {
+      console.error("Error starting camera:", error);
+      
+      let errorMessage = "Failed to start camera";
+      if (error instanceof Error) {
+        errorMessage = error.message || "Unknown camera error occurred.";
       }
       
-      // Show error to user using toast
       toast({
-        title: errorTitle,
+        title: "Camera Error",
         description: errorMessage,
         variant: "destructive",
       });
       
-      // Store error for UI display
       setCameraError(errorMessage);
     } finally {
       setCameraLoading(false);
@@ -237,21 +197,21 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   // Cleanup camera on component unmount
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (scannerRef.current) {
+        scannerRef.current.stop();
       }
     };
-  }, [stream]);
+  }, []);
 
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
+  const stopCamera = useCallback(async () => {
+    if (scannerRef.current) {
+      await scannerRef.current.stop();
+      scannerRef.current = null;
       setCameraActive(false);
     }
-  }, [stream]);
+  }, []);
 
-  const capturePhoto = useCallback(() => {
+  const capturePhoto = useCallback(async () => {
     if (videoRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
       const video = videoRef.current;
@@ -264,7 +224,7 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
         ctx.drawImage(video, 0, 0);
         const imageData = canvas.toDataURL("image/jpeg", 0.8);
         setCapturedImage(imageData);
-        stopCamera();
+        await stopCamera();
         analyzeImage(imageData);
         onResult(imageData);
       }
@@ -578,13 +538,8 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
                                 Camera not active
                               </p>
                                                         <p className="text-xs text-muted-foreground mt-1">
-                            Requires HTTPS or localhost
-                          </p>
-                          {cameraDebug && (
-                            <p className="text-xs text-blue-600 mt-1">
-                              Debug: {cameraDebug}
-                            </p>
-                          )}
+                                Click "Start Camera" to begin
+                              </p>
                             </>
                           )}
                         </>
