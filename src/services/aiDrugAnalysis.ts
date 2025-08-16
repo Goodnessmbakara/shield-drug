@@ -14,9 +14,10 @@ import {
 } from '@/lib/coco-pharmaceutical-mapping';
 import { DrugAnalysisResult, ImageClassificationResult } from '@/lib/types';
 
-// MobileNet v3 model configuration
-const MOBILENET_V3_URL = 'https://tfhub.dev/google/tfjs-model/imagenet/mobilenet_v3_small_100_224/classification/5';
-const NORMALIZE_TO_MINUS_ONE_TO_ONE = true; // MobileNet v3 expects [-1,1] range based on TF Hub docs
+// MobileNet v2 model configuration (MobileNet v3 is no longer available on TF Hub)
+const MOBILENET_V2_URL = process.env.MOBILENET_MODEL_URL || 'https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/2';
+const NORMALIZE_TO_MINUS_ONE_TO_ONE = false; // MobileNet v2 expects [0,1] range
+const IMAGENET_MODEL_VERSION = 'mobilenet_v2';
 
 // Enhanced drug database with comprehensive patterns
 const DRUG_DATABASE = {
@@ -101,26 +102,53 @@ class AIDrugAnalysisService {
   private model: tf.LayersModel | null = null;
   private isInitialized = false;
   
-  // MobileNet v3 model cache and status
+  // MobileNet v2 model cache and status
   private static mobileNetModel: tf.GraphModel | null = null;
   private modelAvailable = false;
   
   // COCO-SSD model cache and status
   private static cocoSsdModel: cocoSsd.ObjectDetection | null = null;
   private cocoSsdAvailable = false;
+  
+  // Native addon availability flag
+  private nativeAddonAvailable = false;
 
   async initialize(): Promise<void> {
     try {
+      // Set backend based on environment configuration
+      if (typeof window === 'undefined') {
+        // Node.js environment
+        try {
+          require('@tensorflow/tfjs-node');
+          const backend = process.env.TENSORFLOW_BACKEND || 'cpu';
+          await tf.setBackend(backend);
+          this.nativeAddonAvailable = true;
+          console.log(`TensorFlow.js backend set to: ${backend}`);
+        } catch (error) {
+          console.warn('TensorFlow.js Node.js backend not available, falling back to CPU');
+          await tf.setBackend('cpu');
+          this.nativeAddonAvailable = false;
+        }
+      }
+      
       await tf.ready();
       
-      // Load MobileNet v3 model
+      // Load MobileNet v2 model
       await this.loadMobileNetModel();
       
       // Load COCO-SSD model
       await this.loadCocoSsdModel();
       
       this.isInitialized = true;
+      
+      // Log model availability status
       console.log('AI Drug Analysis Service initialized successfully');
+      console.log('Model availability status:', {
+        mobileNet: this.modelAvailable ? 'available' : 'failed',
+        cocoSsd: this.cocoSsdAvailable ? 'available' : 'failed',
+        fallbackMode: (!this.modelAvailable && !this.cocoSsdAvailable) ? 'heuristic-only' : 'partial'
+      });
+      
     } catch (error) {
       console.error('Failed to initialize AI model:', error);
       this.isInitialized = true;
@@ -136,25 +164,41 @@ class AIDrugAnalysisService {
         return;
       }
 
-      console.log('Loading MobileNet v3 model from TensorFlow Hub...');
+      console.log('Loading MobileNet v2 model from TensorFlow Hub...');
       
-      // Load model from TF Hub
-      AIDrugAnalysisService.mobileNetModel = await tf.loadGraphModel(MOBILENET_V3_URL, {
-        fromTFHub: true
-      });
+      // Load model from TF Hub with retry logic
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          AIDrugAnalysisService.mobileNetModel = await tf.loadGraphModel(MOBILENET_V2_URL, {
+            fromTFHub: true
+          });
+          break;
+        } catch (error) {
+          retryCount++;
+          console.warn(`MobileNet v2 model loading attempt ${retryCount} failed:`, error);
+          if (retryCount >= maxRetries) {
+            throw error;
+          }
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
+        }
+      }
 
-      // Warm up the model with a dummy tensor - compute synchronously, dispose explicitly
-      const dummyTensor = tf.zeros([1, 224, 224, 3]);
+      // Warm up the model with a normalized dummy tensor - compute synchronously, dispose explicitly
+      const dummyTensor = tf.zeros([1, 224, 224, 3]).div(255); // Normalize to [0,1] range
       const warmupResult = AIDrugAnalysisService.mobileNetModel!.predict(dummyTensor) as tf.Tensor;
       await warmupResult.data();
       dummyTensor.dispose();
       warmupResult.dispose();
 
       this.modelAvailable = true;
-      console.log('MobileNet v3 model loaded and warmed up successfully');
+      console.log('MobileNet v2 model loaded and warmed up successfully');
       
     } catch (error) {
-      console.error('Failed to load MobileNet v3 model:', error);
+      console.error('Failed to load MobileNet v2 model:', error);
       this.modelAvailable = false;
       // Don't throw error - service will use fallback methods
     }
@@ -175,6 +219,11 @@ class AIDrugAnalysisService {
       AIDrugAnalysisService.cocoSsdModel = await cocoSsd.load({
         base: 'lite_mobilenet_v2'
       });
+
+      // Validate model format and ensure it's ready for inference
+      if (!AIDrugAnalysisService.cocoSsdModel) {
+        throw new Error('COCO-SSD model failed to load properly');
+      }
 
       // Warm up the model with environment-appropriate input
       const isBrowser = typeof window !== 'undefined';
@@ -311,14 +360,54 @@ class AIDrugAnalysisService {
 
   private async classifyImage(imageData: string): Promise<ImageClassificationResult> {
     try {
-      // Use COCO-SSD if available, then MobileNet v3, then fallback to heuristic analysis
-      if (this.cocoSsdAvailable && AIDrugAnalysisService.cocoSsdModel) {
-        return await this.classifyWithCocoSsd(imageData);
-      } else if (this.modelAvailable && AIDrugAnalysisService.mobileNetModel) {
-        return await this.classifyWithMobileNet(imageData);
-      } else {
-        return await this.classifyWithHeuristics(imageData);
+      // Get fallback mode from environment with safe defaults
+      const fallbackMode = process.env.AI_FALLBACK_MODE || 'auto';
+      
+      // Determine model priority based on fallback mode
+      let modelPriority: string[];
+      
+      switch (fallbackMode.toLowerCase()) {
+        case 'coco':
+          modelPriority = ['coco-ssd', 'mobilenet', 'heuristic'];
+          break;
+        case 'mobile':
+          modelPriority = ['mobilenet', 'coco-ssd', 'heuristic'];
+          break;
+        case 'heuristic':
+          modelPriority = ['heuristic'];
+          break;
+        case 'auto':
+        default:
+          modelPriority = ['coco-ssd', 'mobilenet', 'heuristic'];
+          break;
       }
+      
+      // Try models in priority order
+      for (const model of modelPriority) {
+        try {
+          switch (model) {
+            case 'coco-ssd':
+              if (this.cocoSsdAvailable && AIDrugAnalysisService.cocoSsdModel) {
+                return await this.classifyWithCocoSsd(imageData);
+              }
+              break;
+            case 'mobilenet':
+              if (this.modelAvailable && AIDrugAnalysisService.mobileNetModel) {
+                return await this.classifyWithMobileNet(imageData);
+              }
+              break;
+            case 'heuristic':
+              return await this.classifyWithHeuristics(imageData);
+          }
+        } catch (error) {
+          console.warn(`Model ${model} failed, trying next in priority:`, error);
+          continue;
+        }
+      }
+      
+      // If all models fail, fallback to heuristic
+      return await this.classifyWithHeuristics(imageData);
+      
     } catch (error) {
       console.error('Image classification failed:', error);
       // Fallback to heuristic classification
@@ -408,13 +497,13 @@ class AIDrugAnalysisService {
 
   private async classifyWithMobileNet(imageData: string): Promise<ImageClassificationResult> {
     try {
-      console.log('🔍 Using MobileNet v3 for image classification...');
+      console.log('🔍 Using MobileNet v2 for image classification...');
       
-      // Preprocess image for MobileNet v3
+      // Preprocess image for MobileNet v2
       const img = await this.preprocessImage(imageData);
       
       // Use tf.tidy for safe tensor disposal during inference
-      const { predictionData, batchedImg, predictions, probs } = await tf.tidy(() => {
+      const predictionData = tf.tidy(() => {
         // Add batch dimension
         const batchedImg = img.expandDims(0);
         
@@ -424,10 +513,8 @@ class AIDrugAnalysisService {
         // Apply softmax to get probabilities
         const probs = tf.softmax(predictions);
         
-        // Get prediction data synchronously
-        const predictionData = probs.dataSync();
-        
-        return { predictionData, batchedImg, predictions, probs };
+        // Get prediction data synchronously and return only the data
+        return probs.dataSync();
       });
       
       // Get top-k predictions
@@ -474,12 +561,12 @@ class AIDrugAnalysisService {
         boundingBoxCount: 0
       };
       
-      console.log('📊 MobileNet v3 classification result:', result);
+      console.log('📊 MobileNet v2 classification result:', result);
       
       return result;
       
     } catch (error) {
-      console.error('MobileNet v3 classification failed:', error);
+      console.error('MobileNet v2 classification failed:', error);
       // Fallback to heuristic classification
       return await this.classifyWithHeuristics(imageData);
     }
@@ -581,7 +668,7 @@ class AIDrugAnalysisService {
       // Browser: convert canvas to tensor
       const canvas = await this.base64ToCanvas(imageData);
       const tensor = tf.browser.fromPixels(canvas);
-      return tensor as tf.Tensor3D;
+      return tensor.toFloat() as tf.Tensor3D; // Ensure float32 dtype for COCO-SSD
     } else {
       // Node.js: use tfjs-node for base64 decoding
       try {
@@ -593,8 +680,8 @@ class AIDrugAnalysisService {
         
         // Use tf.tidy for safe tensor disposal
         return tf.tidy(() => {
-          // Decode image from buffer with explicit typing
-          const imageTensor = tfnode.node.decodeImage(buffer, 3) as tf.Tensor3D;
+          // Decode image from buffer with explicit typing and ensure float32 dtype
+          const imageTensor = tfnode.node.decodeImage(buffer, 3).toFloat() as tf.Tensor3D;
           
           // Note: Avoid resizing to preserve original bbox coordinates
           // COCO-SSD will handle input size variations internally
@@ -604,8 +691,14 @@ class AIDrugAnalysisService {
         
       } catch (error) {
         console.error('Node.js image preprocessing failed:', error);
-        // Return a placeholder tensor with proper shape
-        return tf.zeros([224, 224, 3]) as tf.Tensor3D;
+        
+        // Check if native addon is available
+        if (!this.nativeAddonAvailable) {
+          throw new Error('TensorFlow.js native addon not available for image preprocessing');
+        }
+        
+        // Return a placeholder tensor with proper shape and dtype
+        return tf.zeros([224, 224, 3]).toFloat() as tf.Tensor3D;
       }
     }
   }
@@ -1019,7 +1112,7 @@ class AIDrugAnalysisService {
         // Draw image maintaining aspect ratio
         ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
         
-        // Convert to tensor and normalize for MobileNet v3
+        // Convert to tensor and normalize for MobileNet v2
         let tensor = tf.browser.fromPixels(canvas).cast('float32');
         
         // Apply normalization based on mode

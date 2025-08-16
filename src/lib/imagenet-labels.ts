@@ -1,4 +1,4 @@
-// Real ImageNet class labels for MobileNet v3 (1001 classes)
+// Real ImageNet class labels for MobileNet v2 (1001 classes)
 export const IMAGENET_CLASSES = [
   'tench', 'goldfish', 'great_white_shark', 'tiger_shark', 'hammerhead_shark', 'electric_ray',
   'stingray', 'rooster', 'hen', 'ostrich', 'brambling', 'goldfinch', 'house_finch', 'junco',
@@ -170,23 +170,62 @@ export const IMAGENET_CLASSES = [
   'corn_cob', 'toilet_tissue'
 ];
 
-// Refined pharmaceutical-related ImageNet class indices for medically relevant items only
+// Model version tracking
+export const IMAGENET_MODEL_VERSION = 'mobilenet_v2';
+
+// Pharmaceutical-related ImageNet class indices for MobileNet v2
+// Programmatically derived from actual ImageNet class labels
 export const PHARMACEUTICAL_CLASS_INDICES = new Set([
   // Medical containers and bottles
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-  26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
-  51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
-  76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100
-]);
+  IMAGENET_CLASSES.indexOf('pill_bottle'),
+  IMAGENET_CLASSES.indexOf('syringe'),
+  
+  // Medical equipment and tools
+  IMAGENET_CLASSES.indexOf('stethoscope'),
+  
+  // Containers that might hold medicine
+  IMAGENET_CLASSES.indexOf('bottle'),
+  IMAGENET_CLASSES.indexOf('container'),
+  
+  // Medical-related objects
+  IMAGENET_CLASSES.indexOf('medicine_chest'), // if exists
+].filter(index => index !== -1)); // Remove any labels that don't exist
 
-// Pharmaceutical-related terms for text-based detection
+// Helper function to check if a class index corresponds to pharmaceutical-relevant objects
+export function isPharmaceuticalClass(classIndex: number): boolean {
+  return PHARMACEUTICAL_CLASS_INDICES.has(classIndex);
+}
+
+// Enhanced pharmaceutical-related terms for text-based detection
 export const PHARMACEUTICAL_TERMS = [
-  'pill', 'tablet', 'capsule', 'medicine', 'drug', 'pharmaceutical', 'bottle', 'container',
-  'package', 'box', 'blister', 'pack', 'vial', 'ampoule', 'syringe', 'inhaler', 'spray',
-  'ointment', 'cream', 'gel', 'liquid', 'suspension', 'syrup', 'drops', 'patch', 'suppository',
-  'medication', 'prescription', 'over-the-counter', 'otc', 'pain', 'relief', 'fever', 'reducer',
-  'antibiotic', 'antihistamine', 'decongestant', 'mucolytic', 'effective', 'gentle', 'strong',
-  'easy', 'swallow', 'film-coated', 'coated', 'tablets', 'take', 'dose', 'dosage', 'directions',
-  'instructions', 'use', 'store', 'storage', 'temperature', 'refrigerate', 'keep', 'cool', 'dry',
-  'place', 'away', 'children', 'adults', 'consult', 'doctor'
+  // Drug names and types
+  'pill', 'tablet', 'capsule', 'medicine', 'drug', 'pharmaceutical', 'medication', 'prescription',
+  'over-the-counter', 'otc', 'antibiotic', 'antihistamine', 'decongestant', 'mucolytic', 'analgesic',
+  'anti-inflammatory', 'antipyretic', 'expectorant', 'cough', 'cold', 'flu', 'fever', 'pain', 'relief',
+  
+  // Containers and packaging
+  'bottle', 'container', 'package', 'box', 'blister', 'pack', 'vial', 'ampoule', 'syringe', 'inhaler',
+  'spray', 'ointment', 'cream', 'gel', 'liquid', 'suspension', 'syrup', 'drops', 'patch', 'suppository',
+  
+  // Dosage and administration
+  'mg', 'mcg', 'g', 'ml', 'tablet', 'capsule', 'oral', 'take', 'dose', 'dosage', 'directions',
+  'instructions', 'use', 'swallow', 'film-coated', 'coated', 'tablets', 'effective', 'gentle', 'strong',
+  'easy', 'fast-acting', 'extended-release', 'sustained-release',
+  
+  // Storage and safety
+  'store', 'storage', 'temperature', 'refrigerate', 'keep', 'cool', 'dry', 'place', 'away', 'children',
+  'adults', 'consult', 'doctor', 'pharmacist', 'healthcare', 'professional',
+  
+  // Common drug names
+  'paracetamol', 'acetaminophen', 'ibuprofen', 'amoxicillin', 'aspirin', 'codeine', 'morphine',
+  'tylenol', 'panadol', 'advil', 'motrin', 'nurofen', 'amoxil', 'trimox', 'xyzal', 'levocet', 'cetirizine',
+  'mucosolvan', 'ambrohexal', 'sudafed', 'neo-synephrine', 'sycold', 'combination',
+  
+  // Manufacturer names
+  'gsk', 'pfizer', 'johnson', 'bayer', 'sandoz', 'teva', 'generic', 'novartis', 'merck', 'astrazeneca',
+  'manufacturer', 'producer', 'pharmaceuticals', 'ltd', 'inc', 'corp', 'company',
+  
+  // Regulatory and safety terms
+  'exp', 'expiry', 'expires', 'expiration', 'batch', 'lot', 'serial', 'barcode', 'qr', 'code',
+  'approved', 'fda', 'regulatory', 'safety', 'warning', 'caution', 'side', 'effects', 'interactions'
 ];

@@ -1,0 +1,32 @@
+{
+  "timestamp": "2025-08-16T19:34:00.124Z",
+  "summary": {
+    "nativeAddon": "FAIL",
+    "modelLoading": "FAIL",
+    "inference": "FAIL",
+    "performance": "FAIL"
+  },
+  "details": {
+    "nativeAddon": {
+      "success": false,
+      "error": "The Node.js native addon module (tfjs_binding.node) can not be found at path: /Users/abba/Desktop/shield-drug/node_modules/.pnpm/@tensorflow+tfjs-node@4.22.0_seedrandom@3.0.5/node_modules/@tensorflow/tfjs-node/lib/napi-v8/tfjs_binding.node. \nPlease run command 'npm rebuild @tensorflow/tfjs-node --build-addon-from-source' to rebuild the native addon module. \nIf you have problem with building the addon module, please check https://github.com/tensorflow/tfjs/blob/master/tfjs-node/WINDOWS_TROUBLESHOOTING.md or file an issue."
+    },
+    "modelLoading": {
+      "success": false,
+      "error": "Cannot find package '@/lib' imported from /Users/abba/Desktop/shield-drug/src/services/aiDrugAnalysis.ts\nDid you mean to import \"file:///Users/abba/Desktop/shield-drug/src/lib/ocr-service.ts\"?"
+    },
+    "inference": {
+      "success": false,
+      "error": "The Node.js native addon module (tfjs_binding.node) can not be found at path: /Users/abba/Desktop/shield-drug/node_modules/.pnpm/@tensorflow+tfjs-node@4.22.0_seedrandom@3.0.5/node_modules/@tensorflow/tfjs-node/lib/napi-v8/tfjs_binding.node. \nPlease run command 'npm rebuild @tensorflow/tfjs-node --build-addon-from-source' to rebuild the native addon module. \nIf you have problem with building the addon module, please check https://github.com/tensorflow/tfjs/blob/master/tfjs-node/WINDOWS_TROUBLESHOOTING.md or file an issue."
+    },
+    "performance": {
+      "success": false,
+      "error": "The Node.js native addon module (tfjs_binding.node) can not be found at path: /Users/abba/Desktop/shield-drug/node_modules/.pnpm/@tensorflow+tfjs-node@4.22.0_seedrandom@3.0.5/node_modules/@tensorflow/tfjs-node/lib/napi-v8/tfjs_binding.node. \nPlease run command 'npm rebuild @tensorflow/tfjs-node --build-addon-from-source' to rebuild the native addon module. \nIf you have problem with building the addon module, please check https://github.com/tensorflow/tfjs/blob/master/tfjs-node/WINDOWS_TROUBLESHOOTING.md or file an issue."
+    }
+  },
+  "recommendations": [
+    "Fix TensorFlow.js native addon installation",
+    "Check model URLs and network connectivity",
+    "Verify model compatibility and tensor operations"
+  ]
+}

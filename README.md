@@ -75,9 +75,32 @@ DrugShield is a comprehensive solution that addresses the critical issue of coun
 ## 🚀 Getting Started
 
 ### Prerequisites
+
+#### System Requirements
 - Node.js 18+ and pnpm
 - Modern web browser
 - Mobile device for testing (optional)
+
+#### Build Tools for TensorFlow.js (Required for AI Features)
+Depending on your operating system, you'll need the following build tools for TensorFlow.js native addon compilation:
+
+**Windows:**
+- Python 3.x
+- Visual Studio Build Tools
+- Windows SDK
+
+**macOS:**
+- Xcode Command Line Tools
+```bash
+xcode-select --install
+```
+
+**Linux:**
+- build-essential
+- python3-dev
+```bash
+sudo apt-get install build-essential python3-dev
+```
 
 ### Installation
 
@@ -103,8 +126,67 @@ DrugShield is a comprehensive solution that addresses the critical issue of coun
    pnpm dev
    ```
 
-5. **Open your browser**
+5. **Test AI models (optional but recommended)**
+   ```bash
+   node scripts/test-ai-models.js
+   ```
+
+6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
+
+### TensorFlow.js Setup & Troubleshooting
+
+#### AI Model Configuration
+The platform uses TensorFlow.js with MobileNet v2 and COCO-SSD models for drug recognition. The system includes configurable fallback mechanisms:
+
+1. **COCO-SSD Object Detection** (Primary) - Detects pharmaceutical objects
+2. **MobileNet v2 Classification** (Secondary) - Classifies drug types
+3. **Heuristic Analysis** (Fallback) - Lightweight pattern matching
+
+**Fallback Mode Options:**
+- `auto` (default): COCO-SSD → MobileNet → Heuristic
+- `coco`: COCO-SSD → MobileNet → Heuristic
+- `mobile`: MobileNet → COCO-SSD → Heuristic
+- `heuristic`: Heuristic only
+
+#### Common TensorFlow.js Issues
+
+**Native Addon Compilation Failed:**
+```bash
+# Rebuild the native addon manually
+npm rebuild @tensorflow/tfjs-node --build-addon-from-source
+
+# If that fails, try installing build tools first
+# Windows: Install Visual Studio Build Tools
+# macOS: xcode-select --install
+# Linux: sudo apt-get install build-essential python3-dev
+```
+
+**Model Loading Timeout:**
+- First model loading may take 30-60 seconds due to download
+- Subsequent loads will be faster due to caching
+- Check internet connectivity for TensorFlow Hub access
+
+**Memory Issues:**
+- Ensure sufficient RAM (recommended: 4GB+)
+- Models are loaded on-demand to conserve memory
+- Consider using smaller models for low-memory environments
+
+**Node.js Version Compatibility:**
+- Recommended: Node.js 16.x or 18.x
+- TensorFlow.js may have issues with Node.js 20+ in some environments
+
+#### Testing AI Models
+Run the comprehensive AI model test suite:
+```bash
+node scripts/test-ai-models.js
+```
+
+This will test:
+- TensorFlow.js native addon functionality
+- Model loading and initialization
+- Inference performance
+- Provide specific error diagnostics and troubleshooting suggestions
 
 ### Environment Setup
 
@@ -118,6 +200,13 @@ AVALANCHE_CONTRACT_ADDRESS=your_deployed_contract_address
 
 # AI/ML Services
 AI_SERVICE_KEY=your_ai_service_key
+
+# TensorFlow.js Model Configuration (Optional)
+MOBILENET_MODEL_URL=https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/2
+TENSORFLOW_BACKEND=node
+AI_MODEL_TIMEOUT=30000
+AI_FALLBACK_MODE=auto
+AI_API_LEGACY_FORMAT=false
 
 # Database Configuration
 MONGODB_URI=your_mongodb_connection_string
