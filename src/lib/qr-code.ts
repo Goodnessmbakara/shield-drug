@@ -24,9 +24,25 @@ export interface QRCodeData {
 
 export class QRCodeService {
   private baseUrl: string;
+  private static generatedIds = new Set<string>(); // In-memory cache for current session
 
   constructor() {
     this.baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+  }
+
+  /**
+   * Check if QR code ID already exists in database
+   */
+  private async isQRCodeIdUnique(qrCodeId: string): Promise<boolean> {
+    try {
+      const { default: QRCode } = await import('./models/QRCode');
+      const existingQRCode = await QRCode.findOne({ qrCodeId });
+      return !existingQRCode;
+    } catch (error) {
+      console.error('Error checking QR code uniqueness:', error);
+      // If we can't check, assume it's unique to avoid blocking generation
+      return true;
+    }
   }
 
   /**
@@ -46,7 +62,27 @@ export class QRCodeService {
   ): Promise<QRCodeData> {
     try {
       // Generate unique QR code ID with improved uniqueness
-      const qrCodeId = this.generateUniqueQRCodeId(uploadId, drugCode, serialNumber);
+      let qrCodeId: string;
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      do {
+        qrCodeId = this.generateUniqueQRCodeId(uploadId, drugCode, serialNumber);
+        attempts++;
+        
+        // Check if this ID already exists
+        const isUnique = await this.isQRCodeIdUnique(qrCodeId);
+        if (isUnique) {
+          break;
+        }
+        
+        if (attempts >= maxAttempts) {
+          throw new Error(`Failed to generate unique QR code ID after ${maxAttempts} attempts`);
+        }
+        
+        // Add a small delay before retrying
+        await new Promise(resolve => setTimeout(resolve, 10));
+      } while (true);
       
       // Record QR code on blockchain
       console.log('🔗 Recording QR code on blockchain...');
@@ -101,21 +137,35 @@ export class QRCodeService {
    * Generate unique QR code ID with improved uniqueness
    */
   private generateUniqueQRCodeId(uploadId: string, drugCode: string, serialNumber: number): string {
-    // Use crypto.randomUUID for guaranteed uniqueness
-    const uuid = crypto.randomUUID();
-    const timestamp = Date.now();
-    
-    // Create a unique string combining all elements
-    const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${uuid}`;
-    
-    // Use SHA-256 hash for better distribution and uniqueness
-    const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
-    
-    // Take first 8 characters and convert to uppercase for readability
-    const shortHash = hash.substring(0, 8).toUpperCase();
-    
-    // Add a prefix to make it more identifiable
-    return `QR-${shortHash}`;
+    try {
+      // Use crypto.randomUUID for guaranteed uniqueness
+      const uuid = crypto.randomUUID();
+      const timestamp = Date.now();
+      const processId = process.pid || Math.floor(Math.random() * 10000);
+      
+      // Create a unique string combining all elements
+      const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${processId}-${uuid}`;
+      
+      // Use SHA-256 hash for better distribution and uniqueness
+      const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
+      
+      // Take first 8 characters and convert to uppercase for readability
+      const shortHash = hash.substring(0, 8).toUpperCase();
+      
+      // Add a prefix to make it more identifiable
+      const qrCodeId = `QR-${shortHash}`;
+      
+      // Validate the generated ID
+      if (!qrCodeId || qrCodeId.length < 5) {
+        throw new Error('Generated QR Code ID is invalid');
+      }
+      
+      return qrCodeId;
+    } catch (error) {
+      console.error('Error generating unique QR code ID:', error);
+      // Fallback to a simpler but still unique method
+      return this.generateQRCodeIdFallback(uploadId, drugCode, serialNumber);
+    }
   }
 
   /**
@@ -124,13 +174,32 @@ export class QRCodeService {
   private generateQRCodeIdFallback(uploadId: string, drugCode: string, serialNumber: number): string {
     const timestamp = Date.now();
     const randomPart = Math.random().toString(36).substring(2, 10);
-    const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${randomPart}`;
+    const processId = process.pid || Math.floor(Math.random() * 10000);
+    const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${processId}-${randomPart}`;
     
     // Use SHA-256 hash
     const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
     const shortHash = hash.substring(0, 8).toUpperCase();
     
     return `QR-${shortHash}`;
+  }
+
+  /**
+   * Reserve a QR code ID to prevent collisions during batch generation
+   */
+  private reserveQRCodeId(qrCodeId: string): boolean {
+    if (QRCodeService.generatedIds.has(qrCodeId)) {
+      return false;
+    }
+    QRCodeService.generatedIds.add(qrCodeId);
+    return true;
+  }
+
+  /**
+   * Release a reserved QR code ID
+   */
+  private releaseQRCodeId(qrCodeId: string): void {
+    QRCodeService.generatedIds.delete(qrCodeId);
   }
 
   /**

@@ -1,7 +1,22 @@
 import * as tf from '@tensorflow/tfjs';
-import { recognizePharmaceuticalText, calculatePharmaceuticalConfidence } from '@/lib/ocr-service';
+import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import { recognizePharmaceuticalText } from '@/lib/ocr-service';
 import { preprocessForOCR, assessImageQuality } from '@/lib/image-preprocessing';
-import { validatePharmaceuticalText, extractDrugInfo, correctOCRErrors } from '@/lib/pharmaceutical-patterns';
+import { validatePharmaceuticalText, extractDrugInfo, correctOCRErrors, calculatePharmaceuticalConfidence } from '@/lib/pharmaceutical-patterns';
+import { IMAGENET_CLASSES, PHARMACEUTICAL_CLASS_INDICES, PHARMACEUTICAL_TERMS } from '@/lib/imagenet-labels';
+import { 
+  ObjectDetection, 
+  processCocoDetections, 
+  filterLowConfidenceDetections, 
+  getTopPharmaceuticalDetections,
+  DEFAULT_MIN_DETECTION_SCORE,
+  MAX_RELEVANT_DETECTIONS
+} from '@/lib/coco-pharmaceutical-mapping';
+import { DrugAnalysisResult, ImageClassificationResult } from '@/lib/types';
+
+// MobileNet v3 model configuration
+const MOBILENET_V3_URL = 'https://tfhub.dev/google/tfjs-model/imagenet/mobilenet_v3_small_100_224/classification/5';
+const NORMALIZE_TO_MINUS_ONE_TO_ONE = true; // MobileNet v3 expects [-1,1] range based on TF Hub docs
 
 // Enhanced drug database with comprehensive patterns
 const DRUG_DATABASE = {
@@ -80,38 +95,116 @@ const NON_DRUG_PATTERNS = {
   backgrounds: ['background', 'wall', 'surface', 'texture']
 };
 
-interface DrugAnalysisResult {
-  drugName: string;
-  strength: string;
-  confidence: number;
-  status: 'authentic' | 'suspicious' | 'counterfeit' | 'not_a_drug';
-  issues: string[];
-  extractedText: string[];
-  visualFeatures: {
-    color: string;
-    shape: string;
-    markings: string[];
-  };
-  isDrugImage: boolean;
-  imageClassification: {
-    isPharmaceutical: boolean;
-    detectedObjects: string[];
-    confidence: number;
-  };
-}
+
 
 class AIDrugAnalysisService {
   private model: tf.LayersModel | null = null;
   private isInitialized = false;
+  
+  // MobileNet v3 model cache and status
+  private static mobileNetModel: tf.GraphModel | null = null;
+  private modelAvailable = false;
+  
+  // COCO-SSD model cache and status
+  private static cocoSsdModel: cocoSsd.ObjectDetection | null = null;
+  private cocoSsdAvailable = false;
 
   async initialize(): Promise<void> {
     try {
       await tf.ready();
+      
+      // Load MobileNet v3 model
+      await this.loadMobileNetModel();
+      
+      // Load COCO-SSD model
+      await this.loadCocoSsdModel();
+      
       this.isInitialized = true;
       console.log('AI Drug Analysis Service initialized successfully');
     } catch (error) {
       console.error('Failed to initialize AI model:', error);
       this.isInitialized = true;
+    }
+  }
+
+  private async loadMobileNetModel(): Promise<void> {
+    try {
+      // Check if model is already loaded
+      if (AIDrugAnalysisService.mobileNetModel) {
+        this.modelAvailable = true;
+        console.log('MobileNet v3 model already loaded from cache');
+        return;
+      }
+
+      console.log('Loading MobileNet v3 model from TensorFlow Hub...');
+      
+      // Load model from TF Hub
+      AIDrugAnalysisService.mobileNetModel = await tf.loadGraphModel(MOBILENET_V3_URL, {
+        fromTFHub: true
+      });
+
+      // Warm up the model with a dummy tensor - compute synchronously, dispose explicitly
+      const dummyTensor = tf.zeros([1, 224, 224, 3]);
+      const warmupResult = AIDrugAnalysisService.mobileNetModel!.predict(dummyTensor) as tf.Tensor;
+      await warmupResult.data();
+      dummyTensor.dispose();
+      warmupResult.dispose();
+
+      this.modelAvailable = true;
+      console.log('MobileNet v3 model loaded and warmed up successfully');
+      
+    } catch (error) {
+      console.error('Failed to load MobileNet v3 model:', error);
+      this.modelAvailable = false;
+      // Don't throw error - service will use fallback methods
+    }
+  }
+
+  private async loadCocoSsdModel(): Promise<void> {
+    try {
+      // Check if model is already loaded
+      if (AIDrugAnalysisService.cocoSsdModel) {
+        this.cocoSsdAvailable = true;
+        console.log('COCO-SSD model already loaded from cache');
+        return;
+      }
+
+      console.log('Loading COCO-SSD model...');
+      
+      // Load COCO-SSD model with lite_mobilenet_v2 base for speed
+      AIDrugAnalysisService.cocoSsdModel = await cocoSsd.load({
+        base: 'lite_mobilenet_v2'
+      });
+
+      // Warm up the model with environment-appropriate input
+      const isBrowser = typeof window !== 'undefined';
+      
+      if (isBrowser && typeof document !== 'undefined') {
+        // Browser warm-up with canvas (SSR-safe)
+        const dummyCanvas = document.createElement('canvas');
+        dummyCanvas.width = 224;
+        dummyCanvas.height = 224;
+        const ctx = dummyCanvas.getContext('2d')!;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 224, 224);
+        
+        const warmupResult = await AIDrugAnalysisService.cocoSsdModel.detect(dummyCanvas);
+        console.log('COCO-SSD browser warmup completed with', warmupResult.length, 'detections');
+      } else {
+        // Node.js warm-up with Tensor3D
+        const dummyTensor: tf.Tensor3D = tf.zeros([224, 224, 3]) as tf.Tensor3D;
+        const warmupResult = await AIDrugAnalysisService.cocoSsdModel.detect(dummyTensor);
+        console.log('COCO-SSD Node.js warmup completed with', warmupResult.length, 'detections');
+        dummyTensor.dispose();
+      }
+
+      this.cocoSsdAvailable = true;
+      console.log('COCO-SSD model loaded and warmed up successfully');
+      
+    } catch (error) {
+      console.error('Failed to load COCO-SSD model:', error);
+      this.cocoSsdAvailable = false;
+      // Don't throw error - service will use fallback methods
     }
   }
 
@@ -142,11 +235,12 @@ class AIDrugAnalysisService {
             `Detected objects: ${imageClassification.detectedObjects.join(', ')}`
           ],
           extractedText: [],
-          visualFeatures: {
-            color: 'unknown',
-            shape: 'unknown',
-            markings: []
-          },
+                  visualFeatures: {
+          color: 'unknown',
+          shape: 'unknown',
+          markings: [],
+          objectDetections: imageClassification.objectDetections ?? []
+        },
           isDrugImage: false,
           imageClassification
         };
@@ -202,7 +296,8 @@ class AIDrugAnalysisService {
         visualFeatures: {
           color: visualFeatures.dominantColor,
           shape: visualFeatures.shape,
-          markings: visualFeatures.detectedMarkings
+          markings: visualFeatures.detectedMarkings,
+          objectDetections: imageClassification.objectDetections ?? []
         },
         isDrugImage: true,
         imageClassification
@@ -214,32 +309,208 @@ class AIDrugAnalysisService {
     }
   }
 
-  private async classifyImage(imageData: string): Promise<{
-    isPharmaceutical: boolean;
-    detectedObjects: string[];
-    confidence: number;
-  }> {
+  private async classifyImage(imageData: string): Promise<ImageClassificationResult> {
     try {
+      // Use COCO-SSD if available, then MobileNet v3, then fallback to heuristic analysis
+      if (this.cocoSsdAvailable && AIDrugAnalysisService.cocoSsdModel) {
+        return await this.classifyWithCocoSsd(imageData);
+      } else if (this.modelAvailable && AIDrugAnalysisService.mobileNetModel) {
+        return await this.classifyWithMobileNet(imageData);
+      } else {
+        return await this.classifyWithHeuristics(imageData);
+      }
+    } catch (error) {
+      console.error('Image classification failed:', error);
+      // Fallback to heuristic classification
+      return await this.classifyWithHeuristics(imageData);
+    }
+  }
+
+  private async classifyWithCocoSsd(imageData: string): Promise<ImageClassificationResult> {
+    try {
+      console.log('🔍 Using COCO-SSD for object detection and classification...');
+      
+      // Convert base64 to appropriate input for COCO-SSD
+      const isBrowser = typeof window !== 'undefined';
+      
+      let rawDetections: any[];
+      if (isBrowser && typeof document !== 'undefined') {
+        // Browser: use canvas (strictly browser-only)
+        const canvas = await this.base64ToCanvas(imageData);
+        rawDetections = await AIDrugAnalysisService.cocoSsdModel!.detect(canvas, MAX_RELEVANT_DETECTIONS, DEFAULT_MIN_DETECTION_SCORE);
+      } else {
+        // Node.js: use Tensor3D (no DOM reliance)
+        const tensor = await this.base64ToTensor3D(imageData);
+        rawDetections = await AIDrugAnalysisService.cocoSsdModel!.detect(tensor, MAX_RELEVANT_DETECTIONS, DEFAULT_MIN_DETECTION_SCORE);
+        tensor.dispose();
+      }
+      
+      // Process and filter detections
+      const allDetections = processCocoDetections(rawDetections);
+      const filteredDetections = filterLowConfidenceDetections(allDetections, DEFAULT_MIN_DETECTION_SCORE);
+      const topDetections = getTopPharmaceuticalDetections(filteredDetections, MAX_RELEVANT_DETECTIONS);
+      
+      // Guard against empty detections
+      if (topDetections.length === 0) {
+        console.log('No COCO-SSD detections found, falling back to MobileNet classification');
+        return await this.classifyWithMobileNet(imageData);
+      }
+      
+      // Extract pharmaceutical relevance
+      const pharmaceuticalDetections = topDetections.filter(d => d.isPharmaceuticalRelevant);
+      const nonPharmaceuticalDetections = topDetections.filter(d => !d.isPharmaceuticalRelevant);
+      
+      // Calculate pharmaceutical confidence based on detected objects
+      let pharmaceuticalScore = 0;
+      const detectedObjects: string[] = [];
+      
+      for (const detection of pharmaceuticalDetections) {
+        pharmaceuticalScore += detection.confidence * 0.8; // Weight by confidence
+        detectedObjects.push(detection.class);
+      }
+      
+      // Add some weight for non-pharmaceutical objects (context)
+      for (const detection of nonPharmaceuticalDetections) {
+        pharmaceuticalScore += detection.confidence * 0.2; // Lower weight for context
+        detectedObjects.push(detection.class);
+      }
+      
+      // Determine if image is pharmaceutical based on detected objects
+      // Require either pharmaceutical detections OR high confidence score
+      const isPharmaceutical = pharmaceuticalDetections.length > 0 || pharmaceuticalScore > 0.5;
+      const confidence = Math.min(pharmaceuticalScore, 1.0);
+      
+      console.log('📊 COCO-SSD classification result:', {
+        isPharmaceutical,
+        confidence,
+        pharmaceuticalScore,
+        pharmaceuticalDetections: pharmaceuticalDetections.length,
+        nonPharmaceuticalDetections: nonPharmaceuticalDetections.length,
+        totalDetections: topDetections.length,
+        detectedObjects
+      });
+      
+      return {
+        isPharmaceutical,
+        detectedObjects,
+        confidence,
+        objectDetections: topDetections,
+        detectionMethod: 'coco-ssd',
+        boundingBoxCount: topDetections.length
+      };
+      
+    } catch (error) {
+      console.error('COCO-SSD classification failed:', error);
+      // Fallback to MobileNet classification
+      return await this.classifyWithMobileNet(imageData);
+    }
+  }
+
+  private async classifyWithMobileNet(imageData: string): Promise<ImageClassificationResult> {
+    try {
+      console.log('🔍 Using MobileNet v3 for image classification...');
+      
+      // Preprocess image for MobileNet v3
+      const img = await this.preprocessImage(imageData);
+      
+      // Use tf.tidy for safe tensor disposal during inference
+      const { predictionData, batchedImg, predictions, probs } = await tf.tidy(() => {
+        // Add batch dimension
+        const batchedImg = img.expandDims(0);
+        
+        // Run inference
+        const predictions = AIDrugAnalysisService.mobileNetModel!.predict(batchedImg) as tf.Tensor;
+        
+        // Apply softmax to get probabilities
+        const probs = tf.softmax(predictions);
+        
+        // Get prediction data synchronously
+        const predictionData = probs.dataSync();
+        
+        return { predictionData, batchedImg, predictions, probs };
+      });
+      
+      // Get top-k predictions
+      const topK = 5;
+      const topIndices = this.getTopKIndices(predictionData, topK);
+      
+      // Extract pharmaceutical relevance with real labels
+      const pharmaceuticalObjects: string[] = [];
+      const detectedObjects: string[] = [];
+      let pharmaceuticalScore = 0;
+      
+      for (let i = 0; i < topK; i++) {
+        const index = topIndices[i];
+        const confidence = predictionData[index];
+        
+        // Get the actual class label
+        const label = this.getImageNetClassLabel(index);
+        if (label) {
+          detectedObjects.push(label);
+          
+          // Check if this class is pharmaceutical-related
+          const isPharmaceutical = this.isPharmaceuticalClass(index);
+          
+          if (isPharmaceutical) {
+            pharmaceuticalObjects.push(label);
+            pharmaceuticalScore += confidence;
+          }
+        }
+      }
+      
+      // Calculate overall pharmaceutical confidence
+      const isPharmaceutical = pharmaceuticalScore > 0.1; // Threshold for pharmaceutical detection
+      const confidence = Math.min(pharmaceuticalScore, 1.0);
+      
+      // Clean up input tensor (tf.tidy handled the rest)
+      img.dispose();
+      
+      const result: ImageClassificationResult = {
+        isPharmaceutical,
+        detectedObjects: pharmaceuticalObjects.length > 0 ? pharmaceuticalObjects : detectedObjects,
+        confidence,
+        objectDetections: [], // MobileNet doesn't provide bounding boxes
+        detectionMethod: 'mobilenet',
+        boundingBoxCount: 0
+      };
+      
+      console.log('📊 MobileNet v3 classification result:', result);
+      
+      return result;
+      
+    } catch (error) {
+      console.error('MobileNet v3 classification failed:', error);
+      // Fallback to heuristic classification
+      return await this.classifyWithHeuristics(imageData);
+    }
+  }
+
+  private async classifyWithHeuristics(imageData: string): Promise<ImageClassificationResult> {
+    try {
+      console.log('🔍 Using lightweight heuristic analysis for image classification...');
+      
       // Convert base64 to tensor for analysis
       const img = await this.preprocessImage(imageData);
       
-      // Analyze image characteristics
+      // Analyze image characteristics (lightweight analysis only)
       const colorAnalysis = await this.analyzeColors(img);
       const shapeAnalysis = this.analyzeShapes(img);
-      const textAnalysis = await this.extractTextFromImage(imageData);
       
-      // Check for pharmaceutical indicators
-      const pharmaceuticalIndicators = this.checkPharmaceuticalIndicators(
+      // Use lightweight text presence detection instead of full OCR
+      const hasTextContent = await this.detectTextPresence(imageData);
+      
+      // Check for pharmaceutical indicators using lightweight heuristics
+      const pharmaceuticalIndicators = this.checkPharmaceuticalIndicatorsLightweight(
         colorAnalysis, 
         shapeAnalysis, 
-        textAnalysis
+        hasTextContent
       );
       
       // Check for non-drug indicators
-      const nonDrugIndicators = this.checkNonDrugIndicators(
+      const nonDrugIndicators = this.checkNonDrugIndicatorsLightweight(
         colorAnalysis, 
         shapeAnalysis, 
-        textAnalysis
+        hasTextContent
       );
       
       img.dispose();
@@ -248,7 +519,7 @@ class AIDrugAnalysisService {
       const isPharmaceutical = pharmaceuticalIndicators.score > 0.05 && nonDrugIndicators.score < 0.9;
       const confidence = Math.max(pharmaceuticalIndicators.score, 1 - nonDrugIndicators.score);
       
-      console.log('🔍 Classification analysis:', {
+      console.log('🔍 Lightweight heuristic classification analysis:', {
         pharmaceuticalScore: pharmaceuticalIndicators.score,
         nonDrugScore: nonDrugIndicators.score,
         isPharmaceutical,
@@ -259,17 +530,218 @@ class AIDrugAnalysisService {
       return {
         isPharmaceutical,
         detectedObjects: [...pharmaceuticalIndicators.objects, ...nonDrugIndicators.objects],
-        confidence
+        confidence,
+        objectDetections: [], // Heuristics don't provide bounding boxes
+        detectionMethod: 'heuristic',
+        boundingBoxCount: 0
       };
       
     } catch (error) {
-      console.error('Image classification failed:', error);
+      console.error('Heuristic classification failed:', error);
       return {
         isPharmaceutical: false,
         detectedObjects: ['classification_failed'],
-        confidence: 0
+        confidence: 0,
+        objectDetections: [],
+        detectionMethod: 'heuristic',
+        boundingBoxCount: 0
       };
     }
+  }
+
+  private async base64ToCanvas(imageData: string): Promise<HTMLCanvasElement> {
+    // SSR guard - ensure all browser APIs are available
+    if (typeof window === 'undefined' || typeof document === 'undefined' || typeof Image === 'undefined') {
+      throw new Error('Canvas creation not available in SSR environment');
+    }
+    
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d')!;
+        
+        // Set canvas size to match image
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Draw image to canvas
+        ctx.drawImage(img, 0, 0);
+        
+        resolve(canvas);
+      };
+      img.src = imageData;
+    });
+  }
+
+  private async base64ToTensor3D(imageData: string): Promise<tf.Tensor3D> {
+    const isBrowser = typeof window !== 'undefined';
+    
+    if (isBrowser) {
+      // Browser: convert canvas to tensor
+      const canvas = await this.base64ToCanvas(imageData);
+      const tensor = tf.browser.fromPixels(canvas);
+      return tensor as tf.Tensor3D;
+    } else {
+      // Node.js: use tfjs-node for base64 decoding
+      try {
+        const tfnode = require('@tensorflow/tfjs-node');
+        
+        // Remove data URL prefix if present
+        const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Use tf.tidy for safe tensor disposal
+        return tf.tidy(() => {
+          // Decode image from buffer with explicit typing
+          const imageTensor = tfnode.node.decodeImage(buffer, 3) as tf.Tensor3D;
+          
+          // Note: Avoid resizing to preserve original bbox coordinates
+          // COCO-SSD will handle input size variations internally
+          // Bbox coordinates will be relative to original image dimensions
+          return imageTensor;
+        });
+        
+      } catch (error) {
+        console.error('Node.js image preprocessing failed:', error);
+        // Return a placeholder tensor with proper shape
+        return tf.zeros([224, 224, 3]) as tf.Tensor3D;
+      }
+    }
+  }
+
+  private async detectTextPresence(imageData: string): Promise<boolean> {
+    try {
+      // Lightweight text presence detection without full OCR
+      // This is a simplified check that looks for high-contrast areas that might contain text
+      const img = await this.preprocessImage(imageData);
+      const data = await img.data();
+      
+      // Simple edge detection to identify potential text regions
+      let edgeCount = 0;
+      const dataArray = Array.from(data);
+      for (let i = 0; i < dataArray.length; i += 3) {
+        const r = dataArray[i];
+        const g = dataArray[i + 1];
+        const b = dataArray[i + 2];
+        const brightness = (r + g + b) / 3;
+        
+        // Count pixels with significant brightness variation (potential text)
+        if (brightness < 0.3 || brightness > 0.7) {
+          edgeCount++;
+        }
+      }
+      
+      img.dispose();
+      
+      // If more than 20% of pixels show high contrast, likely contains text
+      return edgeCount > (data.length / 3) * 0.2;
+      
+    } catch (error) {
+      console.error('Text presence detection failed:', error);
+      return false;
+    }
+  }
+
+  private checkPharmaceuticalIndicatorsLightweight(colorAnalysis: any, shapeAnalysis: any, hasTextContent: boolean): {
+    score: number;
+    objects: string[];
+  } {
+    let score = 0;
+    const objects: string[] = [];
+    
+    // Check for pharmaceutical colors - more inclusive
+    const pharmaColors = ['white', 'off-white', 'cream', 'pink', 'yellow', 'orange', 'blue', 'light-blue', 'gray'];
+    if (pharmaColors.includes(colorAnalysis.dominantColor)) {
+      score += 0.2;
+      objects.push('pharmaceutical_color');
+    }
+    
+    // Check for pill/tablet shapes - more inclusive
+    const pharmaShapes = ['round', 'oval', 'capsule', 'square', 'rectangular'];
+    if (pharmaShapes.includes(shapeAnalysis.primaryShape)) {
+      score += 0.3;
+      objects.push('pharmaceutical_shape');
+    }
+    
+    // Check for text presence (likely a drug package)
+    if (hasTextContent) {
+      score += 0.3;
+      objects.push('has_text_content');
+    }
+    
+    // Check for uniform, clean appearance (typical of pharmaceutical products)
+    if (colorAnalysis.distribution && Object.keys(colorAnalysis.distribution).length <= 5) {
+      score += 0.1;
+      objects.push('uniform_appearance');
+    }
+    
+    console.log('🏥 Lightweight pharmaceutical score:', score);
+    return { score: Math.min(score, 1), objects };
+  }
+
+  private checkNonDrugIndicatorsLightweight(colorAnalysis: any, shapeAnalysis: any, hasTextContent: boolean): {
+    score: number;
+    objects: string[];
+  } {
+    let score = 0;
+    const objects: string[] = [];
+    
+    // Check for non-pharmaceutical colors - but be more lenient
+    const nonPharmaColors = ['black', 'green', 'purple', 'multicolor', 'rainbow'];
+    if (nonPharmaColors.includes(colorAnalysis.dominantColor)) {
+      score += 0.1; // Reduced weight
+      objects.push('non_pharmaceutical_color');
+    }
+    
+    // Check for non-pharmaceutical shapes - but be more lenient
+    const nonPharmaShapes = ['triangular', 'irregular', 'complex'];
+    if (nonPharmaShapes.includes(shapeAnalysis.primaryShape)) {
+      score += 0.1; // Reduced weight
+      objects.push('non_pharmaceutical_shape');
+    }
+    
+    // Check for very little text (likely not a drug package) - but be more lenient
+    if (!hasTextContent) {
+      score += 0.3; // Only penalize if no text at all
+      objects.push('no_text');
+    }
+    
+    console.log('🚫 Lightweight non-drug score:', score);
+    return { score: Math.min(score, 1), objects };
+  }
+
+  private getTopKIndices(array: ArrayLike<number>, k: number): number[] {
+    const indices = Array.from({ length: array.length }, (_, i) => i);
+    return indices
+      .sort((a, b) => array[b] - array[a])
+      .slice(0, k);
+  }
+
+  private isPharmaceuticalClass(classIndex: number): boolean {
+    // First check the curated pharmaceutical class indices for fast lookup
+    if (PHARMACEUTICAL_CLASS_INDICES.has(classIndex)) {
+      return true;
+    }
+    
+    // Get the class label for this index
+    const classLabel = this.getImageNetClassLabel(classIndex);
+    if (!classLabel) {
+      return false;
+    }
+    
+    // Check if the class label contains pharmaceutical-related terms
+    const lowerLabel = classLabel.toLowerCase();
+    return PHARMACEUTICAL_TERMS.some(term => lowerLabel.includes(term));
+  }
+
+  private getImageNetClassLabel(classIndex: number): string {
+    // Add bounds checking to prevent runtime errors
+    if (classIndex < 0 || classIndex >= IMAGENET_CLASSES.length) {
+      return '';
+    }
+    
+    return IMAGENET_CLASSES[classIndex] || `class_${classIndex}`;
   }
 
   private checkPharmaceuticalIndicators(colorAnalysis: any, shapeAnalysis: any, textAnalysis: string[]): {
@@ -503,24 +975,124 @@ class AIDrugAnalysisService {
   }
 
   private async preprocessImage(imageData: string): Promise<tf.Tensor3D> {
+    // Environment detection for browser vs Node
+    if (typeof window === 'undefined') {
+      // Node.js environment
+      return this.preprocessImageNode(imageData);
+    } else {
+      // Browser environment
+      return this.preprocessImageBrowser(imageData);
+    }
+  }
+
+  private async preprocessImageBrowser(imageData: string): Promise<tf.Tensor3D> {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d')!;
         
+        // Maintain aspect ratio while resizing to 224x224
+        const aspectRatio = img.width / img.height;
+        let drawWidth = 224;
+        let drawHeight = 224;
+        let offsetX = 0;
+        let offsetY = 0;
+        
+        if (aspectRatio > 1) {
+          // Image is wider than tall
+          drawHeight = 224 / aspectRatio;
+          offsetY = (224 - drawHeight) / 2;
+        } else {
+          // Image is taller than wide
+          drawWidth = 224 * aspectRatio;
+          offsetX = (224 - drawWidth) / 2;
+        }
+        
         canvas.width = 224;
         canvas.height = 224;
-        ctx.drawImage(img, 0, 0, 224, 224);
         
-        const tensor = tf.browser.fromPixels(canvas)
-          .cast('float32')
-          .div(255.0);
+        // Fill with white background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 224, 224);
+        
+        // Draw image maintaining aspect ratio
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+        
+        // Convert to tensor and normalize for MobileNet v3
+        let tensor = tf.browser.fromPixels(canvas).cast('float32');
+        
+        // Apply normalization based on mode
+        if (NORMALIZE_TO_MINUS_ONE_TO_ONE) {
+          tensor = tensor.div(127.5).sub(1); // Convert from [0,255] to [-1,1] range
+        } else {
+          tensor = tensor.div(255); // Convert from [0,255] to [0,1] range
+        }
+        
+        // Runtime validation of normalization range
+        this.validateNormalizationRange(tensor);
         
         resolve(tensor as tf.Tensor3D);
       };
       img.src = imageData;
     });
+  }
+
+  private validateNormalizationRange(tensor: tf.Tensor): void {
+    const data = tensor.dataSync();
+    const dataArray = Array.from(data);
+    const min = Math.min(...dataArray);
+    const max = Math.max(...dataArray);
+    
+    if (NORMALIZE_TO_MINUS_ONE_TO_ONE) {
+      if (min < -1.1 || max > 1.1) {
+        console.warn(`Normalization range validation failed: min=${min}, max=${max}, expected [-1,1]`);
+      }
+    } else {
+      if (min < -0.1 || max > 1.1) {
+        console.warn(`Normalization range validation failed: min=${min}, max=${max}, expected [0,1]`);
+      }
+    }
+  }
+
+  private async preprocessImageNode(imageData: string): Promise<tf.Tensor3D> {
+    try {
+      // Remove data URL prefix if present
+      const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      // Use tfjs-node for image decoding and preprocessing
+      const tfnode = require('@tensorflow/tfjs-node');
+      
+      // Decode image from buffer
+      const imageTensor = tfnode.node.decodeImage(buffer, 3);
+      
+      // Resize to 224x224 maintaining aspect ratio
+      const resizedTensor = tf.image.resizeBilinear(imageTensor, [224, 224]);
+      
+      // Convert to float32 and normalize
+      let normalizedTensor = resizedTensor.cast('float32');
+      
+      if (NORMALIZE_TO_MINUS_ONE_TO_ONE) {
+        normalizedTensor = normalizedTensor.div(127.5).sub(1); // Convert from [0,255] to [-1,1] range
+      } else {
+        normalizedTensor = normalizedTensor.div(255); // Convert from [0,255] to [0,1] range
+      }
+      
+      // Runtime validation of normalization range
+      this.validateNormalizationRange(normalizedTensor);
+      
+      // Clean up intermediate tensors
+      imageTensor.dispose();
+      resizedTensor.dispose();
+      
+      return normalizedTensor as tf.Tensor3D;
+      
+    } catch (error) {
+      console.error('Node.js image preprocessing failed:', error);
+      // Return a placeholder tensor with proper shape
+      return tf.zeros([224, 224, 3]).cast('float32') as tf.Tensor3D;
+    }
   }
 
   private async extractVisualFeatures(imageTensor: tf.Tensor3D): Promise<any> {
@@ -542,10 +1114,21 @@ class AIDrugAnalysisService {
     const pixels = await imageTensor.data();
     const colorCounts: { [key: string]: number } = {};
     
-    for (let i = 0; i < pixels.length; i += 12) {
-      const r = Math.floor(pixels[i] * 255);
-      const g = Math.floor(pixels[i + 1] * 255);
-      const b = Math.floor(pixels[i + 2] * 255);
+    for (let i = 0; i < pixels.length; i += 3) {
+      // Convert from normalized range back to [0,255] for color analysis
+      let r, g, b;
+      
+      if (NORMALIZE_TO_MINUS_ONE_TO_ONE) {
+        // Convert from [-1,1] range back to [0,255]
+        r = Math.floor(((pixels[i] + 1) / 2) * 255);
+        g = Math.floor(((pixels[i + 1] + 1) / 2) * 255);
+        b = Math.floor(((pixels[i + 2] + 1) / 2) * 255);
+      } else {
+        // Convert from [0,1] range back to [0,255]
+        r = Math.floor(pixels[i] * 255);
+        g = Math.floor(pixels[i + 1] * 255);
+        b = Math.floor(pixels[i + 2] * 255);
+      }
       
       const colorCategory = this.categorizeColor(r, g, b);
       colorCounts[colorCategory] = (colorCounts[colorCategory] || 0) + 1;
@@ -810,13 +1393,17 @@ class AIDrugAnalysisService {
       visualFeatures: {
         color: 'unknown',
         shape: 'unknown',
-        markings: []
+        markings: [],
+        objectDetections: []
       },
       isDrugImage: false,
       imageClassification: {
         isPharmaceutical: false,
         detectedObjects: ['analysis_failed'],
-        confidence: 0
+        confidence: 0,
+        objectDetections: [],
+        detectionMethod: 'heuristic',
+        boundingBoxCount: 0
       }
     };
   }

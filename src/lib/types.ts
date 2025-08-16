@@ -214,3 +214,39 @@ export interface UnifiedCSVExport {
   authenticity_rate?: number;
   last_verified?: string;
 } 
+
+// Object Detection Types
+export interface ObjectDetection {
+  class: string;
+  confidence: number;
+  bbox: [number, number, number, number]; // [x, y, width, height]
+  isPharmaceuticalRelevant: boolean;
+}
+
+// Enhanced Analysis Result Types
+export interface ImageClassificationResult {
+  isPharmaceutical: boolean;
+  detectedObjects: string[];
+  confidence: number;
+  objectDetections?: ObjectDetection[];
+  detectionMethod: 'coco-ssd' | 'mobilenet' | 'heuristic';
+  boundingBoxCount: number;
+}
+
+// Enhanced Drug Analysis Result Types
+export interface DrugAnalysisResult {
+  drugName: string;
+  strength: string;
+  confidence: number;
+  status: 'authentic' | 'suspicious' | 'counterfeit' | 'not_a_drug';
+  issues: string[];
+  extractedText: string[];
+  visualFeatures: {
+    color: string;
+    shape: string;
+    markings: string[];
+    objectDetections?: ObjectDetection[]; // New field for object detection data
+  };
+  isDrugImage: boolean;
+  imageClassification: ImageClassificationResult;
+}

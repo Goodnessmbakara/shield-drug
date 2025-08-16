@@ -34,27 +34,12 @@ import {
   Shield,
   Pill,
 } from "lucide-react";
-import { DrugBatch } from "@/lib/types";
+import { DrugBatch, BatchDetails } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { generateUnifiedCSVExport, convertToCSV } from "@/lib/utils";
 
-interface BatchDetails extends DrugBatch {
-  status: string;
-  blockchainTx: string;
-  qrCodesGenerated?: number;
-  processingTime?: number;
-  fileHash?: string;
-  validationResult?: {
-    isValid: boolean;
-    errors: string[];
-    warnings: string[];
-  };
-  qualityScore?: number;
-  complianceStatus?: string;
-  regulatoryApproval?: string;
-  verifications?: number;
-  authenticityRate?: number;
-}
+// Use shared BatchDetails type from lib/types
+type LocalBatchDetails = Partial<BatchDetails>;
 
 interface QRCode {
   id: string;
@@ -136,7 +121,7 @@ export default function BatchDetailsPage() {
   const { id } = router.query;
   const [userEmail, setUserEmail] = useState<string>("");
   const [isClient, setIsClient] = useState(false);
-  const [batchDetails, setBatchDetails] = useState<BatchDetails | null>(null);
+  const [batchDetails, setBatchDetails] = useState<LocalBatchDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showQRCodes, setShowQRCodes] = useState(false);
@@ -225,7 +210,7 @@ export default function BatchDetailsPage() {
     if (!batchDetails) return;
 
     // Generate processed data from batch details and QR codes
-    const processedData = generateProcessedData(batchDetails, qrCodes);
+    const processedData = generateProcessedData(batchDetails as BatchDetails, qrCodes);
 
     // Check if there's data to download
     if (!processedData.length) {
@@ -353,7 +338,7 @@ export default function BatchDetailsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {getStatusBadge(batchDetails.status)}
+            {getStatusBadge(batchDetails.status || 'unknown')}
             <Button 
               variant="outline" 
               size="sm" 
@@ -381,39 +366,39 @@ export default function BatchDetailsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Drug Name</p>
-                    <p className="font-medium">{batchDetails.drugName}</p>
+                    <p className="font-medium">{batchDetails.drugName || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Batch ID</p>
                     <p className="font-medium font-mono text-sm">
-                      {batchDetails.batchId}
+                      {batchDetails.batchId || 'N/A'}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">NAFDAC Number</p>
-                    <p className="font-medium">{batchDetails.nafdacNumber}</p>
+                    <p className="font-medium">{batchDetails.nafdacNumber || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Manufacturer</p>
-                    <p className="font-medium">{batchDetails.manufacturer}</p>
+                    <p className="font-medium">{batchDetails.manufacturer || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Quantity</p>
                     <p className="font-medium">
-                      {batchDetails.quantity.toLocaleString()} units
+                      {(batchDetails.quantity || 0).toLocaleString()} units
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium">{batchDetails.location}</p>
+                    <p className="font-medium">{batchDetails.location || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Manufacturing Date</p>
-                    <p className="font-medium">{batchDetails.manufacturingDate}</p>
+                    <p className="font-medium">{batchDetails.manufacturingDate || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Expiry Date</p>
-                    <p className="font-medium">{batchDetails.expiryDate}</p>
+                    <p className="font-medium">{batchDetails.expiryDate || 'N/A'}</p>
                   </div>
                 </div>
 
@@ -438,27 +423,27 @@ export default function BatchDetailsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Active Ingredient</p>
-                    <p className="font-medium">{batchDetails.activeIngredient}</p>
+                    <p className="font-medium">{batchDetails.activeIngredient || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Dosage Form</p>
-                    <p className="font-medium">{batchDetails.dosageForm}</p>
+                    <p className="font-medium">{batchDetails.dosageForm || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Strength</p>
-                    <p className="font-medium">{batchDetails.strength}</p>
+                    <p className="font-medium">{batchDetails.strength || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Package Size</p>
-                    <p className="font-medium">{batchDetails.packageSize}</p>
+                    <p className="font-medium">{batchDetails.packageSize || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Storage Conditions</p>
-                    <p className="font-medium">{batchDetails.storageConditions}</p>
+                    <p className="font-medium">{batchDetails.storageConditions || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Created Date</p>
-                    <p className="font-medium">{batchDetails.createdAt}</p>
+                    <p className="font-medium">{batchDetails.createdAt || 'N/A'}</p>
                   </div>
                 </div>
               </CardContent>
@@ -660,7 +645,7 @@ export default function BatchDetailsPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() =>
-                            copyToClipboard(batchDetails.blockchainTx)
+                            copyToClipboard(batchDetails.blockchainTx || '')
                           }
                         >
                           <Copy className="h-3 w-3" />
@@ -749,6 +734,17 @@ export default function BatchDetailsPage() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {qrCodes.length === 0 && batchDetails.qrCodesGenerated && batchDetails.qrCodesGenerated > 0 && (
+                        <div className="col-span-full text-center py-8">
+                          <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                          <p className="text-muted-foreground">
+                            No QR codes found for this batch. This may be due to filtering or data synchronization issues.
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Expected: {batchDetails.qrCodesGenerated} codes | Found: {qrCodes.length} codes
+                          </p>
+                        </div>
+                      )}
                       {qrCodes.map((qrCode, index) => (
                         <div
                           key={qrCode.id}

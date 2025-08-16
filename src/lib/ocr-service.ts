@@ -1,4 +1,5 @@
 import Tesseract from 'tesseract.js';
+import { validatePharmaceuticalText, calculatePharmaceuticalConfidence } from '@/lib/pharmaceutical-patterns';
 
 // OCR Configuration Interface
 export interface OCROptions {
@@ -24,6 +25,7 @@ const PHARMACEUTICAL_OCR_CONFIG = {
 let workerInstance: Tesseract.Worker | null = null;
 let isInitializing = false;
 let lastUsed = 0;
+let isRecognizing = false; // Semaphore for recognition
 
 // Environment detection
 const isBrowser = typeof window !== 'undefined';
@@ -53,12 +55,13 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
     // Create new worker with pharmaceutical configuration
     workerInstance = await Tesseract.createWorker();
 
-    // Load language and initialize
+    // Comment 1: Add worker.load() before loadLanguage and initialize
+    await workerInstance.load();
     await (workerInstance as any).loadLanguage(PHARMACEUTICAL_OCR_CONFIG.language);
     await (workerInstance as any).initialize(PHARMACEUTICAL_OCR_CONFIG.language);
 
     // Set pharmaceutical-optimized parameters
-    await workerInstance.setParameters({
+    await (workerInstance as any).setParameters({
       tessedit_char_whitelist: PHARMACEUTICAL_OCR_CONFIG.charWhitelist,
       tessedit_pageseg_mode: PHARMACEUTICAL_OCR_CONFIG.psm,
       preserve_interword_spaces: '1',
@@ -95,10 +98,25 @@ function setupWorkerCleanup() {
       }
     });
   } else {
-    process.on('exit', async () => {
+    // Comment 12: Replace process.on('exit') with proper signal handlers
+    process.on('beforeExit', async () => {
       if (workerInstance) {
         await workerInstance.terminate();
       }
+    });
+    
+    process.on('SIGINT', async () => {
+      if (workerInstance) {
+        await workerInstance.terminate();
+      }
+      process.exit(0);
+    });
+    
+    process.on('SIGTERM', async () => {
+      if (workerInstance) {
+        await workerInstance.terminate();
+      }
+      process.exit(0);
     });
   }
 }
@@ -110,22 +128,59 @@ export async function recognizePharmaceuticalText(
 ): Promise<string[]> {
   const config = { ...PHARMACEUTICAL_OCR_CONFIG, ...options };
   let worker: Tesseract.Worker | null = null;
+  let abortController: AbortController | null = null;
+
+  // Comment 4: Ensure only one recognition runs at a time
+  if (isRecognizing) {
+    throw new Error('OCR recognition already in progress');
+  }
+  isRecognizing = true;
 
   try {
     // Initialize worker
     worker = await initializeWorker();
     lastUsed = Date.now();
 
-    // Prepare input for OCR
-    const ocrInput = typeof input === 'string' ? input : input.toString('base64');
+    // Comment 2: Fix Buffer handling
+    let ocrInput: string | Buffer;
+    if (Buffer.isBuffer(input)) {
+      ocrInput = input; // Pass Buffer directly to worker.recognize
+    } else if (typeof input === 'string') {
+      // Ensure it's a full data URL or convert to Buffer
+      if (input.startsWith('data:image/')) {
+        ocrInput = input;
+      } else {
+        // Assume it's base64 and add data URL prefix
+        ocrInput = `data:image/png;base64,${input}`;
+      }
+    } else {
+      throw new Error('Invalid input type for OCR');
+    }
 
-    // Perform OCR with timeout
+    // Comment 3: Set PSM parameters before recognition
+    await worker.setParameters({ 
+      tessedit_pageseg_mode: String(config.psm) as any,
+      tessedit_char_whitelist: config.charWhitelist || PHARMACEUTICAL_OCR_CONFIG.charWhitelist,
+      user_defined_dpi: config.dpi ? String(config.dpi) : PHARMACEUTICAL_OCR_CONFIG.dpi.toString()
+    });
+
+    // Comment 4: Add timeout cancellation
+    abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController?.abort();
+    }, config.timeout);
+
+    // Perform OCR with timeout and cancellation
     const result = await Promise.race([
       worker.recognize(ocrInput),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('OCR timeout')), config.timeout)
-      )
+      new Promise<never>((_, reject) => {
+        abortController?.signal.addEventListener('abort', () => {
+          reject(new Error('OCR timeout'));
+        });
+      })
     ]);
+
+    clearTimeout(timeoutId);
 
     // Extract and clean text
     const rawText = result.data.text;
@@ -134,7 +189,7 @@ export async function recognizePharmaceuticalText(
       .map(line => line.trim())
       .filter(line => line.length > 0);
 
-    // Validate pharmaceutical content
+    // Comment 5: Use imported validation function
     const pharmaceuticalLines = validatePharmaceuticalText(lines);
     
     if (pharmaceuticalLines.length === 0) {
@@ -154,6 +209,13 @@ export async function recognizePharmaceuticalText(
   } catch (error) {
     console.error('OCR recognition failed:', error);
     
+    // Comment 4: Cleanup and reinitialize on timeout
+    if (error instanceof Error && error.message === 'OCR timeout') {
+      console.log('OCR timeout detected, cleaning up and reinitializing...');
+      await cleanupOCRWorker();
+      await initializeWorker();
+    }
+    
     // Retry with different parameters if retries remaining
     if (config.retries && config.retries > 0) {
       console.log(`Retrying OCR (${config.retries} attempts remaining)...`);
@@ -166,65 +228,9 @@ export async function recognizePharmaceuticalText(
 
     // Return empty array as fallback
     return [];
+  } finally {
+    isRecognizing = false;
   }
-}
-
-// Validate and filter pharmaceutical text
-function validatePharmaceuticalText(lines: string[]): string[] {
-  const pharmaceuticalPatterns = [
-    // Drug name patterns
-    /\b(paracetamol|acetaminophen|ibuprofen|aspirin|amoxicillin|penicillin|doxycycline|metformin|insulin|warfarin|lisinopril|atorvastatin|omeprazole|pantoprazole|ranitidine|diphenhydramine|loratadine|cetirizine|fexofenadine|montelukast|albuterol|salbutamol|prednisone|dexamethasone|hydrocortisone|furosemide|spironolactone|metoprolol|propranolol|atenolol|carvedilol|amlodipine|nifedipine|diltiazem|verapamil|digoxin|nitroglycerin|nitrostat|nitroquick|nitrolingual|nitro-bid|nitro-dur|nitro-patch|nitro-time|nitro-tab|nitro-cap|nitro-g|nitro-iv|nitro-mist|nitro-stat|nitro-sublingual|nitro-tab|nitro-time|nitro-tran|nitro-v|nitro-vas|nitro-vasodilator|nitro-vasodilator|nitro-vasodilator|nitro-vasodilator|nitro-vasodilator|nitro-vasodilator|nitro-vasodilator|nitro-vasodilator|nitro-vasodilator|nitro-vasodilator)\b/i,
-    
-    // Dosage patterns
-    /\b\d+\s*(mg|ml|mcg|g|IU|units?|tablets?|capsules?|pills?|drops?|sprays?|puffs?|injections?|vials?|ampoules?|syringes?|patches?|suppositories?|creams?|ointments?|gels?|lotions?|solutions?|suspensions?|emulsions?|powders?|granules?|chewables?|disintegrating|orally|sublingually|buccally|rectally|vaginally|intramuscularly|intravenously|subcutaneously|topically|inhalation|nasal|ophthalmic|otic|dental|dermatological|ophthalmic|otic|dental|dermatological)\b/i,
-    
-    // Manufacturer patterns
-    /\b(pfizer|gsk|glaxosmithkline|merck|novartis|roche|sanofi|astrazeneca|johnson|janssen|bayer|boehringer|eli\s*lilly|abbott|bristol\s*meyers|squibb|amgen|biogen|gilead|regeneron|moderna|biontech|astra\s*zeneca|glaxo\s*smith\s*kline|merck\s*sharp|dohme|novartis\s*pharmaceuticals|roche\s*pharmaceuticals|sanofi\s*aventis|bayer\s*healthcare|boehringer\s*ingelheim|eli\s*lilly\s*and\s*company|abbott\s*laboratories|bristol\s*meyers\s*squibb|amgen\s*inc|biogen\s*inc|gilead\s*sciences|regeneron\s*pharmaceuticals|moderna\s*inc|biontech\s*se)\b/i,
-    
-    // Batch/expiry patterns
-    /\b(batch|lot|exp|expiry|expiration|mfg|manufacture|manufacturing|date|serial|number|code|id|identifier|reference|ref|tracking|trace|traceability|authenticity|genuine|original|authorized|licensed|approved|certified|validated|verified|tested|quality|assurance|control|standards|compliance|regulatory|fda|ema|who|nafdac|nigerian|drug|food|administration|agency|authority|commission|board|council|ministry|department|bureau|office|institute|laboratory|facility|plant|factory|warehouse|distribution|supply|chain|logistics|transport|storage|handling|packaging|labeling|marking|identification|recognition|detection|analysis|testing|examination|inspection|audit|review|assessment|evaluation|appraisal|validation|verification|confirmation|certification|accreditation|registration|licensing|approval|authorization|permission|consent|agreement|contract|terms|conditions|warranty|guarantee|assurance|promise|commitment|obligation|responsibility|liability|accountability|transparency|disclosure|reporting|monitoring|surveillance|tracking|tracing|following|pursuing|investigating|examining|studying|researching|analyzing|evaluating|assessing|appraising|judging|determining|deciding|concluding|finding|discovering|identifying|recognizing|detecting|noticing|observing|witnessing|seeing|viewing|looking|examining|inspecting|checking|verifying|confirming|validating|certifying|authenticating|authorizing|approving|sanctioning|endorsing|recommending|suggesting|advising|counseling|guiding|directing|instructing|teaching|training|educating|informing|notifying|alerting|warning|cautioning|advising|counseling|guiding|directing|instructing|teaching|training|educating|informing|notifying|alerting|warning|cautioning|advising|counseling|guiding|directing|instructing|teaching|training|educating|informing|notifying|alerting|warning|cautioning)\b/i,
-    
-    // Pharmaceutical terminology
-    /\b(tablet|capsule|pill|dose|dosage|strength|concentration|formulation|composition|ingredients|active|inactive|excipients|preservatives|stabilizers|binders|fillers|coatings|shells|cores|layers|matrix|system|delivery|release|controlled|sustained|extended|immediate|rapid|fast|slow|gradual|prolonged|delayed|targeted|site|specific|local|systemic|oral|parenteral|topical|transdermal|inhalation|nasal|ophthalmic|otic|rectal|vaginal|sublingual|buccal|intramuscular|intravenous|subcutaneous|intradermal|intraperitoneal|intrathecal|epidural|intraarticular|intravitreal|intracardiac|intraosseous|intrapleural|intrapericardial|intraperitoneal|intrathecal|epidural|intraarticular|intravitreal|intracardiac|intraosseous|intrapleural|intrapericardial)\b/i,
-    
-    // Numbers and measurements
-    /\b\d+\.?\d*\s*(mg|ml|mcg|g|IU|units?|tablets?|capsules?|pills?|drops?|sprays?|puffs?|injections?|vials?|ampoules?|syringes?|patches?|suppositories?|creams?|ointments?|gels?|lotions?|solutions?|suspensions?|emulsions?|powders?|granules?|chewables?|disintegrating|orally|sublingually|buccally|rectally|vaginally|intramuscularly|intravenously|subcutaneously|topically|inhalation|nasal|ophthalmic|otic|dental|dermatological|ophthalmic|otic|dental|dermatological)\b/i,
-    
-    // Date patterns
-    /\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/,
-    /\b(exp|expiry|expiration|mfg|manufacture|manufacturing)\s*:\s*\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/i,
-    
-    // Regulatory patterns
-    /\b(fda|ema|who|nafdac|approved|licensed|certified|registered|authorized|validated|verified|tested|quality|assurance|control|standards|compliance|regulatory|pharmaceutical|drug|medicine|medication|therapeutic|therapeutic|agent|compound|substance|chemical|molecule|active|ingredient|excipient|additive|preservative|stabilizer|binder|filler|coating|shell|core|layer|matrix|system|delivery|release|controlled|sustained|extended|immediate|rapid|fast|slow|gradual|prolonged|delayed|targeted|site|specific|local|systemic|oral|parenteral|topical|transdermal|inhalation|nasal|ophthalmic|otic|rectal|vaginal|sublingual|buccal|intramuscular|intravenous|subcutaneous|intradermal|intraperitoneal|intrathecal|epidural|intraarticular|intravitreal|intracardiac|intraosseous|intrapleural|intrapericardial)\b/i
-  ];
-
-  return lines.filter(line => {
-    // Check if line contains pharmaceutical patterns
-    return pharmaceuticalPatterns.some(pattern => pattern.test(line)) ||
-           // Check for common pharmaceutical words
-           /\b(drug|medicine|medication|pill|tablet|capsule|dose|dosage|mg|ml|mcg|g|IU|units?|batch|lot|exp|expiry|manufacturer|pharmaceutical|therapeutic|active|ingredient|approved|licensed|certified|quality|assurance|control|standards|compliance|regulatory|fda|ema|who|nafdac|nigerian|drug|food|administration|agency|authority|commission|board|council|ministry|department|bureau|office|institute|laboratory|facility|plant|factory|warehouse|distribution|supply|chain|logistics|transport|storage|handling|packaging|labeling|marking|identification|recognition|detection|analysis|testing|examination|inspection|audit|review|assessment|evaluation|appraisal|validation|verification|confirmation|certification|accreditation|registration|licensing|approval|authorization|permission|consent|agreement|contract|terms|conditions|warranty|guarantee|assurance|promise|commitment|obligation|responsibility|liability|accountability|transparency|disclosure|reporting|monitoring|surveillance|tracking|tracing|following|pursuing|investigating|examining|studying|researching|analyzing|evaluating|assessing|appraising|judging|determining|deciding|concluding|finding|discovering|identifying|recognizing|detecting|noticing|observing|witnessing|seeing|viewing|looking|examining|inspecting|checking|verifying|confirming|validating|certifying|authenticating|authorizing|approving|sanctioning|endorsing|recommending|suggesting|advising|counseling|guiding|directing|instructing|teaching|training|educating|informing|notifying|alerting|warning|cautioning|advising|counseling|guiding|directing|instructing|teaching|training|educating|informing|notifying|alerting|warning|cautioning|advising|counseling|guiding|directing|instructing|teaching|training|educating|informing|notifying|alerting|warning|cautioning)\b/i.test(line) ||
-           // Check for numbers that might be dosages
-           /\b\d+\.?\d*\s*(mg|ml|mcg|g|IU|units?)\b/i.test(line);
-  });
-}
-
-// Calculate pharmaceutical confidence score
-export function calculatePharmaceuticalConfidence(text: string[]): number {
-  if (text.length === 0) return 0;
-
-  const pharmaceuticalWords = text.join(' ').toLowerCase();
-  const pharmaceuticalIndicators = [
-    'drug', 'medicine', 'medication', 'pill', 'tablet', 'capsule', 'dose', 'dosage',
-    'mg', 'ml', 'mcg', 'g', 'IU', 'units', 'batch', 'lot', 'exp', 'expiry',
-    'manufacturer', 'pharmaceutical', 'approved', 'licensed', 'certified',
-    'fda', 'ema', 'who', 'nafdac', 'quality', 'assurance', 'control'
-  ];
-
-  const matches = pharmaceuticalIndicators.filter(indicator => 
-    pharmaceuticalWords.includes(indicator)
-  ).length;
-
-  return Math.min(matches / pharmaceuticalIndicators.length, 1);
 }
 
 // Cleanup function for manual worker termination

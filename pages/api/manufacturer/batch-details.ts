@@ -40,6 +40,7 @@ function log(level: 'ERROR' | 'WARN' | 'INFO', message: string, context: any = {
   const logData = {
     level,
     ts: new Date().toISOString(),
+    message,
     requestId: context.requestId,
     userEmail: context.userEmail,
     userRole: context.userRole,
@@ -279,7 +280,11 @@ export default async function handler(
             { uploadId: batchId },
             { 'metadata.batchId': batchId },
             { uploadId: batch._id?.toString() },
-            { 'metadata.batchId': batch.batchId }
+            { 'metadata.batchId': batch.batchId },
+            // Support both ObjectId string and ObjectId forms
+            ...(mongoose.Types.ObjectId.isValid(batchId) ? [
+              { uploadId: new mongoose.Types.ObjectId(batchId).toString() }
+            ] : [])
           ],
           userEmail: userEmail as string 
         } 

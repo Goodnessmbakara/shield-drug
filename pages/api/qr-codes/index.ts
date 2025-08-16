@@ -19,9 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Create new QR codes (handled by Next.js API route)
         const qrData = req.body;
         
-        if (!qrData.qrId || !qrData.uploadId) {
+        if (!qrData.qrCodeId || !qrData.uploadId) {
           return res.status(400).json({ 
-            error: 'Missing required fields: qrId, uploadId' 
+            error: 'Missing required fields: qrCodeId, uploadId' 
           });
         }
 
@@ -33,15 +33,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       case 'PUT':
         // Mark QR code as scanned (handled by Next.js API route)
-        const { qrId, scannedBy, scannedLocation } = req.body;
+        const { qrCodeId, scannedBy, scannedLocation } = req.body;
         
-        if (!qrId || !scannedBy) {
+        if (!qrCodeId || !scannedBy) {
           return res.status(400).json({ 
-            error: 'Missing required fields: qrId, scannedBy' 
+            error: 'Missing required fields: qrCodeId, scannedBy' 
           });
         }
 
-        const scannedQRCode = await markQRCodeAsScanned(qrId, scannedBy, scannedLocation);
+        const scannedQRCode = await markQRCodeAsScanned(qrCodeId, scannedBy, scannedLocation);
         
         if (!scannedQRCode) {
           return res.status(404).json({ error: 'QR Code not found' });

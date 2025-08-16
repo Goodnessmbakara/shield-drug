@@ -298,8 +298,8 @@ async function generateAndRecordQRCodes(uploadId: string, validationResult: Vali
            isComplete: false
          });
         
-                  // Create a unique QR code for this drug batch
-          const qrCodeId = generateUniqueQRCodeId(uploadId, drugName, 1, batchId);
+                  // Create a unique QR code for this drug batch using the utility function
+          const qrCodeId = generateUniqueQRCodeId(uploadId, drugName, 1);
         
         // Record batch QR code on blockchain with time tracking
         const txStartTime = Date.now();

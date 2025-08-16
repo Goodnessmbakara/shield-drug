@@ -66,13 +66,13 @@ export const getQRCodesByUpload = async (uploadId: string): Promise<IQRCode[]> =
 };
 
 export const markQRCodeAsScanned = async (
-  qrId: string, 
+  qrCodeId: string, 
   scannedBy: string, 
   scannedLocation?: string
 ): Promise<IQRCode | null> => {
   await dbConnect();
   return await QRCode.findOneAndUpdate(
-    { qrId },
+    { qrCodeId },
     { 
       isScanned: true, 
       scannedAt: new Date(),

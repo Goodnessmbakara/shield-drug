@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import type { DrugAnalysisResult } from "@/services/aiDrugAnalysis";
 import { useToast } from "@/hooks/use-toast";
-import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface PhotoCaptureProps {
   onResult: (imageData: string) => void;
@@ -148,7 +147,7 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
@@ -161,29 +160,28 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
     setCameraError(null);
     
     try {
-      // Use Html5QrcodeScanner for camera access (same as QRScanner)
-      const scanner = new Html5QrcodeScanner(
-        "photo-camera",
-        { 
-          fps: 10, 
-          qrbox: { width: 250, height: 250 },
-          supportedScanTypes: []
-        },
-        false
-      );
+      // Check if camera access is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser');
+      }
 
-      scanner.render(
-        (decodedText) => {
-          // This won't be used for photo capture, but we need to handle it
-          console.log("QR code detected:", decodedText);
-        },
-        (error) => {
-          // Handle scan error silently
-          console.log("Camera error:", error);
+      // Stop existing stream if any
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+
+      // Request camera with mobile-optimized constraints
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment', // Use back camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
-      );
+      });
 
-      scannerRef.current = scanner;
+      // Set stream ref first, then activate camera
+      streamRef.current = stream;
       setCameraActive(true);
       
     } catch (error) {
@@ -191,7 +189,21 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
       
       let errorMessage = "Failed to start camera";
       if (error instanceof Error) {
-        errorMessage = error.message || "Unknown camera error occurred.";
+        if (error.name === 'NotAllowedError') {
+          errorMessage = 'Camera access denied. Please allow camera permissions in your browser settings.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = 'No camera found on this device.';
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage = 'Camera access is not supported in this browser.';
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = 'Camera is already in use by another application.';
+        } else if (error.name === 'OverconstrainedError') {
+          errorMessage = 'Camera does not meet the required specifications.';
+        } else if (error.name === 'TypeError') {
+          errorMessage = 'Camera access requires HTTPS. Please use localhost or HTTPS.';
+        } else {
+          errorMessage = error.message || 'Unknown camera error occurred.';
+        }
       }
       
       toast({
@@ -206,30 +218,67 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
     }
   }, [toast]);
 
+  // Handle video stream assignment when both video element and stream are available
+  useEffect(() => {
+    if (videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      
+      const handleLoadedMetadata = async () => {
+        if (videoRef.current) {
+          try {
+            await videoRef.current.play();
+          } catch (error) {
+            console.error("Error playing video:", error);
+          }
+        }
+      };
+      
+      videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+      
+      return () => {
+        if (videoRef.current) {
+          videoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          videoRef.current.srcObject = null;
+        }
+      };
+    }
+  }, [cameraActive]);
+
   // Cleanup camera on component unmount
   useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
     };
   }, []);
 
   const stopCamera = useCallback(() => {
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-      scannerRef.current = null;
-      setCameraActive(false);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
   }, []);
 
   const capturePhoto = useCallback(() => {
-    // Find the video element created by Html5QrcodeScanner
-    const videoElement = document.querySelector('#photo-camera video') as HTMLVideoElement;
-    
-    if (videoElement && canvasRef.current) {
+    if (videoRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
-      const video = videoElement;
+      const video = videoRef.current;
+
+      // Check if video has valid dimensions
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        toast({
+          title: "Capture Error",
+          description: "Video not ready. Please wait for camera to fully load.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -513,7 +562,12 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
               <>
                 {cameraActive ? (
                   <div className="space-y-4">
-                    <div id="photo-camera" className="w-full h-48 rounded-lg bg-muted"></div>
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-48 object-cover rounded-lg bg-muted"
+                    />
                     <div className="flex gap-2">
                       <Button onClick={capturePhoto} className="flex-1">
                         <Camera className="mr-2 h-4 w-4" />

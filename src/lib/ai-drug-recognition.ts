@@ -1,9 +1,10 @@
 import * as tf from '@tensorflow/tfjs-node';
 import sharp from 'sharp';
-import { blockchainService } from './blockchain';
-import { recognizePharmaceuticalText, calculatePharmaceuticalConfidence } from './ocr-service';
-import { preprocessForOCR, assessImageQuality } from './image-preprocessing';
-import { validatePharmaceuticalText, extractDrugInfo, correctOCRErrors } from './pharmaceutical-patterns';
+import { blockchainService } from '@/lib/blockchain';
+import { recognizePharmaceuticalText } from '@/lib/ocr-service';
+import { calculatePharmaceuticalConfidence } from '@/lib/pharmaceutical-patterns';
+import { preprocessForOCR, assessImageQuality } from '@/lib/image-preprocessing';
+import { validatePharmaceuticalText, extractDrugInfo, correctOCRErrors } from '@/lib/pharmaceutical-patterns';
 
 export interface DrugIdentificationResult {
   drugName: string;
@@ -106,8 +107,8 @@ export class AIDrugRecognitionService {
       // Step 4: Identify drug
       const drugIdentification = await this.identifyDrug(textExtraction, imageAnalysis);
       
-      // Step 5: Detect counterfeit
-      const counterfeitDetection = await this.detectCounterfeit(drugIdentification, imageAnalysis);
+      // Step 5: Detect counterfeit - Comment 9: Pass textExtraction to detectCounterfeit
+      const counterfeitDetection = await this.detectCounterfeit(drugIdentification, imageAnalysis, textExtraction);
       
       // Step 6: Verify against blockchain
       const blockchainVerification = await this.verifyOnBlockchain(drugIdentification);
@@ -141,7 +142,24 @@ export class AIDrugRecognitionService {
 
     } catch (error) {
       console.error('❌ AI drug analysis failed:', error);
-      throw error;
+      // Comment 13: Return graceful fallback instead of throwing
+      return {
+        drugName: 'Unknown',
+        genericName: 'Unknown',
+        dosage: 'Unknown',
+        manufacturer: 'Unknown',
+        activeIngredients: [],
+        confidence: 0,
+        isAuthentic: false,
+        counterfeitRisk: 1.0,
+        detectedFeatures: {
+          packageType: 'unknown',
+          pillShape: 'unknown',
+          pillColor: 'unknown',
+          markings: [],
+        },
+        blockchainVerification: { verified: false },
+      };
     }
   }
 
@@ -267,11 +285,11 @@ export class AIDrugRecognitionService {
    * Analyze image features using computer vision
    */
   private async analyzeImageFeatures(imageBuffer: Buffer): Promise<ImageAnalysisResult> {
-    // In a real implementation, this would use TensorFlow.js models
-    // For demo purposes, we'll simulate feature extraction
+    // Comment 8: Stop returning hardcoded text, focus on visual features only
+    // In a real implementation, this would use TensorFlow.js models for computer vision
     
     const mockAnalysis: ImageAnalysisResult = {
-      text: ['PARACETAMOL', '500mg', 'GSK', 'B2024001'],
+      text: [], // Comment 8: Remove hardcoded text, let OCR handle text extraction
       objects: ['tablet', 'package', 'label'],
       colors: ['white', 'blue', 'red'],
       patterns: ['striped', 'logo', 'barcode'],
@@ -295,8 +313,24 @@ export class AIDrugRecognitionService {
     // Get drug information from database
     const drugInfo = this.drugDatabase.get(drugName.toLowerCase());
     
+    // Comment 13: Return graceful result instead of throwing on unknown drugs
     if (!drugInfo) {
-      throw new Error(`Unknown drug: ${drugName}`);
+      return {
+        drugName: 'Unknown',
+        genericName: 'Unknown',
+        dosage: dosage || 'Unknown',
+        manufacturer: manufacturer || 'Unknown',
+        activeIngredients: [],
+        confidence: 0.1, // Low confidence for unknown drugs
+        detectedFeatures: {
+          packageType: this.detectPackageType(imageAnalysis),
+          pillShape: this.detectPillShape(imageAnalysis),
+          pillColor: this.detectPillColor(imageAnalysis),
+          markings: this.detectMarkings(textExtraction),
+          batchNumber,
+          expiryDate,
+        },
+      };
     }
 
     return {
@@ -320,12 +354,19 @@ export class AIDrugRecognitionService {
   /**
    * Detect counterfeit drugs using AI and OCR quality metrics
    */
-  private async detectCounterfeit(drugIdentification: Partial<DrugIdentificationResult>, imageAnalysis: ImageAnalysisResult): Promise<{ isCounterfeit: boolean; riskScore: number }> {
+  private async detectCounterfeit(
+    drugIdentification: Partial<DrugIdentificationResult>, 
+    imageAnalysis: ImageAnalysisResult,
+    texts: string[] = [] // Comment 9: Accept OCR text as parameter
+  ): Promise<{ isCounterfeit: boolean; riskScore: number }> {
     let riskScore = 0;
     const riskFactors: string[] = [];
 
+    // Comment 9: Use real OCR text instead of mocked imageAnalysis.text
+    const ocrTexts = texts.length > 0 ? texts : imageAnalysis.text;
+    
     // Check package quality using OCR confidence
-    const ocrConfidence = calculatePharmaceuticalConfidence(imageAnalysis.text);
+    const ocrConfidence = calculatePharmaceuticalConfidence(ocrTexts);
     if (ocrConfidence < 0.6) {
       riskScore += 0.3;
       riskFactors.push(`Low OCR confidence: ${ocrConfidence.toFixed(2)}`);
@@ -346,15 +387,15 @@ export class AIDrugRecognitionService {
     }
 
     // Check text quality using pharmaceutical validation
-    const pharmaceuticalText = validatePharmaceuticalText(imageAnalysis.text);
-    const textQuality = pharmaceuticalText.length / Math.max(imageAnalysis.text.length, 1);
+    const pharmaceuticalText = validatePharmaceuticalText(ocrTexts);
+    const textQuality = pharmaceuticalText.length / Math.max(ocrTexts.length, 1);
     if (textQuality < 0.7) {
       riskScore += 0.2;
       riskFactors.push(`Poor pharmaceutical text quality: ${textQuality.toFixed(2)}`);
     }
 
     // Check for OCR error patterns that might indicate counterfeit
-    const ocrErrors = this.detectOCRErrorPatterns(imageAnalysis.text);
+    const ocrErrors = this.detectOCRErrorPatterns(ocrTexts);
     if (ocrErrors.length > 0) {
       riskScore += 0.15;
       riskFactors.push(`OCR error patterns detected: ${ocrErrors.join(', ')}`);
@@ -368,7 +409,7 @@ export class AIDrugRecognitionService {
     }
 
     // Check for inconsistent drug information
-    const drugInfo = extractDrugInfo(imageAnalysis.text);
+    const drugInfo = extractDrugInfo(ocrTexts);
     if (drugInfo && drugInfo.confidence < 0.5) {
       riskScore += 0.2;
       riskFactors.push(`Low drug information confidence: ${drugInfo.confidence.toFixed(2)}`);

@@ -171,13 +171,52 @@ export const PHARMACEUTICAL_TERMINOLOGY = {
   administration: /\b(take|administer|use|apply|swallow|chew|dissolve|crush|break|split|cut|inject|injectable|injection|shot|vial|ampoule|syringe|needle|subcutaneous|intramuscular|intravenous|iv|im|sc|subcut|oral|orally|by\s*mouth|po|per\s*os|sublingual|sublingually|sl|under\s*tongue|buccal|buccally|cheek|rectal|rectally|pr|per\s*rectum|vaginal|vaginally|pv|per\s*vaginam|topical|topically|external|for\s*external\s*use|inhalation|inhaled|inhaler|nebulizer|nasal|nasally|intranasal|ophthalmic|eye|ocular|ophthalmically|otic|ear|auricular|otically)\b/i
 };
 
-// OCR error correction mappings
+// OCR error correction mappings - Comment 6: Replace symmetric mappings with context-aware one-way replacements
 export const OCR_ERROR_CORRECTIONS = {
-  // Common OCR misreads for pharmaceutical text
-  '0': 'O', 'O': '0', '1': 'I', 'I': '1', '5': 'S', 'S': '5',
-  '8': 'B', 'B': '8', '6': 'G', 'G': '6', '2': 'Z', 'Z': '2',
-  'rn': 'm', 'm': 'rn', 'cl': 'd', 'd': 'cl', 'vv': 'w', 'w': 'vv',
-  'nn': 'm', 'll': 'I', 'tt': 'n'
+  // Context-aware character substitutions
+  // Only replace O with 0 when surrounded by digits
+  'O(?=\d)': '0',
+  'O(?=\d.*\d)': '0',
+  // Only replace 0 with O when surrounded by letters
+  '0(?=[A-Za-z])': 'O',
+  '0(?=[A-Za-z].*[A-Za-z])': 'O',
+  // Only replace I with 1 when surrounded by digits
+  'I(?=\d)': '1',
+  'I(?=\d.*\d)': '1',
+  // Only replace 1 with I when surrounded by letters
+  '1(?=[A-Za-z])': 'I',
+  '1(?=[A-Za-z].*[A-Za-z])': 'I',
+  // Only replace S with 5 when surrounded by digits
+  'S(?=\d)': '5',
+  'S(?=\d.*\d)': '5',
+  // Only replace 5 with S when surrounded by letters
+  '5(?=[A-Za-z])': 'S',
+  '5(?=[A-Za-z].*[A-Za-z])': 'S',
+  // Only replace B with 8 when surrounded by digits
+  'B(?=\d)': '8',
+  'B(?=\d.*\d)': '8',
+  // Only replace 8 with B when surrounded by letters
+  '8(?=[A-Za-z])': 'B',
+  '8(?=[A-Za-z].*[A-Za-z])': 'B',
+  // Only replace G with 6 when surrounded by digits
+  'G(?=\d)': '6',
+  'G(?=\d.*\d)': '6',
+  // Only replace 6 with G when surrounded by letters
+  '6(?=[A-Za-z])': 'G',
+  '6(?=[A-Za-z].*[A-Za-z])': 'G',
+  // Only replace Z with 2 when surrounded by digits
+  'Z(?=\d)': '2',
+  'Z(?=\d.*\d)': '2',
+  // Only replace 2 with Z when surrounded by letters
+  '2(?=[A-Za-z])': 'Z',
+  '2(?=[A-Za-z].*[A-Za-z])': 'Z',
+  // Common OCR misreads for pharmaceutical text (one-way only)
+  'rn': 'm',
+  'cl': 'd',
+  'vv': 'w',
+  'nn': 'm',
+  'll': 'I',
+  'tt': 'n'
 };
 
 // Interface for dosage information
@@ -206,12 +245,28 @@ export function validateDrugName(text: string): boolean {
   return Object.values(DRUG_NAME_PATTERNS).some(pattern => pattern.test(normalizedText));
 }
 
-// Extract structured dosage information
+// Extract structured dosage information - Comment 7: Fix to handle patterns without numeric capture groups
 export function extractDosageInfo(text: string): DosageInfo | null {
-  // Check for dosage patterns
-  for (const [unit, pattern] of Object.entries(DOSAGE_PATTERNS)) {
+  // Check for quantifiable dosage patterns first
+  const quantifiablePatterns = {
+    mg: /\b(\d+\.?\d*)\s*(mg|milligrams?|milligrammes?)\b/i,
+    ml: /\b(\d+\.?\d*)\s*(ml|milliliters?|millilitres?|cc|cubic\s*centimeters?)\b/i,
+    mcg: /\b(\d+\.?\d*)\s*(mcg|micrograms?|microgrammes?|μg|ug)\b/i,
+    g: /\b(\d+\.?\d*)\s*(g|grams?|grammes?)\b/i,
+    IU: /\b(\d+\.?\d*)\s*(IU|international\s*units?)\b/i,
+    units: /\b(\d+\.?\d*)\s*(units?|U)\b/i,
+    tablets: /\b(\d+\.?\d*)\s*(tablets?|tabs?|pills?)\b/i,
+    capsules: /\b(\d+\.?\d*)\s*(capsules?|caps?)\b/i,
+    drops: /\b(\d+\.?\d*)\s*(drops?|gtt)\b/i,
+    sprays: /\b(\d+\.?\d*)\s*(sprays?|puffs?|actuations?)\b/i,
+    injections: /\b(\d+\.?\d*)\s*(injections?|shots?|vials?|ampoules?|syringes?)\b/i,
+    patches: /\b(\d+\.?\d*)\s*(patches?|transdermal\s*systems?)\b/i,
+    suppositories: /\b(\d+\.?\d*)\s*(suppositories?|supps?)\b/i
+  };
+
+  for (const [unit, pattern] of Object.entries(quantifiablePatterns)) {
     const match = text.match(pattern);
-    if (match) {
+    if (match && match[1]) { // Ensure we have a numeric capture group
       return {
         value: parseFloat(match[1]),
         unit: unit,
@@ -220,6 +275,26 @@ export function extractDosageInfo(text: string): DosageInfo | null {
       };
     }
   }
+
+  // Check for non-quantifiable patterns (route/form qualifiers)
+  const qualifierPatterns = {
+    oral: /\b(oral|orally|by\s*mouth|po|per\s*os)\b/i,
+    sublingual: /\b(sublingual|sublingually|sl|under\s*tongue)\b/i,
+    buccal: /\b(buccal|buccally|cheek)\b/i,
+    rectal: /\b(rectal|rectally|pr|per\s*rectum)\b/i,
+    vaginal: /\b(vaginal|vaginally|pv|per\s*vaginam)\b/i,
+    intramuscular: /\b(intramuscular|im|intramuscularly)\b/i,
+    intravenous: /\b(intravenous|iv|intravenously)\b/i,
+    subcutaneous: /\b(subcutaneous|sc|subcutaneously|subcut)\b/i,
+    topical: /\b(topical|topically|external|for\s*external\s*use)\b/i,
+    inhalation: /\b(inhalation|inhaled|inhaler|nebulizer)\b/i,
+    nasal: /\b(nasal|nasally|intranasal)\b/i,
+    ophthalmic: /\b(ophthalmic|eye|ocular|ophthalmically)\b/i,
+    otic: /\b(otic|ear|auricular|otically)\b/i
+  };
+
+  // If we only find qualifiers without quantities, return null
+  // This prevents returning NaN values
   return null;
 }
 
@@ -314,13 +389,19 @@ export function calculatePharmaceuticalConfidence(text: string[]): number {
   return Math.min(matches / pharmaceuticalIndicators.length, 1);
 }
 
-// Apply OCR error correction to drug names
+// Apply OCR error correction to drug names - Comment 6: Updated to use context-aware corrections
 export function correctOCRErrors(text: string): string {
   let correctedText = text;
   
-  // Apply character substitutions
+  // Apply context-aware character substitutions
   for (const [error, correction] of Object.entries(OCR_ERROR_CORRECTIONS)) {
-    correctedText = correctedText.replace(new RegExp(error, 'g'), correction);
+    if (error.includes('(?=')) {
+      // Context-aware regex patterns
+      correctedText = correctedText.replace(new RegExp(error, 'g'), correction);
+    } else {
+      // Simple string replacements
+      correctedText = correctedText.replace(new RegExp(error, 'g'), correction);
+    }
   }
   
   // Apply common pharmaceutical text corrections

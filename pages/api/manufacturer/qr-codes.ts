@@ -54,7 +54,17 @@ export default async function handler(
       }
 
       if (batchId !== 'all') {
-        filter.uploadId = batchId;
+        // Support both uploadId and metadata.batchId filtering
+        const { ObjectId } = mongoose.Types;
+        filter.$or = [
+          { uploadId: batchId },
+          { 'metadata.batchId': batchId }
+        ];
+        
+        // If batchId looks like a Mongo ObjectId, also include the string version
+        if (ObjectId.isValid(batchId as string)) {
+          filter.$or.push({ uploadId: new ObjectId(batchId as string).toString() });
+        }
       }
 
       // Get QR codes with pagination
@@ -160,7 +170,7 @@ export default async function handler(
           
           for (let serialNumber = startIndex; serialNumber <= endIndex; serialNumber++) {
             try {
-              const qrCode = await qrCodeService.generateQRCode(
+              let qrCode = await qrCodeService.generateQRCode(
                 batchId,
                 upload.drug || 'Unknown',
                 serialNumber,
@@ -173,23 +183,60 @@ export default async function handler(
                 }
               );
 
-              // Save QR code to database
-              const qrCodeDoc = new QRCode({
-                qrCodeId: qrCode.qrCodeId,
-                uploadId: batchId,
-                userEmail: userEmail as string,
-                drugCode: qrCode.drugCode,
-                serialNumber: qrCode.serialNumber,
-                blockchainTx: qrCode.blockchainTx,
-                verificationUrl: qrCode.verificationUrl,
-                imageUrl: qrCodeService.generateQRCodeImageUrl(qrCode),
-                metadata: qrCode.metadata,
-                status: 'generated',
-                downloadCount: 0,
-                verificationCount: 0
-              });
+              // Save QR code to database with retry logic
+              let qrCodeDoc;
+              let saveAttempts = 0;
+              const maxSaveAttempts = 3;
+              
+              do {
+                try {
+                  qrCodeDoc = new QRCode({
+                    qrCodeId: qrCode.qrCodeId,
+                    uploadId: batchId,
+                    userEmail: userEmail as string,
+                    drugCode: qrCode.drugCode,
+                    serialNumber: qrCode.serialNumber,
+                    blockchainTx: qrCode.blockchainTx,
+                    verificationUrl: qrCode.verificationUrl,
+                    imageUrl: qrCodeService.generateQRCodeImageUrl(qrCode),
+                    metadata: qrCode.metadata,
+                    status: 'generated',
+                    downloadCount: 0,
+                    verificationCount: 0
+                  });
 
-              await qrCodeDoc.save();
+                  await qrCodeDoc.save();
+                  break; // Success, exit retry loop
+                } catch (saveError: any) {
+                  saveAttempts++;
+                  console.error(`Save attempt ${saveAttempts} failed for QR code ${serialNumber}:`, saveError);
+                  
+                  if (saveError.code === 11000 && saveError.keyPattern?.qrCodeId) {
+                    // Duplicate key error - regenerate QR code ID
+                    if (saveAttempts < maxSaveAttempts) {
+                      console.log(`Regenerating QR code ID for serial number ${serialNumber} (attempt ${saveAttempts})`);
+                      // Regenerate the QR code with a new ID
+                      qrCode = await qrCodeService.generateQRCode(
+                        batchId,
+                        upload.drug || 'Unknown',
+                        serialNumber,
+                        {
+                          drugName: upload.drug || 'Unknown',
+                          batchId: upload.batchId || batchId,
+                          manufacturer: upload.manufacturer || 'Unknown',
+                          expiryDate: upload.expiryDate || new Date().toISOString(),
+                          quantity: batchQuantity
+                        }
+                      );
+                      continue; // Retry with new QR code
+                    }
+                  }
+                  
+                  // If we've exhausted retries or it's not a duplicate key error, throw
+                  throw saveError;
+                }
+              } while (saveAttempts < maxSaveAttempts);
+
               generatedQRCodes.push(qrCodeDoc);
 
             } catch (error) {
@@ -211,7 +258,7 @@ export default async function handler(
         
         for (let i = 1; i <= qty; i++) {
           try {
-            const qrCode = await qrCodeService.generateQRCode(
+            let qrCode = await qrCodeService.generateQRCode(
               batchId,
               upload.drug || 'Unknown',
               i,
@@ -224,23 +271,60 @@ export default async function handler(
               }
             );
 
-            // Save QR code to database
-            const qrCodeDoc = new QRCode({
-              qrCodeId: qrCode.qrCodeId,
-              uploadId: batchId,
-              userEmail: userEmail as string,
-              drugCode: qrCode.drugCode,
-              serialNumber: qrCode.serialNumber,
-              blockchainTx: qrCode.blockchainTx,
-              verificationUrl: qrCode.verificationUrl,
-              imageUrl: qrCodeService.generateQRCodeImageUrl(qrCode),
-              metadata: qrCode.metadata,
-              status: 'generated',
-              downloadCount: 0,
-              verificationCount: 0
-            });
+            // Save QR code to database with retry logic
+            let qrCodeDoc;
+            let saveAttempts = 0;
+            const maxSaveAttempts = 3;
+            
+            do {
+              try {
+                qrCodeDoc = new QRCode({
+                  qrCodeId: qrCode.qrCodeId,
+                  uploadId: batchId,
+                  userEmail: userEmail as string,
+                  drugCode: qrCode.drugCode,
+                  serialNumber: qrCode.serialNumber,
+                  blockchainTx: qrCode.blockchainTx,
+                  verificationUrl: qrCode.verificationUrl,
+                  imageUrl: qrCodeService.generateQRCodeImageUrl(qrCode),
+                  metadata: qrCode.metadata,
+                  status: 'generated',
+                  downloadCount: 0,
+                  verificationCount: 0
+                });
 
-            await qrCodeDoc.save();
+                await qrCodeDoc.save();
+                break; // Success, exit retry loop
+              } catch (saveError: any) {
+                saveAttempts++;
+                console.error(`Save attempt ${saveAttempts} failed for QR code ${i}:`, saveError);
+                
+                if (saveError.code === 11000 && saveError.keyPattern?.qrCodeId) {
+                  // Duplicate key error - regenerate QR code ID
+                  if (saveAttempts < maxSaveAttempts) {
+                    console.log(`Regenerating QR code ID for serial number ${i} (attempt ${saveAttempts})`);
+                    // Regenerate the QR code with a new ID
+                    qrCode = await qrCodeService.generateQRCode(
+                      batchId,
+                      upload.drug || 'Unknown',
+                      i,
+                      {
+                        drugName: upload.drug || 'Unknown',
+                        batchId: upload.batchId || batchId,
+                        manufacturer: upload.manufacturer || 'Unknown',
+                        expiryDate: upload.expiryDate || new Date().toISOString(),
+                        quantity: qty
+                      }
+                    );
+                    continue; // Retry with new QR code
+                  }
+                }
+                
+                // If we've exhausted retries or it's not a duplicate key error, throw
+                throw saveError;
+              }
+            } while (saveAttempts < maxSaveAttempts);
+
             generatedQRCodes.push(qrCodeDoc);
 
           } catch (error) {
