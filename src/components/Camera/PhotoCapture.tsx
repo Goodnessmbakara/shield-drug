@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { DrugAnalysisResult } from "@/services/aiDrugAnalysis";
 import { useToast } from "@/hooks/use-toast";
-import QrScanner from 'qr-scanner';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface PhotoCaptureProps {
   onResult: (imageData: string) => void;
@@ -148,7 +148,7 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const scannerRef = useRef<QrScanner | null>(null);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
@@ -161,16 +161,28 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
     setCameraError(null);
     
     try {
-      // Use QrScanner for camera access (works better than getUserMedia)
-      const scanner = new QrScanner(
-        videoRef.current!,
-        (result) => {
+      // Use Html5QrcodeScanner for camera access (same as QRScanner)
+      const scanner = new Html5QrcodeScanner(
+        "photo-camera",
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          supportedScanTypes: []
+        },
+        false
+      );
+
+      scanner.render(
+        (decodedText) => {
           // This won't be used for photo capture, but we need to handle it
-          console.log("QR code detected:", result);
+          console.log("QR code detected:", decodedText);
+        },
+        (error) => {
+          // Handle scan error silently
+          console.log("Camera error:", error);
         }
       );
 
-      await scanner.start();
       scannerRef.current = scanner;
       setCameraActive(true);
       
@@ -198,23 +210,26 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop();
+        scannerRef.current.clear();
       }
     };
   }, []);
 
-  const stopCamera = useCallback(async () => {
+  const stopCamera = useCallback(() => {
     if (scannerRef.current) {
-      await scannerRef.current.stop();
+      scannerRef.current.clear();
       scannerRef.current = null;
       setCameraActive(false);
     }
   }, []);
 
-  const capturePhoto = useCallback(async () => {
-    if (videoRef.current && canvasRef.current) {
+  const capturePhoto = useCallback(() => {
+    // Find the video element created by Html5QrcodeScanner
+    const videoElement = document.querySelector('#photo-camera video') as HTMLVideoElement;
+    
+    if (videoElement && canvasRef.current) {
       const canvas = canvasRef.current;
-      const video = videoRef.current;
+      const video = videoElement;
 
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -224,12 +239,18 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
         ctx.drawImage(video, 0, 0);
         const imageData = canvas.toDataURL("image/jpeg", 0.8);
         setCapturedImage(imageData);
-        await stopCamera();
+        stopCamera();
         analyzeImage(imageData);
         onResult(imageData);
       }
+    } else {
+      toast({
+        title: "Capture Error",
+        description: "Camera not ready. Please wait for camera to start.",
+        variant: "destructive",
+      });
     }
-  }, [stopCamera, onResult]);
+  }, [stopCamera, onResult, toast]);
 
   const analyzeImage = async (imageData: string) => {
     setAnalysis({ status: "analyzing", confidence: 0, issues: [] });
@@ -492,12 +513,7 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
               <>
                 {cameraActive ? (
                   <div className="space-y-4">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      className="w-full h-48 object-cover rounded-lg bg-muted"
-                    />
+                    <div id="photo-camera" className="w-full h-48 rounded-lg bg-muted"></div>
                     <div className="flex gap-2">
                       <Button onClick={capturePhoto} className="flex-1">
                         <Camera className="mr-2 h-4 w-4" />
