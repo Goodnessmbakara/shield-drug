@@ -328,10 +328,10 @@ class AIDrugAnalysisService {
       }
 
       // Step 5: Identify drug with stricter validation
-      const drugIdentification = this.identifyDrug(visualFeatures, validatedText);
+      const drugIdentification = this.identifyDrug(visualFeatures, extractedText);
       
       // Step 6: Assess authenticity only if drug is identified
-      const authenticityAssessment = this.assessAuthenticity(visualFeatures, validatedText, drugIdentification);
+      const authenticityAssessment = this.assessAuthenticity(visualFeatures, extractedText, drugIdentification);
       
       img.dispose();
       
@@ -668,7 +668,8 @@ class AIDrugAnalysisService {
       // Browser: convert canvas to tensor
       const canvas = await this.base64ToCanvas(imageData);
       const tensor = tf.browser.fromPixels(canvas);
-      return tensor.toFloat() as tf.Tensor3D; // Ensure float32 dtype for COCO-SSD
+      // COCO-SSD expects int32 dtype (0-255 range), not float32
+      return tensor as tf.Tensor3D;
     } else {
       // Node.js: use tfjs-node for base64 decoding
       try {
@@ -680,8 +681,8 @@ class AIDrugAnalysisService {
         
         // Use tf.tidy for safe tensor disposal
         return tf.tidy(() => {
-          // Decode image from buffer with explicit typing and ensure float32 dtype
-          const imageTensor = tfnode.node.decodeImage(buffer, 3).toFloat() as tf.Tensor3D;
+          // Decode image from buffer - COCO-SSD expects int32 dtype (0-255 range)
+          const imageTensor = tfnode.node.decodeImage(buffer, 3) as tf.Tensor3D;
           
           // Note: Avoid resizing to preserve original bbox coordinates
           // COCO-SSD will handle input size variations internally
@@ -697,8 +698,8 @@ class AIDrugAnalysisService {
           throw new Error('TensorFlow.js native addon not available for image preprocessing');
         }
         
-        // Return a placeholder tensor with proper shape and dtype
-        return tf.zeros([224, 224, 3]).toFloat() as tf.Tensor3D;
+        // Return a placeholder tensor with proper shape and dtype for COCO-SSD
+        return tf.zeros([224, 224, 3]) as tf.Tensor3D;
       }
     }
   }
