@@ -1,0 +1,2 @@
+onlyBuiltDependencies:
+  - '@tensorflow/tfjs-node'

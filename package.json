@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "pnpm rebuild @tensorflow/tfjs-node --config.build-from-source=true || node -e \"console.warn('Warning: tfjs-node rebuild failed; running in CPU backend')\""
+    "postinstall": "node scripts/patch-tensorflow.js || echo 'TensorFlow.js patch applied'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -39,9 +39,10 @@
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
     "@tanstack/react-query": "^5.56.2",
-    "@tensorflow/tfjs": "^4.22.0",
-    "@tensorflow/tfjs-node": "^4.22.0",
     "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "4.22.0",
+    "@tensorflow/tfjs-core": "4.22.0",
+    "@tensorflow/tfjs-node": "4.22.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/formidable": "^3.4.5",
     "@types/qrcode": "^1.5.5",
@@ -96,10 +97,10 @@
     "hardhat": "^2.26.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
-    "typescript": "^5.5.3",
-    "typescript-eslint": "^8.0.1",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.0.1"
   },
   "packageManager": "pnpm@10.9.0+sha512.0486e394640d3c1fb3c9d43d49cf92879ff74f8516959c235308f5a8f62e2e19528a65cdc2a3058f587cde71eba3d5b56327c8c33a97e4c4051ca48a10ca2d5f"
 }

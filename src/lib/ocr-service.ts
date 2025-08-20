@@ -130,9 +130,9 @@ export async function recognizePharmaceuticalText(
   let worker: Tesseract.Worker | null = null;
   let abortController: AbortController | null = null;
 
-  // Comment 4: Ensure only one recognition runs at a time
-  if (isRecognizing) {
-    throw new Error('OCR recognition already in progress');
+  // Wait for any ongoing recognition to complete instead of throwing error
+  while (isRecognizing) {
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
   isRecognizing = true;
 
@@ -196,6 +196,8 @@ export async function recognizePharmaceuticalText(
       // Try with different PSM mode if no pharmaceutical text found
       if (config.retries && config.retries > 0) {
         console.log('No pharmaceutical text found, retrying with SPARSE_TEXT mode...');
+        // Release semaphore before recursive call
+        isRecognizing = false;
         return await recognizePharmaceuticalText(input, {
           ...options,
           psm: Number(Tesseract.PSM.SPARSE_TEXT),
@@ -219,6 +221,8 @@ export async function recognizePharmaceuticalText(
     // Retry with different parameters if retries remaining
     if (config.retries && config.retries > 0) {
       console.log(`Retrying OCR (${config.retries} attempts remaining)...`);
+      // Release semaphore before recursive call
+      isRecognizing = false;
       return await recognizePharmaceuticalText(input, {
         ...options,
         psm: Number(Tesseract.PSM.SPARSE_TEXT),

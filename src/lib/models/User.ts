@@ -19,7 +19,6 @@ const UserSchema: Schema = new Schema({
   email: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
     lowercase: true
   },
@@ -65,7 +64,7 @@ const UserSchema: Schema = new Schema({
 });
 
 // Create indexes for better query performance
-UserSchema.index({ email: 1 });
+UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ role: 1 });
 UserSchema.index({ isActive: 1 });
 UserSchema.index({ nafdacLicenseNumber: 1 });

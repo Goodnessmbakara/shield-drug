@@ -25,7 +25,12 @@ interface VerificationData {
   serialNumber: number;
   isValid: boolean;
   verificationStatus: 'valid' | 'invalid' | 'expired' | 'unknown';
-  blockchainTx?: string;
+  blockchainTx?: {
+    hash: string;
+    status: string;
+    blockNumber?: number;
+    timestamp: string;
+  };
   scannedAt: string;
 }
 
@@ -37,35 +42,88 @@ export default function VerifyPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!qrCodeId) return;
+    console.log('🔄 useEffect triggered with qrCodeId:', qrCodeId);
+    if (!qrCodeId) {
+      console.log('❌ No qrCodeId, returning early');
+      return;
+    }
 
     const verifyQRCode = async () => {
       try {
+        console.log('🔍 Starting verification for QR Code:', qrCodeId);
         setIsLoading(true);
         setError(null);
 
-        // Simulate verification process
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Call the actual verification API
+        console.log('📡 Making API request...');
+        const response = await fetch('/api/qr-codes/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            qrCodeId: qrCodeId as string
+          })
+        });
 
-        // Create sample verification data
-        const sampleData: VerificationData = {
-          qrCodeId: qrCodeId as string,
-          drug: 'Paracetamol 500mg',
-          batchId: qrCodeId.toString().split('-')[0],
-          manufacturer: 'DrugShield Manufacturer',
-          expiryDate: '2025-12-31',
-          verificationUrl: window.location.href,
-          serialNumber: parseInt(qrCodeId.toString().split('-')[1]) || 1,
-          isValid: true,
-          verificationStatus: 'valid',
-          blockchainTx: '0x1234567890abcdef',
-          scannedAt: new Date().toISOString()
-        };
+        console.log('📡 API response status:', response.status);
+        const result = await response.json();
+        console.log('📡 API response:', result);
 
-        setVerificationData(sampleData);
+        if (result.success && result.data) {
+          const { qrCode, verificationInfo } = result.data;
+          
+          // Transform API response to match our interface
+          const verificationData: VerificationData = {
+            qrCodeId: qrCode.qrCodeId,
+            drug: qrCode.metadata.drugName,
+            batchId: qrCode.metadata.batchId,
+            manufacturer: qrCode.metadata.manufacturer,
+            expiryDate: qrCode.metadata.expiryDate.split('T')[0], // Format date
+            verificationUrl: typeof window !== 'undefined' ? window.location.href : '',
+            serialNumber: qrCode.serialNumber,
+            isValid: verificationInfo.isValid,
+            verificationStatus: verificationInfo.isValid ? 'valid' : 'invalid',
+            blockchainTx: qrCode.blockchainTx && 
+              ((typeof qrCode.blockchainTx === 'string' && qrCode.blockchainTx.length > 0) || 
+               (typeof qrCode.blockchainTx === 'object' && qrCode.blockchainTx.hash && qrCode.blockchainTx.hash.length > 0)) ? {
+              hash: typeof qrCode.blockchainTx === 'string' ? qrCode.blockchainTx : qrCode.blockchainTx.hash,
+              status: typeof qrCode.blockchainTx === 'string' ? 'confirmed' : qrCode.blockchainTx.status,
+              blockNumber: typeof qrCode.blockchainTx === 'string' ? undefined : qrCode.blockchainTx.blockNumber,
+              timestamp: typeof qrCode.blockchainTx === 'string' ? new Date().toISOString() : qrCode.blockchainTx.timestamp,
+            } : undefined,
+            scannedAt: verificationInfo.verifiedAt
+          };
+
+          console.log('✅ Setting verification data:', verificationData);
+          setVerificationData(verificationData);
+        } else {
+          // Handle verification failure
+          console.log('❌ Verification failed:', result.error);
+          setError(result.error || 'QR Code verification failed');
+          
+          // Still show some data for failed verification
+          const failedData: VerificationData = {
+            qrCodeId: qrCodeId as string,
+            drug: 'Unknown Drug',
+            batchId: 'Unknown Batch',
+            manufacturer: 'Unknown Manufacturer',
+            expiryDate: 'Unknown',
+            verificationUrl: typeof window !== 'undefined' ? window.location.href : '',
+            serialNumber: 0,
+            isValid: false,
+            verificationStatus: 'invalid',
+            blockchainTx: undefined,
+            scannedAt: new Date().toISOString()
+          };
+          
+          setVerificationData(failedData);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Verification failed');
+        console.error('❌ Verification error:', err);
+        setError(err instanceof Error ? err.message : 'Network error during verification');
       } finally {
+        console.log('🏁 Setting loading to false');
         setIsLoading(false);
       }
     };
@@ -248,7 +306,7 @@ export default function VerifyPage() {
             </div>
 
             {/* Blockchain Verification */}
-            {verificationData.blockchainTx && (
+            {verificationData.blockchainTx && verificationData.blockchainTx.hash && verificationData.blockchainTx.hash.length > 0 && (
               <div className="border-t pt-4">
                 <div className="flex items-center space-x-3 mb-2">
                   <CheckCircle className="h-5 w-5 text-green-600" />
@@ -260,9 +318,13 @@ export default function VerifyPage() {
                 <div className="flex items-center space-x-2">
                   <span className="text-xs text-muted-foreground">Transaction:</span>
                   <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {verificationData.blockchainTx.substring(0, 10)}...
+                    {verificationData.blockchainTx.hash.substring(0, 10)}...
                   </code>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.open(`https://testnet.snowtrace.io/tx/${verificationData.blockchainTx?.hash}`, '_blank')}
+                  >
                     <ExternalLink className="w-3 h-3 mr-1" />
                     View
                   </Button>

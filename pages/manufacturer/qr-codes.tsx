@@ -115,93 +115,10 @@ export default function QRCodesPage() {
 
         const data = await response.json();
         
-        // If no QR codes found, create sample data for demonstration
-        if (data.qrCodes.length === 0) {
-          const sampleQRCodes = [
-            {
-              id: 'qr-001',
-              qrCodeId: 'BATCH001-000001',
-              batchId: 'BATCH001',
-              drug: 'Paracetamol 500mg',
-              quantity: 1000,
-              generated: 1,
-              status: 'generated',
-              date: new Date().toISOString(),
-              downloads: 5,
-              verifications: 12,
-              blockchainTx: '0x1234567890abcdef',
-              verificationUrl: `${window.location.origin}/verify/BATCH001-000001`
-            },
-            {
-              id: 'qr-002',
-              qrCodeId: 'BATCH002-000001',
-              batchId: 'BATCH002',
-              drug: 'Amoxicillin 250mg',
-              quantity: 500,
-              generated: 1,
-              status: 'generated',
-              date: new Date().toISOString(),
-              downloads: 3,
-              verifications: 8,
-              blockchainTx: '0xabcdef1234567890',
-              verificationUrl: `${window.location.origin}/verify/BATCH002-000001`
-            },
-            {
-              id: 'qr-003',
-              qrCodeId: 'BATCH003-000001',
-              batchId: 'BATCH003',
-              drug: 'Ibuprofen 400mg',
-              quantity: 750,
-              generated: 1,
-              status: 'generated',
-              date: new Date().toISOString(),
-              downloads: 7,
-              verifications: 15,
-              blockchainTx: '0x7890abcdef123456',
-              verificationUrl: `${window.location.origin}/verify/BATCH003-000001`
-            }
-          ];
-          
-          setQrCodes(sampleQRCodes);
-          setStats({
-            totalQRCodes: 3,
-            generatedToday: 3,
-            pendingGeneration: 0,
-            downloadRate: 85,
-            verificationRate: 92,
-            blockchainSuccess: 99.8
-          });
-          setBatches([
-            {
-              id: 'BATCH001',
-              drug: 'Paracetamol 500mg',
-              quantity: 1000,
-              status: 'completed',
-              fileName: 'batch-001.csv',
-              createdAt: new Date().toISOString()
-            },
-            {
-              id: 'BATCH002',
-              drug: 'Amoxicillin 250mg',
-              quantity: 500,
-              status: 'completed',
-              fileName: 'batch-002.csv',
-              createdAt: new Date().toISOString()
-            },
-            {
-              id: 'BATCH003',
-              drug: 'Ibuprofen 400mg',
-              quantity: 750,
-              status: 'completed',
-              fileName: 'batch-003.csv',
-              createdAt: new Date().toISOString()
-            }
-          ]);
-        } else {
-          setQrCodes(data.qrCodes);
-          setStats(data.stats);
-          setBatches(data.batches);
-        }
+        // Use real data from the API
+        setQrCodes(data.qrCodes);
+        setStats(data.stats);
+        setBatches(data.batches);
         setPagination(data.pagination);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load QR codes');
@@ -527,11 +444,19 @@ export default function QRCodesPage() {
                     <SelectValue placeholder="Choose a batch" />
                   </SelectTrigger>
                   <SelectContent>
-                    {batches.map((batch) => (
-                      <SelectItem key={batch.id} value={batch.id}>
-                        {batch.drug} - {batch.id}
-                      </SelectItem>
-                    ))}
+                    {batches.length > 0 ? (
+                      batches.map((batch) => (
+                        <SelectItem key={batch.id} value={batch.id}>
+                          {batch.drug} - {batch.id}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-muted-foreground">
+                        <Package className="h-8 w-8 mx-auto mb-2" />
+                        <p className="text-sm font-medium">No batches available</p>
+                        <p className="text-xs">Upload a batch first to generate QR codes</p>
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -570,11 +495,12 @@ export default function QRCodesPage() {
 
               <Button 
                 className="w-full" 
-                disabled={!selectedBatch || isGenerating}
+                disabled={!selectedBatch || isGenerating || batches.length === 0}
                 onClick={handleGenerateQRCodes}
               >
                 <QrCode className="mr-2 h-4 w-4" />
-                {isGenerating ? 'Generating...' : 'Generate QR Codes'}
+                {batches.length === 0 ? 'No batches available' : 
+                 isGenerating ? 'Generating...' : 'Generate QR Codes'}
               </Button>
             </CardContent>
           </Card>

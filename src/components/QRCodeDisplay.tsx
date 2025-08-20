@@ -15,7 +15,7 @@ import {
   Share2
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
-import { QRCodeGenerator, QRCodeData as GeneratorQRCodeData } from '@/lib/qr-code-generator';
+import QRCodeGenerator, { useQRCodeDownload } from './QRCodeGenerator';
 
 interface QRCodeData {
   id: string;
@@ -48,8 +48,7 @@ export default function QRCodeDisplay({
 }: QRCodeDisplayProps) {
   const [selectedQR, setSelectedQR] = useState<QRCodeData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [generatedQRCodes, setGeneratedQRCodes] = useState<Map<string, string>>(new Map());
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { downloadQRCode } = useQRCodeDownload();
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -80,86 +79,12 @@ export default function QRCodeDisplay({
     }
   };
 
-  // Generate QR code for a specific QR code data
-  const generateQRCode = async (qrCode: QRCodeData): Promise<string> => {
-    if (generatedQRCodes.has(qrCode.id)) {
-      return generatedQRCodes.get(qrCode.id)!;
-    }
 
-    try {
-      const qrData: GeneratorQRCodeData = {
-        qrCodeId: qrCode.qrCodeId,
-        drug: qrCode.drug,
-        batchId: qrCode.batchId,
-        manufacturer: 'DrugShield Manufacturer', // Default value
-        expiryDate: new Date().toISOString().split('T')[0], // Default value
-        verificationUrl: qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`,
-        serialNumber: 1
-      };
-
-      const dataURL = await QRCodeGenerator.generateQRCodeDataURL(qrData);
-      setGeneratedQRCodes(prev => new Map(prev).set(qrCode.id, dataURL));
-      return dataURL;
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      throw error;
-    }
-  };
-
-  // Generate QR codes for all items
-  useEffect(() => {
-    const generateAllQRCodes = async () => {
-      if (qrCodes.length === 0 || isGenerating) return;
-      
-      setIsGenerating(true);
-      try {
-        const promises = qrCodes.map(async (qrCode) => {
-          try {
-            await generateQRCode(qrCode);
-          } catch (error) {
-            console.error(`Failed to generate QR code for ${qrCode.id}:`, error);
-          }
-        });
-        
-        await Promise.all(promises);
-      } catch (error) {
-        console.error('Error generating QR codes:', error);
-      } finally {
-        setIsGenerating(false);
-      }
-    };
-
-    generateAllQRCodes();
-  }, [qrCodes]);
 
   const handleDownload = async (qrCode: QRCodeData) => {
     try {
-      if (qrCode.imageUrl) {
-        // Use existing image URL if available
-        const response = await fetch(qrCode.imageUrl);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `qr-code-${qrCode.qrCodeId}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      } else {
-        // Generate and download QR code
-        const qrData: GeneratorQRCodeData = {
-          qrCodeId: qrCode.qrCodeId,
-          drug: qrCode.drug,
-          batchId: qrCode.batchId,
-          manufacturer: 'DrugShield Manufacturer',
-          expiryDate: new Date().toISOString().split('T')[0],
-          verificationUrl: qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`,
-          serialNumber: 1
-        };
-
-        await QRCodeGenerator.downloadQRCode(qrData, `qr-code-${qrCode.qrCodeId}.png`);
-      }
+      const verificationUrl = qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`;
+      await downloadQRCode(verificationUrl, `qr-code-${qrCode.qrCodeId}.png`, 400);
       
       toast({
         title: "QR Code Downloaded",
@@ -231,14 +156,22 @@ export default function QRCodeDisplay({
 
   if (qrCodes.length === 0) {
     return (
-      <div className="text-center py-12">
-        <QrCode className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-        <h3 className="text-lg font-medium text-muted-foreground mb-2">
+      <div className="text-center py-16">
+        <QrCode className="h-16 w-16 mx-auto mb-6 text-muted-foreground" />
+        <h3 className="text-xl font-semibold text-muted-foreground mb-3">
           No QR Codes Found
         </h3>
-        <p className="text-sm text-muted-foreground">
-          Generate your first QR codes to see them displayed here.
+        <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+          You haven't generated any QR codes yet. Use the "Generate QR Codes" section to create QR codes for your pharmaceutical batches.
         </p>
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <span>Select a batch from the dropdown</span>
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <span>Enter the quantity needed</span>
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <span>Click "Generate QR Codes"</span>
+        </div>
       </div>
     );
   }
@@ -246,9 +179,9 @@ export default function QRCodeDisplay({
   return (
     <div className="space-y-6">
       {/* QR Codes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {qrCodes.map((qrCode) => (
-          <Card key={qrCode.id} className="hover:shadow-md transition-shadow">
+          <Card key={qrCode.id} className="hover:shadow-lg transition-shadow p-1">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium truncate">
@@ -262,51 +195,13 @@ export default function QRCodeDisplay({
             </CardHeader>
             <CardContent className="space-y-3">
               {/* QR Code Image */}
-              <div className="flex justify-center">
-                {qrCode.imageUrl ? (
-                  <div className="relative w-32 h-32 bg-white rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                    <Image
-                      src={qrCode.imageUrl}
-                      alt={`QR Code for ${qrCode.drug}`}
-                      width={120}
-                      height={120}
-                      className="rounded"
-                      onError={(e) => {
-                        // Fallback to generated QR code if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.nextElementSibling?.classList.remove('hidden');
-                      }}
-                    />
-                    <div className="hidden absolute inset-0 flex items-center justify-center text-xs text-gray-500 text-center p-2">
-                      QR Code<br />Image
-                    </div>
-                  </div>
-                ) : generatedQRCodes.has(qrCode.id) ? (
-                  <div className="relative w-32 h-32 bg-white rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                    <Image
-                      src={generatedQRCodes.get(qrCode.id)!}
-                      alt={`QR Code for ${qrCode.drug}`}
-                      width={120}
-                      height={120}
-                      className="rounded"
-                    />
-                  </div>
-                ) : isGenerating ? (
-                  <div className="w-32 h-32 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                    <div className="text-center text-gray-500">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600 mx-auto mb-1"></div>
-                      <span className="text-xs">Generating...</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-32 h-32 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                    <div className="text-center text-gray-500">
-                      <QrCode className="w-8 h-8 mx-auto mb-1" />
-                      <span className="text-xs">QR Code</span>
-                    </div>
-                  </div>
-                )}
+              <div className="flex justify-center p-4 bg-gray-50 rounded-lg">
+                <QRCodeGenerator
+                  data={qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`}
+                  size={140}
+                  className="rounded-lg border-2 border-gray-300 shadow-sm"
+                  alt={`QR Code for ${qrCode.drug}`}
+                />
               </div>
 
               {/* QR Code Info */}
@@ -379,36 +274,14 @@ export default function QRCodeDisplay({
           </DialogHeader>
           {selectedQR && (
             <div className="space-y-4">
-                             <div className="flex justify-center">
-                 {selectedQR.imageUrl ? (
-                   <div className="relative w-48 h-48 bg-white rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                     <Image
-                       src={selectedQR.imageUrl}
-                       alt={`QR Code for ${selectedQR.drug}`}
-                       width={180}
-                       height={180}
-                       className="rounded"
-                     />
-                   </div>
-                 ) : generatedQRCodes.has(selectedQR.id) ? (
-                   <div className="relative w-48 h-48 bg-white rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                     <Image
-                       src={generatedQRCodes.get(selectedQR.id)!}
-                       alt={`QR Code for ${selectedQR.drug}`}
-                       width={180}
-                       height={180}
-                       className="rounded"
-                     />
-                   </div>
-                 ) : (
-                   <div className="w-48 h-48 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                     <div className="text-center text-gray-500">
-                       <QrCode className="w-12 h-12 mx-auto mb-2" />
-                       <span>QR Code Image</span>
-                     </div>
-                   </div>
-                 )}
-               </div>
+              <div className="flex justify-center">
+                <QRCodeGenerator
+                  data={selectedQR.verificationUrl || `${window.location.origin}/verify/${selectedQR.qrCodeId}`}
+                  size={180}
+                  className="rounded border-2 border-gray-200"
+                  alt={`QR Code for ${selectedQR.drug}`}
+                />
+              </div>
               
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">

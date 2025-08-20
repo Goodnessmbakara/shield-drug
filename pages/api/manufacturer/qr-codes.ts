@@ -31,7 +31,8 @@ export default async function handler(
         limit = '10', 
         search = '', 
         status = 'all',
-        batchId = 'all'
+        batchId = 'all',
+        uploadId = ''
       } = req.query;
 
       const pageNum = parseInt(page as string);
@@ -40,6 +41,11 @@ export default async function handler(
 
       // Build filter conditions
       const filter: any = { userEmail: userEmail as string };
+      
+      // Filter by uploadId if provided
+      if (uploadId && uploadId !== '') {
+        filter.uploadId = uploadId as string;
+      }
       
       if (search) {
         filter.$or = [
@@ -142,7 +148,7 @@ export default async function handler(
         return res.status(400).json({ error: 'Batch ID is required' });
       }
 
-      // Get the batch/upload record
+      // Get the batch/upload record - batchId from frontend is always an ObjectId string
       const upload = await Upload.findOne({ 
         _id: batchId, 
         userEmail: userEmail as string 
@@ -170,18 +176,25 @@ export default async function handler(
           
           for (let serialNumber = startIndex; serialNumber <= endIndex; serialNumber++) {
             try {
-              let qrCode = await qrCodeService.generateQRCode(
-                batchId,
-                upload.drug || 'Unknown',
-                serialNumber,
-                {
-                  drugName: upload.drug || 'Unknown',
-                  batchId: upload.batchId || batchId,
-                  manufacturer: upload.manufacturer || 'Unknown',
-                  expiryDate: upload.expiryDate || new Date().toISOString(),
-                  quantity: batchQuantity
-                }
-              );
+              let qrCode;
+              try {
+                qrCode = await qrCodeService.generateQRCode(
+                  upload._id.toString(), // Use the actual upload ID
+                  upload.drug || 'Unknown',
+                  serialNumber,
+                  {
+                    drugName: upload.drug || 'Unknown',
+                    batchId: upload.batchId || batchId,
+                    manufacturer: upload.manufacturer || 'Unknown',
+                    expiryDate: upload.expiryDate || new Date().toISOString(),
+                    quantity: batchQuantity
+                  }
+                );
+              } catch (qrGenerationError) {
+                console.error(`Failed to generate QR code ${serialNumber}:`, qrGenerationError);
+                // Continue with next QR code instead of failing completely
+                continue;
+              }
 
               // Save QR code to database with retry logic
               let qrCodeDoc;
@@ -192,7 +205,7 @@ export default async function handler(
                 try {
                   qrCodeDoc = new QRCode({
                     qrCodeId: qrCode.qrCodeId,
-                    uploadId: batchId,
+                    uploadId: upload._id.toString(), // Use the actual upload ID
                     userEmail: userEmail as string,
                     drugCode: qrCode.drugCode,
                     serialNumber: qrCode.serialNumber,
@@ -206,6 +219,11 @@ export default async function handler(
                   });
 
                   await qrCodeDoc.save();
+                  console.log('💾 Saved QR code to database:', {
+                    qrCodeId: qrCodeDoc.qrCodeId,
+                    uploadId: qrCodeDoc.uploadId,
+                    serialNumber: qrCodeDoc.serialNumber
+                  });
                   break; // Success, exit retry loop
                 } catch (saveError: any) {
                   saveAttempts++;
@@ -258,18 +276,25 @@ export default async function handler(
         
         for (let i = 1; i <= qty; i++) {
           try {
-            let qrCode = await qrCodeService.generateQRCode(
-              batchId,
-              upload.drug || 'Unknown',
-              i,
-              {
-                drugName: upload.drug || 'Unknown',
-                batchId: upload.batchId || batchId,
-                manufacturer: upload.manufacturer || 'Unknown',
-                expiryDate: upload.expiryDate || new Date().toISOString(),
-                quantity: qty
-              }
-            );
+            let qrCode;
+            try {
+              qrCode = await qrCodeService.generateQRCode(
+                upload._id.toString(), // Use the actual upload ID
+                upload.drug || 'Unknown',
+                i,
+                {
+                  drugName: upload.drug || 'Unknown',
+                  batchId: upload.batchId || batchId,
+                  manufacturer: upload.manufacturer || 'Unknown',
+                  expiryDate: upload.expiryDate || new Date().toISOString(),
+                  quantity: qty
+                }
+              );
+            } catch (qrGenerationError) {
+              console.error(`Failed to generate QR code ${i}:`, qrGenerationError);
+              // Continue with next QR code instead of failing completely
+              continue;
+            }
 
             // Save QR code to database with retry logic
             let qrCodeDoc;

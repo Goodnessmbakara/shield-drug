@@ -110,11 +110,13 @@ export function useBatchUpload(): UseBatchUploadReturn {
       });
 
       // Prepare upload data
+      const clientUploadId = generateClientUploadId();
       const uploadData = {
         fileContent,
         fileName: file.name,
         fileSize: file.size,
-        metadata
+        metadata,
+        clientUploadId
       };
 
       // Get user info from localStorage (in a real app, this would come from auth context)
@@ -141,6 +143,18 @@ export function useBatchUpload(): UseBatchUploadReturn {
         message: 'Preparing blockchain transaction...'
       });
 
+      // Start polling immediately using client-generated ID
+      setCurrentUploadId(clientUploadId);
+      // Start polling every 2 seconds right away
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      progressIntervalRef.current = setInterval(() => {
+        pollProgress(clientUploadId);
+      }, 2000);
+      // Initial poll
+      pollProgress(clientUploadId);
+
       // Make API request
       const response = await fetch('/api/manufacturer/upload-batch', {
         method: 'POST',
@@ -160,21 +174,21 @@ export function useBatchUpload(): UseBatchUploadReturn {
 
       // Get the response
       const result: UploadResponse = await response.json();
-
-      // Start polling for progress updates
-      setCurrentUploadId(result.uploadId);
       
-      // Start polling every 2 seconds
-      progressIntervalRef.current = setInterval(() => {
-        pollProgress(result.uploadId);
-      }, 2000);
+      // Handle API errors
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Upload failed');
+      }
       
-      // Initial poll
-      pollProgress(result.uploadId);
+      // Ensure we continue polling until backend marks complete.
       
       // Wait for completion by polling until done
-      while (currentUploadId) {
+      // We rely on interval and server's isComplete flag; keep lightweight wait to allow UI to update
+      // without blocking thread unnecessarily.
+      while (true) {
         await new Promise(resolve => setTimeout(resolve, 1000));
+        // Stop waiting if polling was cleared
+        if (!progressIntervalRef.current) break;
         if (error) {
           throw new Error(error);
         }
@@ -208,10 +222,21 @@ export function useBatchUpload(): UseBatchUploadReturn {
       console.error('Upload error:', err);
       
       setError(errorMessage);
+      
+      // Provide more specific progress messages based on error type
+      let progressMessage = 'Upload failed';
+      if (errorMessage.includes('Batch ID') && errorMessage.includes('already exists')) {
+        progressMessage = 'Duplicate batch ID detected';
+      } else if (errorMessage.includes('validation')) {
+        progressMessage = 'Data validation failed';
+      } else if (errorMessage.includes('blockchain')) {
+        progressMessage = 'Blockchain transaction failed';
+      }
+      
       setUploadProgress({
         stage: 'validation',
         progress: 0,
-        message: 'Upload failed',
+        message: progressMessage,
         details: errorMessage
       });
     } finally {
@@ -273,3 +298,10 @@ function readFileAsText(file: File): Promise<string> {
     reader.readAsText(file);
   });
 } 
+
+// Helper to generate a client-side upload ID so frontend can poll during in-flight POST
+function generateClientUploadId(): string {
+  const randomPart = Math.random().toString(36).slice(2, 10);
+  const timePart = Date.now().toString(36);
+  return `upl_${timePart}_${randomPart}`;
+}

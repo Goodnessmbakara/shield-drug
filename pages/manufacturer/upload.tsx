@@ -731,6 +731,11 @@ export default function UploadPage() {
                   <p className="text-xs text-muted-foreground">
                     Stage: {uploadProgress.stage}
                   </p>
+                  {uploadProgress.details && (
+                    <p className="text-xs text-muted-foreground">
+                      {uploadProgress.details}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -779,12 +784,21 @@ export default function UploadPage() {
               {/* Error Display */}
               {error && (
                 <div className="p-3 border border-red-200 rounded-lg bg-red-50">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mb-2">
                     <AlertTriangle className="h-4 w-4 text-red-500" />
                     <span className="text-sm text-red-700 font-medium">
-                      {error}
+                      Upload Failed
                     </span>
                   </div>
+                  <p className="text-sm text-red-600 mb-2">
+                    {error}
+                  </p>
+                  {error.includes('Batch ID') && error.includes('already exists') && (
+                    <div className="mt-2 p-2 bg-red-100 rounded text-xs text-red-700">
+                      <strong>💡 Tip:</strong> Each batch ID must be unique. If you're uploading a new version of the same batch, 
+                      consider using a version suffix (e.g., "AS2024113_v2") or check if this batch was already uploaded.
+                    </div>
+                  )}
                   {uploadResult?.validationResult &&
                     !uploadResult.validationResult.isValid && (
                       <div className="mt-2">
@@ -1082,7 +1096,7 @@ export default function UploadPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-medium font-mono text-xs bg-muted px-2 py-1 rounded truncate flex-1 hover:bg-muted/80 transition-colors cursor-pointer"
-                        title="View on Snowtrace"
+                        title="View on Avalanche Testnet Explorer"
                       >
                         {upload.blockchainTx}
                       </a>

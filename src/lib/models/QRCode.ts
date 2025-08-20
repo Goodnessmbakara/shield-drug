@@ -41,7 +41,6 @@ const QRCodeSchema = new Schema({
   qrCodeId: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
     validate: {
       validator: function(v: string): boolean {
@@ -183,9 +182,17 @@ QRCodeSchema.pre('save', function(next) {
     return next(new Error('QR Code ID cannot be null or empty'));
   }
   
-  // Ensure qrCodeId follows the expected format
-  if (!this.qrCodeId.startsWith('QR-') || this.qrCodeId.length < 5) {
-    return next(new Error('QR Code ID must follow the format QR-XXXXXXXX'));
+  // Ensure qrCodeId follows the expected format (support both old QR- format and new short format)
+  if (this.qrCodeId.startsWith('QR-')) {
+    // Old format: QR-XXXXXXXX
+    if (this.qrCodeId.length < 5) {
+      return next(new Error('QR Code ID must follow the format QR-XXXXXXXX'));
+    }
+  } else {
+    // New format: 12-character hex string
+    if (this.qrCodeId.length !== 12 || !/^[a-f0-9]+$/i.test(this.qrCodeId)) {
+      return next(new Error('QR Code ID must be a 12-character hexadecimal string'));
+    }
   }
   
   next();

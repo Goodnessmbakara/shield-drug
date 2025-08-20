@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { parseCSV, validateDrugBatchData, validateFileSize, validateFileType, generateUploadId } from '@/lib/validation';
 import { UploadResponse, ValidationResult, UploadStatus } from '@/lib/types';
 import { blockchainService } from '@/lib/blockchain';
-import { createUpload } from '@/lib/db-utils';
+import { createUpload, checkBatchIdExists } from '@/lib/db-utils';
 import { updateUploadProgress, estimateProcessingTime, calculateProgress } from './upload-progress';
 import QRCode from '@/lib/models/QRCode';
 import { qrCodeService } from '@/lib/qr-code';
@@ -42,7 +42,7 @@ export default async function handler(
     }
 
     // Get file data and metadata from request
-    const { fileContent, fileName, fileSize, metadata } = req.body;
+    const { fileContent, fileName, fileSize, metadata, clientUploadId } = req.body;
 
     if (!fileContent || !fileName) {
       return res.status(400).json({ error: 'File content and name are required' });
@@ -89,8 +89,61 @@ export default async function handler(
     // Validate drug batch data
     const validationResult = validateDrugBatchData(csvRows);
 
-    // Generate upload ID
-    const uploadId = generateUploadId();
+    // Generate upload ID (use client-provided if present so frontend can poll immediately)
+    const uploadId = typeof clientUploadId === 'string' && clientUploadId.length > 0
+      ? clientUploadId
+      : generateUploadId();
+
+    // Check for duplicate batch IDs before processing
+    const uniqueBatchIds = new Set<string>();
+    const duplicateBatchIds: string[] = [];
+    
+    for (const row of validationResult.data) {
+      const batchId = row.batch_id;
+      if (uniqueBatchIds.has(batchId)) {
+        duplicateBatchIds.push(batchId);
+      } else {
+        uniqueBatchIds.add(batchId);
+        // Check if batch ID already exists in database
+        const exists = await checkBatchIdExists(batchId, userEmail as string);
+        if (exists) {
+          duplicateBatchIds.push(batchId);
+        }
+      }
+    }
+
+    if (duplicateBatchIds.length > 0) {
+      updateUploadProgress(uploadId, {
+        stage: 'validation',
+        progress: 0,
+        message: 'Duplicate batch IDs found',
+        totalQuantity: 0,
+        processedQuantity: 0,
+        estimatedTimeRemaining: 0,
+        isComplete: true,
+        error: `Duplicate batch IDs detected: ${duplicateBatchIds.join(', ')}`
+      });
+
+      return res.status(400).json({
+        error: `Duplicate batch IDs detected: ${duplicateBatchIds.join(', ')}. These batches have already been uploaded.`,
+        uploadId,
+        status: 'failed' as UploadStatus,
+        validationResult: {
+          ...validationResult,
+          isValid: false,
+          errors: [
+            ...validationResult.errors,
+            ...duplicateBatchIds.map(id => ({
+              row: 0,
+              column: 'batch_id',
+              value: id,
+              message: `Batch ID '${id}' already exists in the database`,
+              severity: 'error' as const
+            }))
+          ]
+        }
+      });
+    }
 
     // Calculate total quantity and estimate processing time
     const totalQuantity = validationResult.data.reduce((sum, row) => sum + parseInt(row.quantity.toString()), 0);
@@ -221,6 +274,26 @@ export default async function handler(
       console.log('✅ Upload record saved to database:', savedUpload._id);
     } catch (error) {
       console.error('❌ Failed to save upload to database:', error);
+      
+      // Update progress with error
+      updateUploadProgress(uploadId, {
+        stage: 'database',
+        progress: 0,
+        message: 'Failed to save to database',
+        totalQuantity,
+        processedQuantity: qrCodesGenerated,
+        estimatedTimeRemaining: 0,
+        isComplete: true,
+        error: error instanceof Error ? error.message : 'Database save failed'
+      });
+      
+      // Handle duplicate key error specifically
+      if (error instanceof Error && error.message.includes('E11000') && error.message.includes('batchId')) {
+        const match = error.message.match(/dup key: { batchId: "([^"]+)" }/);
+        const duplicateBatchId = match ? match[1] : 'unknown';
+        throw new Error(`Batch ID "${duplicateBatchId}" already exists. Please use a different batch ID or check if this batch was already uploaded by you or another user.`);
+      }
+      
       throw new Error('Failed to save upload record to database');
     }
 
@@ -236,7 +309,7 @@ export default async function handler(
     });
 
     const response: UploadResponse = {
-      uploadId: (savedUpload._id as string).toString(),
+      uploadId: uploadId,
       status: 'completed',
       validationResult,
       blockchainTx,

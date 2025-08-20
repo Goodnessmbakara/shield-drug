@@ -54,6 +54,7 @@ import {
 } from "lucide-react";
 import { UploadHistory } from "@/lib/types";
 import { generateUnifiedCSVExport, convertToCSV } from "@/lib/utils";
+import QRCodeGenerator, { useQRCodeDownload } from "@/components/QRCodeGenerator";
 
 interface UploadDetails {
   id: string;
@@ -151,6 +152,7 @@ export default function UploadDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showQRCodes, setShowQRCodes] = useState(false);
   const [qrCodes, setQrCodes] = useState<any[]>([]);
+  const { downloadQRCode: downloadQRCodeImage } = useQRCodeDownload();
 
   useEffect(() => {
     setIsClient(true);
@@ -692,10 +694,11 @@ export default function UploadDetailsPage() {
                           key={qrCode.id}
                           className="border rounded-lg p-4 text-center"
                         >
-                          <img
-                            src={qrCode.qrCodeUrl}
+                          <QRCodeGenerator
+                            data={qrCode.verificationUrl}
+                            size={150}
+                            className="w-full mb-2"
                             alt={`QR Code ${qrCode.serialNumber}`}
-                            className="w-full h-auto mb-2"
                           />
                           <p className="text-xs font-medium mb-1">
                             #{qrCode.serialNumber}
@@ -708,7 +711,11 @@ export default function UploadDetailsPage() {
                               variant="outline"
                               size="sm"
                               className="w-full text-xs"
-                              onClick={() => downloadQRCode(qrCode)}
+                              onClick={() => downloadQRCodeImage(
+                                qrCode.verificationUrl,
+                                `${qrCode.qrCodeId || qrCode.id}.png`,
+                                400
+                              )}
                             >
                               <Download className="h-3 w-3 mr-1" />
                               Download

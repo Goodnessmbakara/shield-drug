@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Debug</title>
+</head>
+<body>
+    <h1>Verification Debug</h1>
+    <div id="result">Loading...</div>
+    
+    <script>
+        async function testVerification() {
+            const resultDiv = document.getElementById('result');
+            const qrCodeId = '759cf847498e';
+            
+            try {
+                console.log('Testing verification for:', qrCodeId);
+                
+                const response = await fetch('/api/qr-codes/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        qrCodeId: qrCodeId
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('API Response:', result);
+                    
+                    if (result.success && result.data) {
+                        const { qrCode, verificationInfo } = result.data;
+                        
+                        resultDiv.innerHTML = `
+                            <h2>✅ Verification Successful</h2>
+                            <p><strong>QR Code ID:</strong> ${qrCode.qrCodeId}</p>
+                            <p><strong>Drug:</strong> ${qrCode.metadata.drugName}</p>
+                            <p><strong>Manufacturer:</strong> ${qrCode.metadata.manufacturer}</p>
+                            <p><strong>Batch ID:</strong> ${qrCode.metadata.batchId}</p>
+                            <p><strong>Is Valid:</strong> ${verificationInfo.isValid}</p>
+                            <p><strong>Blockchain TX:</strong> ${qrCode.blockchainTx ? 'Present' : 'None'}</p>
+                            <p><strong>Blockchain TX Type:</strong> ${typeof qrCode.blockchainTx}</p>
+                            <p><strong>Blockchain TX Value:</strong> ${JSON.stringify(qrCode.blockchainTx)}</p>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <h2>❌ Verification Failed</h2>
+                            <p><strong>Error:</strong> ${result.error || 'Unknown error'}</p>
+                        `;
+                    }
+                } else {
+                    const errorResult = await response.json();
+                    console.log('API Error:', errorResult);
+                    
+                    resultDiv.innerHTML = `
+                        <h2>❌ API Error</h2>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Error:</strong> ${errorResult.error || 'Unknown error'}</p>
+                        <p><strong>Details:</strong> ${errorResult.details || 'No details'}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                resultDiv.innerHTML = `
+                    <h2>❌ Network Error</h2>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+            }
+        }
+        
+        // Run the test when page loads
+        testVerification();
+    </script>
+</body>
+</html>

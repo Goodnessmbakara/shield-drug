@@ -92,8 +92,7 @@ const UploadSchema: Schema = new Schema({
   batchId: {
     type: String,
     required: true,
-    trim: true,
-    unique: true
+    trim: true
   },
   expiryDate: {
     type: Date,
@@ -192,7 +191,7 @@ const UploadSchema: Schema = new Schema({
 
 // Create indexes for better query performance
 UploadSchema.index({ userEmail: 1, createdAt: -1 });
-UploadSchema.index({ batchId: 1 });
+UploadSchema.index({ batchId: 1, userEmail: 1 }, { unique: true }); // Unique per user
 UploadSchema.index({ status: 1 });
 UploadSchema.index({ manufacturer: 1 });
 UploadSchema.index({ drug: 1 });

@@ -1,4 +1,12 @@
 import * as tf from '@tensorflow/tfjs';
+// Conditionally import tfjs-node for Node.js environment
+if (typeof window === 'undefined') {
+  try {
+    require('@tensorflow/tfjs-node');
+  } catch (error) {
+    console.warn('TensorFlow.js Node.js backend not available:', error);
+  }
+}
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { recognizePharmaceuticalText } from '@/lib/ocr-service';
 import { preprocessForOCR, assessImageQuality } from '@/lib/image-preprocessing';
@@ -117,18 +125,17 @@ class AIDrugAnalysisService {
     try {
       // Set backend based on environment configuration
       if (typeof window === 'undefined') {
-        // Node.js environment
-        try {
-          require('@tensorflow/tfjs-node');
-          const backend = process.env.TENSORFLOW_BACKEND || 'cpu';
-          await tf.setBackend(backend);
-          this.nativeAddonAvailable = true;
-          console.log(`TensorFlow.js backend set to: ${backend}`);
-        } catch (error) {
-          console.warn('TensorFlow.js Node.js backend not available, falling back to CPU');
-          await tf.setBackend('cpu');
-          this.nativeAddonAvailable = false;
-        }
+        // Node.js environment - require tfjs-node and set tensorflow backend
+        require('@tensorflow/tfjs-node');
+        await tf.setBackend('tensorflow');
+        
+        // Test the backend with a simple operation to ensure it works
+        const testTensor = tf.scalar(1);
+        testTensor.cast('float32').dispose();
+        testTensor.dispose();
+        
+        this.nativeAddonAvailable = true;
+        console.log('TensorFlow.js backend set to: tensorflow');
       }
       
       await tf.ready();
@@ -215,6 +222,8 @@ class AIDrugAnalysisService {
 
       console.log('Loading COCO-SSD model...');
       
+      // Backend should already be set during initialization
+      
       // Load COCO-SSD model with lite_mobilenet_v2 base for speed
       AIDrugAnalysisService.cocoSsdModel = await cocoSsd.load({
         base: 'lite_mobilenet_v2'
@@ -226,9 +235,7 @@ class AIDrugAnalysisService {
       }
 
       // Warm up the model with environment-appropriate input
-      const isBrowser = typeof window !== 'undefined';
-      
-      if (isBrowser && typeof document !== 'undefined') {
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         // Browser warm-up with canvas (SSR-safe)
         const dummyCanvas = document.createElement('canvas');
         dummyCanvas.width = 224;
@@ -240,8 +247,8 @@ class AIDrugAnalysisService {
         const warmupResult = await AIDrugAnalysisService.cocoSsdModel.detect(dummyCanvas);
         console.log('COCO-SSD browser warmup completed with', warmupResult.length, 'detections');
       } else {
-        // Node.js warm-up with Tensor3D
-        const dummyTensor: tf.Tensor3D = tf.zeros([224, 224, 3]) as tf.Tensor3D;
+        // Node.js warm-up with Tensor3D - use int32 dtype for COCO-SSD
+        const dummyTensor: tf.Tensor3D = tf.ones([224, 224, 3]).mul(255).cast('int32') as tf.Tensor3D;
         const warmupResult = await AIDrugAnalysisService.cocoSsdModel.detect(dummyTensor);
         console.log('COCO-SSD Node.js warmup completed with', warmupResult.length, 'detections');
         dummyTensor.dispose();
@@ -423,7 +430,7 @@ class AIDrugAnalysisService {
       const isBrowser = typeof window !== 'undefined';
       
       let rawDetections: any[];
-      if (isBrowser && typeof document !== 'undefined') {
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         // Browser: use canvas (strictly browser-only)
         const canvas = await this.base64ToCanvas(imageData);
         rawDetections = await AIDrugAnalysisService.cocoSsdModel!.detect(canvas, MAX_RELEVANT_DETECTIONS, DEFAULT_MIN_DETECTION_SCORE);
@@ -668,8 +675,8 @@ class AIDrugAnalysisService {
       // Browser: convert canvas to tensor
       const canvas = await this.base64ToCanvas(imageData);
       const tensor = tf.browser.fromPixels(canvas);
-      // COCO-SSD expects int32 dtype (0-255 range), not float32
-      return tensor as tf.Tensor3D;
+      // COCO-SSD expects int32 dtype (0-255 range), ensure proper dtype
+      return tensor.cast('int32') as tf.Tensor3D;
     } else {
       // Node.js: use tfjs-node for base64 decoding
       try {
@@ -684,22 +691,20 @@ class AIDrugAnalysisService {
           // Decode image from buffer - COCO-SSD expects int32 dtype (0-255 range)
           const imageTensor = tfnode.node.decodeImage(buffer, 3) as tf.Tensor3D;
           
+          // Ensure tensor is int32 with values in 0-255 range
+          const int32Tensor = imageTensor.cast('int32');
+          
           // Note: Avoid resizing to preserve original bbox coordinates
           // COCO-SSD will handle input size variations internally
           // Bbox coordinates will be relative to original image dimensions
-          return imageTensor;
+          return int32Tensor;
         });
         
       } catch (error) {
         console.error('Node.js image preprocessing failed:', error);
         
-        // Check if native addon is available
-        if (!this.nativeAddonAvailable) {
-          throw new Error('TensorFlow.js native addon not available for image preprocessing');
-        }
-        
         // Return a placeholder tensor with proper shape and dtype for COCO-SSD
-        return tf.zeros([224, 224, 3]) as tf.Tensor3D;
+        return tf.zeros([224, 224, 3]).cast('int32') as tf.Tensor3D;
       }
     }
   }

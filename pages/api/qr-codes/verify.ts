@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { qrCodeService } from '../../../src/lib/qr-code';
+import dbConnect from '../../../src/lib/database';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -7,6 +8,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // Connect to database
+    await dbConnect();
+    
     const { qrCodeId, qrCodeData } = req.body;
 
     if (!qrCodeId && !qrCodeData) {
@@ -44,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isValid: true,
             blockchainConfirmed: blockchainStatus?.confirmed || false,
             explorerUrl: data.blockchainTx?.hash 
-              ? `https://snowtrace.io/tx/${data.blockchainTx.hash}`
+              ? `https://testnet.snowtrace.io/tx/${data.blockchainTx.hash}`
               : undefined,
           },
         },

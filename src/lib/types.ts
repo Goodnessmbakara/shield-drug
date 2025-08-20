@@ -170,6 +170,8 @@ export interface UploadResponse {
   blockchainTx?: BlockchainTransaction;
   qrCodesGenerated?: number;
   error?: string;
+  // Optional ID used by the in-memory progress tracker
+  progressId?: string;
 } 
 
 // Unified CSV Export Types

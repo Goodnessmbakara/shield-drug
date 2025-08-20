@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { aiDrugAnalysis } from '@/services/aiDrugAnalysis';
+import { professionalDrugAnalysis } from '@/services/professionalDrugAnalysis';
 
 // Request timeout in milliseconds
 const ANALYSIS_TIMEOUT = parseInt(process.env.AI_MODEL_TIMEOUT || '60000'); // Default 60 seconds
@@ -87,31 +88,47 @@ export default async function handler(
       }, ANALYSIS_TIMEOUT);
     });
 
-    // Create the analysis promise
-    const analysisPromise = aiDrugAnalysis.analyzeImage(imageData);
+    // Create the analysis promise - try professional analysis first
+    const analysisPromise = async () => {
+      try {
+        console.log(`[${requestId}] Attempting professional drug analysis...`);
+        const professionalResult = await professionalDrugAnalysis.analyzeImage(imageData);
+        return { result: professionalResult, method: 'professional-multi-modal' };
+      } catch (error) {
+        console.log(`[${requestId}] Professional analysis failed, falling back to basic analysis:`, error);
+        const basicResult = await aiDrugAnalysis.analyzeImage(imageData);
+        return { result: basicResult, method: 'basic-heuristic' };
+      }
+    };
 
     // Race between analysis and timeout
-    const result = await Promise.race([analysisPromise, timeoutPromise]);
+    const result = await Promise.race([analysisPromise(), timeoutPromise]);
 
     const processingTime = Date.now() - startTime;
 
-    // Determine which model was used based on the result
-    let modelUsed = 'unknown';
+    // Extract the actual result and method information
+    const { result: analysisResult, method } = result as any;
+    
+    // Determine which model was used based on the method
+    let modelUsed = method || 'unknown';
     let fallbackLevel = 0;
 
-    if (result.imageClassification) {
-      switch (result.imageClassification.detectionMethod) {
+    if (method === 'professional-multi-modal') {
+      modelUsed = 'professional-multi-modal';
+      fallbackLevel = 0;
+    } else if (analysisResult.imageClassification) {
+      switch (analysisResult.imageClassification.detectionMethod) {
         case 'coco-ssd':
           modelUsed = 'coco-ssd';
-          fallbackLevel = 0;
+          fallbackLevel = 1;
           break;
         case 'mobilenet':
           modelUsed = 'mobilenet-v2';
-          fallbackLevel = 1;
+          fallbackLevel = 2;
           break;
         case 'heuristic':
           modelUsed = 'heuristic';
-          fallbackLevel = 2;
+          fallbackLevel = 3;
           break;
       }
     }
@@ -123,16 +140,17 @@ export default async function handler(
     
     if (useLegacyFormat) {
       // Return legacy format for backward compatibility
-      res.status(200).json(result);
+      res.status(200).json(analysisResult);
     } else {
       // Return new format with metadata
       res.status(200).json({
-        result,
+        result: analysisResult,
         metadata: {
           modelUsed,
           fallbackLevel,
           processingTime,
-          requestId
+          requestId,
+          method
         }
       });
     }

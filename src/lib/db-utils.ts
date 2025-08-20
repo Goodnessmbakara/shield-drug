@@ -11,6 +11,16 @@ export const createUpload = async (uploadData: Partial<IUpload>): Promise<IUploa
   return await upload.save();
 };
 
+export const checkBatchIdExists = async (batchId: string, userEmail?: string): Promise<boolean> => {
+  await dbConnect();
+  const query: any = { batchId };
+  if (userEmail) {
+    query.userEmail = userEmail;
+  }
+  const existing = await Upload.findOne(query);
+  return !!existing;
+};
+
 export const getUploadById = async (id: string): Promise<IUpload | null> => {
   await dbConnect();
   return await Upload.findById(id);

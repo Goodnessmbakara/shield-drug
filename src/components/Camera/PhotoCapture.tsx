@@ -917,7 +917,7 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
                                         {photo.analysis.confidence}%
                                       </p>
                                     )}
-                                    {photo.analysis.issues.length > 0 && (
+                                    {photo.analysis.issues && photo.analysis.issues.length > 0 && (
                                       <p className="text-red-600">
                                         <span className="font-medium">
                                           Issues:

@@ -161,6 +161,17 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate email before attempting reset
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email.trim())) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address to reset your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!newPassword || !confirmPassword) {
       toast({
         title: "Missing Information",
@@ -327,6 +338,17 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                     )}
                   </Button>
                 </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="px-0"
+                    onClick={() => setShowForgotPassword(true)}
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
               </div>
 
               <Button
@@ -369,6 +391,18 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                 <p className="text-sm text-yellow-700 mt-1">
                   Enter a new password for your account. You cannot change your role during this process.
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="resetEmail">Email</Label>
+                <Input
+                  id="resetEmail"
+                  type="email"
+                  placeholder="Enter your account email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
 
               <div className="space-y-2">

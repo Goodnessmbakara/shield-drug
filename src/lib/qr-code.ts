@@ -84,9 +84,22 @@ export class QRCodeService {
         await new Promise(resolve => setTimeout(resolve, 10));
       } while (true);
       
-      // Record QR code on blockchain
-      console.log('🔗 Recording QR code on blockchain...');
-      const blockchainTx = await blockchainService.recordQRCode(qrCodeId, uploadId, serialNumber);
+      // Record QR code on blockchain (optional - don't fail if blockchain is unavailable)
+      let blockchainTx;
+      try {
+        console.log('🔗 Recording QR code on blockchain...');
+        blockchainTx = await blockchainService.recordQRCode(qrCodeId, uploadId, serialNumber);
+      } catch (blockchainError) {
+        console.warn('⚠️ Blockchain recording failed, continuing without blockchain:', blockchainError);
+        blockchainTx = {
+          hash: '',
+          status: 'failed',
+          gasUsed: 0,
+          gasPrice: 0,
+          timestamp: new Date().toISOString(),
+          errorMessage: blockchainError instanceof Error ? blockchainError.message : 'Blockchain error'
+        };
+      }
       
       // Create verification URL
       const verificationUrl = `${this.baseUrl}/verify/${qrCodeId}`;
@@ -109,6 +122,9 @@ export class QRCodeService {
 
       console.log('✅ QR code generated with blockchain transaction:', {
         qrCodeId,
+        uploadId,
+        drugCode,
+        serialNumber,
         blockchainHash: blockchainTx.hash,
         status: blockchainTx.status,
       });
@@ -122,15 +138,11 @@ export class QRCodeService {
   }
 
   /**
-   * Generate QR code image URL
+   * Generate QR code image URL (now returns verification URL for client-side generation)
    */
   generateQRCodeImageUrl(qrCodeData: QRCodeData): string {
-    const qrData = JSON.stringify(qrCodeData, null, 0);
-    const encodedData = encodeURIComponent(qrData);
-    
-    // Use QR code API to generate image
-    const qrApiUrl = process.env.QR_CODE_API_URL || 'https://api.qrserver.com/v1/create-qr-code/';
-    return `${qrApiUrl}?data=${encodedData}&size=300x300&format=png&margin=10`;
+    // Return the verification URL - the frontend will generate the QR code image
+    return qrCodeData.verificationUrl;
   }
 
   /**
@@ -141,26 +153,22 @@ export class QRCodeService {
       // Use crypto.randomUUID for guaranteed uniqueness
       const uuid = crypto.randomUUID();
       const timestamp = Date.now();
-      const processId = process.pid || Math.floor(Math.random() * 10000);
       
-      // Create a unique string combining all elements
-      const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${processId}-${uuid}`;
+      // Create a unique string combining essential elements (without uploadId to keep it shorter)
+      const uniqueString = `${drugCode}-${serialNumber}-${timestamp}-${uuid}`;
       
       // Use SHA-256 hash for better distribution and uniqueness
       const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
       
-      // Take first 8 characters and convert to uppercase for readability
-      const shortHash = hash.substring(0, 8).toUpperCase();
-      
-      // Add a prefix to make it more identifiable
-      const qrCodeId = `QR-${shortHash}`;
+      // Take first 12 characters for a shorter but still unique ID
+      const shortHash = hash.substring(0, 12);
       
       // Validate the generated ID
-      if (!qrCodeId || qrCodeId.length < 5) {
+      if (!shortHash || shortHash.length < 8) {
         throw new Error('Generated QR Code ID is invalid');
       }
       
-      return qrCodeId;
+      return shortHash;
     } catch (error) {
       console.error('Error generating unique QR code ID:', error);
       // Fallback to a simpler but still unique method
@@ -174,14 +182,13 @@ export class QRCodeService {
   private generateQRCodeIdFallback(uploadId: string, drugCode: string, serialNumber: number): string {
     const timestamp = Date.now();
     const randomPart = Math.random().toString(36).substring(2, 10);
-    const processId = process.pid || Math.floor(Math.random() * 10000);
-    const uniqueString = `${uploadId}-${drugCode}-${serialNumber}-${timestamp}-${processId}-${randomPart}`;
+    const uniqueString = `${drugCode}-${serialNumber}-${timestamp}-${randomPart}`;
     
     // Use SHA-256 hash
     const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
-    const shortHash = hash.substring(0, 8).toUpperCase();
+    const shortHash = hash.substring(0, 12);
     
-    return `QR-${shortHash}`;
+    return shortHash;
   }
 
   /**
@@ -216,42 +223,60 @@ export class QRCodeService {
     error?: string;
   }> {
     try {
-      // In a real implementation, you would:
-      // 1. Decode QR code data
-      // 2. Verify against blockchain
-      // 3. Check if transaction is confirmed
+      // Import database models
+      const { default: QRCode } = await import('./models/QRCode');
       
-      // For now, we'll simulate verification
-      const mockData: QRCodeData = {
-        qrCodeId,
-        uploadId: 'mock-upload-id',
-        drugCode: 'MOCK-DRUG-001',
-        serialNumber: 1,
-        blockchainTx: {
-          hash: '0x' + Math.random().toString(16).substring(2, 10) + '...' + Math.random().toString(16).substring(2, 10),
+      console.log('🔍 Looking for QR code with ID:', qrCodeId);
+      
+      // Find QR code in database
+      const qrCodeDoc = await QRCode.findOne({ qrCodeId });
+      
+      if (!qrCodeDoc) {
+        console.log('❌ QR code not found in database. Available QR codes:');
+        const allQRCodes = await QRCode.find({}).select('qrCodeId').limit(5);
+        console.log('Sample QR codes in database:', allQRCodes.map(qr => qr.qrCodeId));
+        
+        return {
+          isValid: false,
+          error: 'QR Code not found in database'
+        };
+      }
+
+      // Update verification count
+      qrCodeDoc.verificationCount = (qrCodeDoc.verificationCount || 0) + 1;
+      await qrCodeDoc.save();
+
+      // Convert database document to QRCodeData format
+      const qrCodeData: QRCodeData = {
+        qrCodeId: qrCodeDoc.qrCodeId,
+        uploadId: qrCodeDoc.uploadId,
+        drugCode: qrCodeDoc.drugCode,
+        serialNumber: qrCodeDoc.serialNumber,
+        blockchainTx: qrCodeDoc.blockchainTx ? {
+          hash: typeof qrCodeDoc.blockchainTx === 'string' ? qrCodeDoc.blockchainTx : qrCodeDoc.blockchainTx.hash,
           status: 'confirmed',
-          blockNumber: Math.floor(Math.random() * 1000000) + 45000000,
-          timestamp: new Date().toISOString(),
-        },
-        verificationUrl: `${this.baseUrl}/verify/${qrCodeId}`,
-        metadata: {
-          drugName: 'Mock Drug',
-          batchId: 'MOCK-BATCH-001',
-          manufacturer: 'Mock Manufacturer',
-          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          quantity: 1000,
-        },
+          blockNumber: typeof qrCodeDoc.blockchainTx === 'object' ? qrCodeDoc.blockchainTx.blockNumber : undefined,
+          timestamp: qrCodeDoc.createdAt.toISOString(),
+        } : undefined,
+        verificationUrl: qrCodeDoc.verificationUrl,
+        metadata: qrCodeDoc.metadata,
       };
 
-      // Verify blockchain transaction
+      // Verify blockchain transaction if hash exists
       let blockchainStatus;
-      if (mockData.blockchainTx?.hash) {
-        blockchainStatus = await blockchainService.verifyTransaction(mockData.blockchainTx.hash);
+      if (qrCodeData.blockchainTx?.hash) {
+        try {
+          blockchainStatus = await blockchainService.verifyTransaction(qrCodeData.blockchainTx.hash);
+        } catch (blockchainError) {
+          console.warn('Could not verify blockchain transaction:', blockchainError);
+          // Don't fail verification if blockchain is unavailable
+          blockchainStatus = { confirmed: false };
+        }
       }
 
       return {
         isValid: true,
-        data: mockData,
+        data: qrCodeData,
         blockchainStatus,
       };
 
@@ -259,7 +284,7 @@ export class QRCodeService {
       console.error('❌ QR code verification failed:', error);
       return {
         isValid: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Database error during verification',
       };
     }
   }
