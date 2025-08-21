@@ -140,6 +140,7 @@ class HuggingFacePharmaceuticalAnalyzer {
           .slice(0, 5); // Top 5 predictions
       }
       
+      console.log('Vision Transformer: No valid response, returning empty results');
       return [];
     } catch (error) {
       console.warn('Vision Transformer analysis failed:', error);
@@ -163,6 +164,7 @@ class HuggingFacePharmaceuticalAnalyzer {
           }));
       }
       
+      console.log('Object Detection: No valid response, returning empty results');
       return [];
     } catch (error) {
       console.warn('Object Detection analysis failed:', error);
@@ -186,6 +188,7 @@ class HuggingFacePharmaceuticalAnalyzer {
           .slice(0, 3);
       }
       
+      console.log('Medical Vision: No valid response, returning empty results');
       return [];
     } catch (error) {
       console.warn('Medical Vision analysis failed:', error);
@@ -197,7 +200,8 @@ class HuggingFacePharmaceuticalAnalyzer {
     const apiKey = process.env.HUGGINGFACE_API_KEY;
     
     if (!apiKey) {
-      throw new Error('HUGGINGFACE_API_KEY environment variable not set');
+      console.warn('HUGGINGFACE_API_KEY environment variable not set - skipping HuggingFace analysis');
+      return null;
     }
 
     const url = `${this.apiBaseUrl}${config.modelId}`;
@@ -208,7 +212,7 @@ class HuggingFacePharmaceuticalAnalyzer {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/octet-stream',
       },
-      body: imageBuffer
+      body: imageBuffer as any
     });
 
     if (!response.ok) {

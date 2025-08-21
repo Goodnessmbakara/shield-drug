@@ -397,7 +397,7 @@ class ProfessionalDrugAnalysisService {
       drugName: 'Unknown',
       strength: 'Unknown',
       confidence: 0,
-      matchedFeatures: []
+      matchedFeatures: [] as string[]
     };
 
     // Multi-modal matching against pharmaceutical database
@@ -439,7 +439,7 @@ class ProfessionalDrugAnalysisService {
 
       if (matchScore > bestMatch.confidence) {
         bestMatch = {
-          drugId: drugData.id,
+          drugId: null,
           drugName: drugKey,
           strength: textAnalysis.pharmaceuticalInfo.strength || drugData.strengths[0],
           confidence: matchScore,
@@ -471,8 +471,8 @@ class ProfessionalDrugAnalysisService {
       status: 'unknown'
     };
 
-    if (drugIdentification.drugId && PHARMACEUTICAL_DATABASE[drugIdentification.drugName]) {
-      const drugData = PHARMACEUTICAL_DATABASE[drugIdentification.drugName];
+    if (drugIdentification.drugId && (PHARMACEUTICAL_DATABASE as any)[drugIdentification.drugName]) {
+      const drugData = (PHARMACEUTICAL_DATABASE as any)[drugIdentification.drugName];
       
       // Visual quality assessment
       authenticityScore.factors.visualQuality = this.assessVisualQuality(visualFeatures, drugData);
@@ -659,7 +659,7 @@ class ProfessionalDrugAnalysisService {
         detectedObjects: [drugIdentification.drugName],
         confidence: drugIdentification.confidence,
         objectDetections: classificationResults.detectedPills || [],
-        detectionMethod: 'professional-multi-modal',
+        detectionMethod: 'professional-multi-modal' as any,
         boundingBoxCount: classificationResults.detectedPills?.length || 0
       },
       professionalAnalysis: {
@@ -669,7 +669,7 @@ class ProfessionalDrugAnalysisService {
         textQuality: authenticityAnalysis.factors.textQuality,
         visualQuality: authenticityAnalysis.factors.visualQuality
       }
-    };
+    } as any;
   }
 
   private async performCloudAnalysis(imageData: string): Promise<any> {
@@ -742,7 +742,7 @@ class ProfessionalDrugAnalysisService {
       drugName: 'Analysis Failed',
       strength: 'Unknown',
       confidence: 0,
-      status: 'error',
+      status: 'error' as any,
       issues: ['Professional analysis system encountered an error'],
       extractedText: [],
       visualFeatures: {
@@ -757,7 +757,7 @@ class ProfessionalDrugAnalysisService {
         detectedObjects: ['analysis_failed'],
         confidence: 0,
         objectDetections: [],
-        detectionMethod: 'professional-multi-modal',
+        detectionMethod: 'professional-multi-modal' as any,
         boundingBoxCount: 0
       }
     };

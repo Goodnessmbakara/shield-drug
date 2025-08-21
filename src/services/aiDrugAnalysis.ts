@@ -698,7 +698,7 @@ class AIDrugAnalysisService {
           // COCO-SSD will handle input size variations internally
           // Bbox coordinates will be relative to original image dimensions
           return int32Tensor;
-        });
+        }) as tf.Tensor3D;
         
       } catch (error) {
         console.error('Node.js image preprocessing failed:', error);

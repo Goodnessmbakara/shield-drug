@@ -19,15 +19,39 @@ AI_FALLBACK_MODE=auto
 AI_API_LEGACY_FORMAT=false
 
 # Database Configuration
-MONGODB_URI=mongodb://localhost:27017/shield-drug
+DATABASE_URL=mongodb://localhost:27017/shield-drug
 
 # Blockchain Configuration
-ALCHEMY_API_KEY=your_alchemy_api_key_here
-PRIVATE_KEY=your_private_key_here
-CONTRACT_ADDRESS=your_contract_address_here
+AVALANCHE_RPC_URL=https://api.avax-test.network/ext/bc/C/rpc
+AVALANCHE_PRIVATE_KEY=your_private_key_here
+AVALANCHE_CONTRACT_ADDRESS=your_contract_address_here
+AVALANCHE_CHAIN_ID=43113
 
 # Authentication
 JWT_SECRET=your_jwt_secret_here
+
+# Cloud AI Services Configuration
+# HuggingFace API for pharmaceutical analysis
+HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+
+# Google Cloud Vision API
+GOOGLE_CLOUD_API_KEY=your_google_cloud_api_key_here
+
+# Microsoft Azure Computer Vision
+AZURE_VISION_API_KEY=your_azure_vision_api_key_here
+AZURE_VISION_ENDPOINT=https://your-resource.cognitiveservices.azure.com/
+
+# AWS Rekognition
+AWS_ACCESS_KEY_ID=your_aws_access_key_here
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key_here
+AWS_REGION=us-east-1
+
+# OpenAI GPT-4 Vision
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Custom Pharmaceutical API (if using specialized service)
+PHARMA_API_ENDPOINT=https://your-pharma-api.com/analyze
+PHARMA_API_KEY=your_pharma_api_key_here
 
 # Environment
 NODE_ENV=development

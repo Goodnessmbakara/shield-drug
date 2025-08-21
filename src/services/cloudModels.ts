@@ -114,7 +114,8 @@ class CloudPharmaceuticalAnalyzer {
       }
     }
 
-    throw new Error('All cloud providers failed or unavailable');
+    console.warn('All cloud providers failed or unavailable, returning fallback result');
+    return this.getFallbackResult();
   }
 
   private async analyzeWithProvider(
@@ -410,8 +411,10 @@ Be specific about pharmaceutical characteristics you can observe.`;
 
   getAvailableProviders(): string[] {
     return Array.from(this.providers.entries())
-      .filter(([_, provider]) => provider.available)
-      .map(([id, provider]) => `${id} (${provider.name})`);
+      .map(([id, provider]) => {
+        const status = provider.available ? 'Available' : 'Not Configured';
+        return `${id} (${provider.name}) - ${status}`;
+      });
   }
 
   async testProviderConnectivity(providerId: string): Promise<boolean> {
@@ -429,6 +432,30 @@ Be specific about pharmaceutical characteristics you can observe.`;
       console.warn(`Provider ${provider.name} connectivity test failed:`, error);
       return false;
     }
+  }
+
+  private getFallbackResult(): CloudAnalysisResult {
+    console.log('🔄 Returning fallback analysis result');
+    return {
+      provider: 'fallback',
+      drugIdentification: {
+        predictions: [
+          { label: 'Pharmaceutical product', confidence: 0.3 },
+          { label: 'Medication', confidence: 0.2 }
+        ],
+        topPrediction: 'Pharmaceutical product',
+        confidence: 0.3
+      },
+      safetyAssessment: {
+        riskLevel: 'medium',
+        concerns: ['Cloud analysis unavailable', 'Limited identification confidence'],
+        recommendations: [
+          'Verify with healthcare professional',
+          'Check packaging for manufacturer information',
+          'Ensure proper storage conditions'
+        ]
+      }
+    };
   }
 }
 

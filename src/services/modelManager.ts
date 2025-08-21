@@ -184,9 +184,9 @@ class ModelManager {
    */
   async predict(
     modelName: string, 
-    input: tf.Tensor | tf.Tensor[] | tf.NamedTensorMap,
+    input: any,
     options?: { trackPerformance?: boolean }
-  ): Promise<tf.Tensor | tf.Tensor[] | tf.NamedTensorMap> {
+  ): Promise<any> {
     const model = await this.loadModel(modelName);
     const performance = this.modelPerformance.get(modelName)!;
     const trackPerformance = options?.trackPerformance ?? true;
@@ -194,7 +194,7 @@ class ModelManager {
     const startTime = trackPerformance ? Date.now() : 0;
 
     try {
-      const prediction = model.predict(input) as tf.Tensor | tf.Tensor[] | tf.NamedTensorMap;
+      const prediction = model.predict(input);
       
       if (trackPerformance) {
         const inferenceTime = Date.now() - startTime;
@@ -252,15 +252,14 @@ class ModelManager {
   getModelStatus(): { [key: string]: ModelMetadata & ModelPerformance } {
     const status: { [key: string]: ModelMetadata & ModelPerformance } = {};
     
-    for (const [name] of this.modelMetadata) {
-      const metadata = this.modelMetadata.get(name)!;
+    this.modelMetadata.forEach((metadata, name) => {
       const performance = this.modelPerformance.get(name)!;
       
       status[name] = {
         ...metadata,
         ...performance
       };
-    }
+    });
     
     return status;
   }
@@ -273,12 +272,12 @@ class ModelManager {
     
     const results: { [key: string]: boolean } = {};
     
-    for (const [name] of this.modelMetadata) {
+    for (const name of Array.from(this.modelMetadata.keys())) {
       try {
         const model = await this.loadModel(name);
         
         // Perform a simple inference test with dummy data
-        const inputShape = model.inputs[0].shape!.slice(1); // Remove batch dimension
+        const inputShape = model.inputs[0].shape!.slice(1).map(s => s || 1); // Remove batch dimension and handle null
         const dummyInput = tf.randomNormal([1, ...inputShape]);
         
         const prediction = await this.predict(name, dummyInput, { trackPerformance: false });
@@ -309,7 +308,7 @@ class ModelManager {
     const now = new Date();
     const maxIdleTime = 30 * 60 * 1000; // 30 minutes
     
-    for (const [name, model] of this.models) {
+    this.models.forEach((model, name) => {
       const metadata = this.modelMetadata.get(name)!;
       
       if (metadata.lastUsed && (now.getTime() - metadata.lastUsed.getTime()) > maxIdleTime) {
@@ -319,7 +318,7 @@ class ModelManager {
         this.models.delete(name);
         metadata.loaded = false;
       }
-    }
+    });
   }
 
   /**
@@ -346,13 +345,13 @@ class ModelManager {
   disposeAllModels(): void {
     console.log('🗑️ Disposing all models...');
     
-    for (const [name, model] of this.models) {
+    this.models.forEach((model, name) => {
       model.dispose();
       const metadata = this.modelMetadata.get(name);
       if (metadata) {
         metadata.loaded = false;
       }
-    }
+    });
     
     this.models.clear();
     this.loadingPromises.clear();
@@ -384,10 +383,10 @@ class ModelManager {
     const memInfo = tf.memory();
     const modelInfo: { [key: string]: string } = {};
     
-    for (const [name] of this.models) {
+    this.models.forEach((model, name) => {
       const metadata = this.modelMetadata.get(name)!;
       modelInfo[name] = `${metadata.loaded ? 'loaded' : 'not loaded'}`;
-    }
+    });
     
     return {
       numTensors: memInfo.numTensors,

@@ -788,7 +788,7 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
                             </div>
                           )}
 
-                          {analysis.issues.length > 0 && (
+                          {analysis.issues && analysis.issues.length > 0 && (
                             <div>
                               <p className="text-sm font-medium text-gray-600">
                                 {analysis.status === "not_a_drug"
