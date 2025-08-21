@@ -3,7 +3,7 @@ import { aiDrugAnalysis } from '@/services/aiDrugAnalysis';
 import { professionalDrugAnalysis } from '@/services/professionalDrugAnalysis';
 
 // Request timeout in milliseconds
-const ANALYSIS_TIMEOUT = parseInt(process.env.AI_MODEL_TIMEOUT || '60000'); // Default 60 seconds
+const ANALYSIS_TIMEOUT = parseInt(process.env.AI_MODEL_TIMEOUT || '15000'); // Default 15 seconds
 
 // Error types for structured error responses
 const ERROR_TYPES = {
@@ -88,16 +88,21 @@ export default async function handler(
       }, ANALYSIS_TIMEOUT);
     });
 
-    // Create the analysis promise - try professional analysis first
+    // Create the analysis promise - try TensorFlow.js analysis first (faster and more reliable)
     const analysisPromise = async () => {
       try {
-        console.log(`[${requestId}] Attempting professional drug analysis...`);
-        const professionalResult = await professionalDrugAnalysis.analyzeImage(imageData);
-        return { result: professionalResult, method: 'professional-multi-modal' };
+        console.log(`[${requestId}] Attempting TensorFlow.js drug analysis...`);
+        const tfResult = await aiDrugAnalysis.analyzeImage(imageData);
+        return { result: tfResult, method: 'tensorflow-models' };
       } catch (error) {
-        console.log(`[${requestId}] Professional analysis failed, falling back to basic analysis:`, error);
-        const basicResult = await aiDrugAnalysis.analyzeImage(imageData);
-        return { result: basicResult, method: 'basic-heuristic' };
+        console.log(`[${requestId}] TensorFlow.js analysis failed, falling back to professional analysis:`, error);
+        try {
+          const professionalResult = await professionalDrugAnalysis.analyzeImage(imageData);
+          return { result: professionalResult, method: 'professional-multi-modal' };
+        } catch (professionalError) {
+          console.log(`[${requestId}] Professional analysis also failed:`, professionalError);
+          throw professionalError;
+        }
       }
     };
 

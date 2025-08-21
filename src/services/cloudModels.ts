@@ -157,7 +157,7 @@ Be specific about pharmaceutical characteristics you can observe.`;
         'Authorization': `Bearer ${provider.apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4o',
         messages: [{
           role: 'user',
           content: [

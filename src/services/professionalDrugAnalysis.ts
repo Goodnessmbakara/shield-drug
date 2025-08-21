@@ -208,12 +208,14 @@ class ProfessionalDrugAnalysisService {
     console.log('🔬 Starting Professional Drug Analysis...');
 
     try {
-      // Step 1: Multi-model analysis (local + cloud + HuggingFace)
-      const [localResults, cloudResults, hfResults] = await Promise.allSettled([
-        this.performMultiModelClassification(imageData),
-        this.performCloudAnalysis(imageData),
-        this.performHuggingFaceAnalysis(imageData)
+      // Step 1: Multi-model analysis (local only - skip external APIs for now)
+      const [localResults] = await Promise.allSettled([
+        this.performMultiModelClassification(imageData)
       ]);
+      
+      // Skip cloud and HuggingFace analysis to avoid timeouts
+      const cloudResults = { status: 'rejected', reason: 'External APIs disabled' };
+      const hfResults = { status: 'rejected', reason: 'External APIs disabled' };
       
       // Step 2: Detailed visual feature extraction
       const visualFeatures = await this.extractProfessionalVisualFeatures(imageData);

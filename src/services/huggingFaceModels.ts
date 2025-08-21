@@ -206,13 +206,18 @@ class HuggingFacePharmaceuticalAnalyzer {
 
     const url = `${this.apiBaseUrl}${config.modelId}`;
     
+    // Convert buffer to base64 for JSON payload
+    const base64Image = imageBuffer.toString('base64');
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/octet-stream',
+        'Content-Type': 'application/json',
       },
-      body: imageBuffer as any
+      body: JSON.stringify({
+        inputs: `data:image/jpeg;base64,${base64Image}`
+      })
     });
 
     if (!response.ok) {
@@ -396,9 +401,17 @@ class HuggingFacePharmaceuticalAnalyzer {
     );
   }
 
-  private base64ToBuffer(base64String: string): Buffer {
-    const base64Data = base64String.replace(/^data:image\/[a-z]+;base64,/, '');
-    return Buffer.from(base64Data, 'base64');
+  private base64ToBuffer(input: string | Buffer): Buffer {
+    if (Buffer.isBuffer(input)) {
+      return input;
+    }
+    
+    if (typeof input === 'string') {
+      const base64Data = input.replace(/^data:image\/[a-z]+;base64,/, '');
+      return Buffer.from(base64Data, 'base64');
+    }
+    
+    throw new Error('Invalid input type for base64ToBuffer');
   }
 
   // Fallback analysis using local models when API is unavailable
