@@ -1138,19 +1138,25 @@ class AIDrugAnalysisService {
   }
 
   private validateNormalizationRange(tensor: tf.Tensor): void {
-    const data = tensor.dataSync();
-    const dataArray = Array.from(data);
-    const min = Math.min(...dataArray);
-    const max = Math.max(...dataArray);
-    
-    if (NORMALIZE_TO_MINUS_ONE_TO_ONE) {
-      if (min < -1.1 || max > 1.1) {
-        console.warn(`Normalization range validation failed: min=${min}, max=${max}, expected [-1,1]`);
+    try {
+      // Use a more efficient approach to check tensor values
+      const minMax = tf.tidy(() => {
+        const min = tensor.min();
+        const max = tensor.max();
+        return { min: min.dataSync()[0], max: max.dataSync()[0] };
+      });
+      
+      if (NORMALIZE_TO_MINUS_ONE_TO_ONE) {
+        if (minMax.min < -1.1 || minMax.max > 1.1) {
+          console.warn(`Normalization range validation failed: min=${minMax.min}, max=${minMax.max}, expected [-1,1]`);
+        }
+      } else {
+        if (minMax.min < -0.1 || minMax.max > 1.1) {
+          console.warn(`Normalization range validation failed: min=${minMax.min}, max=${minMax.max}, expected [0,1]`);
+        }
       }
-    } else {
-      if (min < -0.1 || max > 1.1) {
-        console.warn(`Normalization range validation failed: min=${min}, max=${max}, expected [0,1]`);
-      }
+    } catch (error) {
+      console.warn('Normalization range validation failed:', error);
     }
   }
 

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import multer from 'multer';
-import { aiDrugRecognitionService } from '../../../src/lib/ai-drug-recognition';
+import { aiDrugAnalysis } from '@/services/aiDrugAnalysis';
 
 // Configure multer for file uploads
 const upload = multer({
@@ -60,8 +60,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       mimetype: file.mimetype,
     });
 
-    // Analyze drug image using AI
-    const analysisResult = await aiDrugRecognitionService.analyzeDrugImage(file.buffer);
+    // Convert buffer to base64 data URL for TensorFlow.js analysis
+    const base64Data = file.buffer.toString('base64');
+    const mimeType = file.mimetype || 'image/jpeg';
+    const imageData = `data:${mimeType};base64,${base64Data}`;
+    
+    // Analyze drug image using TensorFlow.js AI service
+    const analysisResult = await aiDrugAnalysis.analyzeImage(imageData);
 
     console.log('✅ AI drug analysis completed successfully');
 
