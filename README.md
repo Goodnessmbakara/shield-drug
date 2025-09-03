@@ -382,7 +382,61 @@ GET /api/regulatory/analytics
 
 ### AI/ML Endpoints
 ```http
-POST /api/ai/drug-recognition
+POST /api/ai/analyze-image       # Standard AI analysis
+POST /api/ai/enhanced-analyze    # Enhanced multi-API analysis (recommended)
+POST /api/ai/drug-recognition    # Simple drug recognition
+```
+
+#### Enhanced API Integration (NEW!)
+The platform now supports multiple external APIs for improved accuracy:
+
+**OpenFDA API Integration**
+- Free FDA database validation
+- Drug information lookup and cross-referencing
+- Manufacturer and ingredient verification
+
+**SightEngine Drug Detection API**
+- Professional AI-powered drug detection
+- Content moderation and safety analysis
+- High-accuracy pharmaceutical identification
+
+**Enhanced Analysis Features**
+- Combines local AI models with external APIs
+- Higher accuracy through multi-source validation
+- FDA database cross-referencing
+- Professional drug detection algorithms
+- Comprehensive confidence scoring
+
+**Environment Configuration**
+```env
+# Enhanced API Keys (Optional but recommended)
+OPENFDA_API_KEY=your_openfda_api_key_here
+SIGHTENGINE_API_USER=your_sightengine_user_here
+SIGHTENGINE_API_SECRET=your_sightengine_secret_here
+```
+
+**Usage Examples**
+```javascript
+// Standard analysis
+const response = await fetch('/api/ai/analyze-image', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ imageData: base64Image })
+});
+
+// Enhanced analysis (recommended)
+const enhancedResponse = await fetch('/api/ai/enhanced-analyze', {
+  method: 'POST', 
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ imageData: base64Image })
+});
+
+// Standard analysis with enhanced mode
+const hybridResponse = await fetch('/api/ai/analyze-image', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ imageData: base64Image, useEnhanced: true })
+});
 ```
 
 ### Blockchain Endpoints

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { aiDrugAnalysis } from '@/services/aiDrugAnalysis';
 import { professionalDrugAnalysis } from '@/services/professionalDrugAnalysis';
+import { enhancedDrugAnalysis } from '@/services/enhancedDrugAnalysis';
 
 // Request timeout in milliseconds
 const ANALYSIS_TIMEOUT = parseInt(process.env.AI_MODEL_TIMEOUT || '15000'); // Default 15 seconds
@@ -58,7 +59,7 @@ export default async function handler(
   }
 
   try {
-    const { imageData } = req.body;
+    const { imageData, useEnhanced } = req.body;
 
     if (!imageData) {
       return res.status(400).json({
@@ -88,8 +89,20 @@ export default async function handler(
       }, ANALYSIS_TIMEOUT);
     });
 
-    // Create the analysis promise - try TensorFlow.js analysis first (faster and more reliable)
+    // Create the analysis promise - use enhanced analysis if requested
     const analysisPromise = async () => {
+      if (useEnhanced === true) {
+        try {
+          console.log(`[${requestId}] Attempting enhanced multi-API drug analysis...`);
+          const enhancedResult = await enhancedDrugAnalysis.analyzeImage(imageData);
+          return { result: enhancedResult, method: 'enhanced-multi-api' };
+        } catch (error) {
+          console.log(`[${requestId}] Enhanced analysis failed, falling back to TensorFlow.js:`, error);
+          // Fall back to regular analysis
+        }
+      }
+      
+      // Regular analysis flow
       try {
         console.log(`[${requestId}] Attempting TensorFlow.js drug analysis...`);
         const tfResult = await aiDrugAnalysis.analyzeImage(imageData);

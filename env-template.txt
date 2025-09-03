@@ -34,8 +34,8 @@ JWT_SECRET=your_jwt_secret_here
 # HuggingFace API for pharmaceutical analysis
 HUGGINGFACE_API_KEY=your_huggingface_api_key_here
 
-# Google Cloud Vision API
-GOOGLE_CLOUD_API_KEY=your_google_cloud_api_key_here
+# Google Cloud Vision API (Free tier: 1,000 requests/month)
+GOOGLE_CLOUD_API_KEY=AIzaSyCxAgNmZS6AOqv3LS3ae2pyHFWsh78-X6E
 
 # Microsoft Azure Computer Vision
 AZURE_VISION_API_KEY=your_azure_vision_api_key_here
@@ -52,6 +52,19 @@ OPENAI_API_KEY=your_openai_api_key_here
 # Custom Pharmaceutical API (if using specialized service)
 PHARMA_API_ENDPOINT=https://your-pharma-api.com/analyze
 PHARMA_API_KEY=your_pharma_api_key_here
+
+# Enhanced API Integration (New - Recommended for better accuracy)
+# OpenFDA API (Free - no key required, but key provides higher rate limits)
+OPENFDA_API_KEY=your_openfda_api_key_here
+
+# SightEngine Drug Detection API (Paid service - excellent for drug detection)
+SIGHTENGINE_API_USER=your_sightengine_user_here
+SIGHTENGINE_API_SECRET=your_sightengine_secret_here
+
+# Veryfi Prescription OCR API (Paid service - for future integration)
+VERYFI_CLIENT_ID=your_veryfi_client_id_here
+VERYFI_USERNAME=your_veryfi_username_here
+VERYFI_API_KEY=your_veryfi_api_key_here
 
 # Environment
 NODE_ENV=development
