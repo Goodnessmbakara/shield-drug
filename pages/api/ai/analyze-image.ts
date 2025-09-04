@@ -4,7 +4,7 @@ import { professionalDrugAnalysis } from '@/services/professionalDrugAnalysis';
 import { enhancedDrugAnalysis } from '@/services/enhancedDrugAnalysis';
 
 // Request timeout in milliseconds
-const ANALYSIS_TIMEOUT = parseInt(process.env.AI_MODEL_TIMEOUT || '60000'); // Default 60 seconds for better reliability
+const ANALYSIS_TIMEOUT = parseInt(process.env.AI_MODEL_TIMEOUT || '180000'); // Default 180 seconds (3 minutes) for better reliability
 
 // Error types for structured error responses
 const ERROR_TYPES = {

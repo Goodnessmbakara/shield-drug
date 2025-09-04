@@ -154,6 +154,9 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisStartTime, setAnalysisStartTime] = useState<number | null>(null);
 
   const startCamera = useCallback(async () => {
     setCameraLoading(true);
@@ -303,8 +306,24 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
 
   const analyzeImage = async (imageData: string) => {
     setAnalysis({ status: "analyzing", confidence: 0, issues: [] });
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
+    setAnalysisStartTime(Date.now());
 
     try {
+      // Create an AbortController for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 185000); // 185 seconds (3 minutes + 5s buffer) to match backend
+
+      // Start progress simulation
+      const progressInterval = setInterval(() => {
+        setAnalysisProgress(prev => {
+          const elapsed = Date.now() - (analysisStartTime || Date.now());
+          const maxProgress = Math.min(90, (elapsed / 185000) * 90); // Max 90% until completion for 3-minute timeout
+          return Math.min(prev + 2, maxProgress);
+        });
+      }, 1000);
+
       // Use API route for image analysis
       const response = await fetch('/api/ai/analyze-image', {
         method: 'POST',
@@ -312,13 +331,28 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ imageData }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
 
       if (!response.ok) {
         throw new Error(`Analysis failed: ${response.statusText}`);
       }
 
-      const result: DrugAnalysisResult = await response.json();
+      const apiResponse = await response.json();
+      
+      // Handle both legacy and new response formats
+      let result: DrugAnalysisResult;
+      if (apiResponse.result) {
+        // New format with metadata
+        result = apiResponse.result;
+      } else {
+        // Legacy format
+        result = apiResponse;
+      }
 
       const analysisResult: AnalysisResult = {
         status: result.status,
@@ -334,12 +368,26 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
       setAnalysis(analysisResult);
     } catch (error) {
       console.error("Analysis failed:", error);
+      
+      let errorMessage = "Analysis failed";
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = "Analysis timed out after 3 minutes. Please try again.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setAnalysis({
         status: "suspicious",
         confidence: 0,
-        issues: ["Analysis failed", "Please try again with better lighting"],
+        issues: [errorMessage, "Please try again with better lighting"],
         drugName: "Unknown",
       });
+    } finally {
+      setIsAnalyzing(false);
+      setAnalysisProgress(0);
+      setAnalysisStartTime(null);
     }
   };
 
