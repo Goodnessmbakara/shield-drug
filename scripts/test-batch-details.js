@@ -13,7 +13,7 @@ const path = require('path');
 
 // Configuration
 const CONFIG = {
-  MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/shield-drug',
+  MONGODB_URI: process.env.MONGODB_URI,
   API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000',
   TEST_BATCH_ID: '689caef5c45c802ca13e1768',
   TEST_USER_EMAIL: 'test@manufacturer.com',

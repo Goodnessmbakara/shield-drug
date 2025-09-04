@@ -47,7 +47,7 @@ async function validateEnvironment() {
     // Check MongoDB connection
     console.log('  Checking MongoDB connection...');
     const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/shield-drug');
+    const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     await client.db().admin().ping();
     await client.close();

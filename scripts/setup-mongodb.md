@@ -43,7 +43,7 @@
 2. Replace the `DATABASE_URL` with your actual connection string:
 
 ```env
-DATABASE_URL="mongodb+srv://your-username:your-password@cluster0.xxxxx.mongodb.net/shield-drug?retryWrites=true&w=majority"
+DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/shield-drug?retryWrites=true&w=majority"
 ```
 
 Replace:

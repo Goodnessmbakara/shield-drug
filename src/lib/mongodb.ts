@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/shield-drug';
+const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI;
 
 interface DatabaseConnection {
   db: mongoose.Connection;

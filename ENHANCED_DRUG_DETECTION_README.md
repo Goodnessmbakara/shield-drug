@@ -96,7 +96,7 @@ The system uses a sophisticated ensemble of AI models for maximum accuracy and r
 ### Environment Variables
 ```bash
 # Database
-MONGODB_URI=mongodb://localhost:27017/shield-drug
+MONGODB_URI=your_mongodb_connection_string_here
 
 # AI Models
 MOBILENET_MODEL_URL=https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/2
