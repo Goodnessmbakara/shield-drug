@@ -623,9 +623,17 @@ export class EnhancedOCRService {
   }
 
   private calculateContrast(data: Uint8Array): number {
-    const values = Array.from(data);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    if (data.length === 0) return 0;
+    
+    let min = data[0];
+    let max = data[0];
+    
+    // Avoid spread operator for large arrays to prevent stack overflow
+    for (let i = 1; i < data.length; i++) {
+      if (data[i] < min) min = data[i];
+      if (data[i] > max) max = data[i];
+    }
+    
     return (max - min) / 255;
   }
 

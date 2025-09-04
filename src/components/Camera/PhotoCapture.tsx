@@ -356,6 +356,10 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
     );
 
     try {
+      // Create an AbortController for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 65000); // 65 seconds to match backend
+
       // Use API route for image analysis
       const response = await fetch('/api/ai/analyze-image', {
         method: 'POST',
@@ -363,13 +367,26 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ imageData }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Analysis failed: ${response.statusText}`);
       }
 
-      const result: DrugAnalysisResult = await response.json();
+      const apiResponse = await response.json();
+      
+      // Handle both legacy and new response formats
+      let result: DrugAnalysisResult;
+      if (apiResponse.result) {
+        // New format with metadata
+        result = apiResponse.result;
+      } else {
+        // Legacy format
+        result = apiResponse;
+      }
 
       const analysisResult: AnalysisResult = {
         status: result.status,
@@ -389,6 +406,16 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
       );
     } catch (error) {
       console.error("Analysis failed:", error);
+      
+      let errorMessage = "Analysis failed";
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = "Analysis timed out. Please try again.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setUploadedPhotos((prev) =>
         prev.map((photo) =>
           photo.id === photoId
@@ -398,7 +425,7 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
                   status: "suspicious",
                   confidence: 0,
                   issues: [
-                    "Analysis failed",
+                    errorMessage,
                     "Please try again with better lighting",
                   ],
                   drugName: "Unknown",

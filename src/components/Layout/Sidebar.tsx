@@ -78,9 +78,9 @@ export default function AppSidebar({ userRole }: SidebarProps) {
 
       case "consumer":
         return [
-          { title: "Scan Drug", url: "/consumer", icon: ScanLine },
-          { title: "My Scans", url: "/consumer/history", icon: FileText },
-          { title: "Drug Information", url: "/consumer/drugs", icon: Package },
+          { title: "Drug Detection", url: "/consumer/drug-detection", icon: ScanLine },
+          { title: "My Drugs", url: "/consumer/drugs", icon: Package },
+          { title: "Scan History", url: "/consumer/history", icon: FileText },
           {
             title: "Report Issue",
             url: "/consumer/report",

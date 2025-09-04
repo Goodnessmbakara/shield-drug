@@ -1043,8 +1043,10 @@ class AIDrugAnalysisService {
       const lowerText = text.toLowerCase();
       
       // Must contain pharmaceutical indicators - much more lenient
-      const hasDrugName = Object.values(DRUG_DATABASE).some(drug => 
-        drug.names.some(name => lowerText.includes(name))
+      const hasDrugName = ENHANCED_DRUG_DATABASE.some(drug => 
+        drug.brandNames.some(name => lowerText.includes(name.toLowerCase())) ||
+        drug.genericName.toLowerCase().includes(lowerText) ||
+        drug.internationalNames.some(name => lowerText.includes(name.toLowerCase()))
       );
       
       const hasDosage = /\d+\s*mg/i.test(text);

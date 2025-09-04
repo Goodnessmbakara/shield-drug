@@ -234,9 +234,11 @@ async function preprocessImageNode(
     }
 
     // Apply gamma correction
-    if (options.enhancement?.gamma) {
-      pipeline = pipeline.gamma(options.enhancement.gamma);
-    }
+      if (options.enhancement?.gamma) {
+        // Clamp gamma to valid range [1.0, 3.0]
+        const gamma = Math.max(1.0, Math.min(3.0, options.enhancement.gamma));
+        pipeline = pipeline.gamma(gamma);
+      }
 
     // Apply blur if specified
     if (options.enhancement?.blur && options.enhancement.blur > 0) {
