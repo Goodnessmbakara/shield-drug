@@ -237,21 +237,21 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             <div>
               <div className="text-4xl font-bold text-primary mb-2">
-                20,000+
+                Multi-role
               </div>
-              <p className="text-muted-foreground">Pharmacies Supported</p>
+              <p className="text-muted-foreground">Platform Support</p>
             </div>
             <div>
-              <div className="text-4xl font-bold text-success mb-2">99.7%</div>
-              <p className="text-muted-foreground">Accuracy Rate</p>
+              <div className="text-4xl font-bold text-success mb-2">High</div>
+              <p className="text-muted-foreground">Detection Accuracy</p>
             </div>
             <div>
-              <div className="text-4xl font-bold text-warning mb-2">2.8M</div>
-              <p className="text-muted-foreground">Drugs Verified</p>
+              <div className="text-4xl font-bold text-warning mb-2">Real-time</div>
+              <p className="text-muted-foreground">Drug Verification</p>
             </div>
             <div>
-              <div className="text-4xl font-bold text-danger mb-2">50,000+</div>
-              <p className="text-muted-foreground">Counterfeits Detected</p>
+              <div className="text-4xl font-bold text-danger mb-2">Advanced</div>
+              <p className="text-muted-foreground">Counterfeit Detection</p>
             </div>
           </div>
         </div>

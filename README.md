@@ -60,17 +60,16 @@ DrugShield is a comprehensive solution that addresses the critical issue of coun
 - **Real-time Verification**: Instant blockchain-based verification
 - **Mobile Integration**: Responsive design for cross-platform access
 
-## 📊 Platform Statistics
+## 📊 Platform Capabilities
 
-> **⚠️ Demo/Presentation Numbers**  
-> The following statistics are sample figures for demonstration purposes and do not represent actual platform usage.
+The DrugShield platform provides comprehensive pharmaceutical authentication capabilities including:
 
-- **2.8M+ drugs verified** across the platform
-- **50,000+ counterfeits detected** and prevented
-- **20,000+ pharmacies** supported
-- **99.7% detection accuracy** for counterfeit drugs
-- **60% reduction** in verification time
-- **24/7 system uptime** with 99.9% availability
+- **Real-time drug verification** using QR codes and AI analysis
+- **Blockchain-based authenticity** with immutable records
+- **Multi-stakeholder support** for manufacturers, pharmacists, consumers, and regulators
+- **Advanced AI/ML detection** for counterfeit identification
+- **Scalable architecture** supporting high-volume verification
+- **24/7 availability** with robust infrastructure
 
 ## 🚀 Getting Started
 
@@ -489,8 +488,8 @@ For comprehensive documentation:
 
 For support and questions:
 - **Email**: support@drugshield.ng
-- **Phone**: +234 XXX XXX XXXX
 - **NAFDAC Support**: [nafdac.gov.ng](https://nafdac.gov.ng)
+- **Documentation**: Comprehensive guides available in the docs folder
 
 ## 🙏 Acknowledgments
 

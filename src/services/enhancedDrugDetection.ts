@@ -615,3 +615,4 @@ export class EnhancedDrugDetectionService {
 
 // Export singleton instance
 export const enhancedDrugDetection = new EnhancedDrugDetectionService();
+

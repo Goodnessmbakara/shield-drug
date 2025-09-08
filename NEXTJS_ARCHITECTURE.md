@@ -104,7 +104,7 @@ export class DrugAnalysisService {
 ### **Drug Database & Pattern Matching**
 
 The system maintains a comprehensive drug database with:
-- **10,000+ drug patterns** for identification
+- **Extensive drug patterns** for identification and recognition
 - **Manufacturer verification** against known pharmaceutical companies
 - **Batch number validation** using industry-standard formats
 - **Expiration date parsing** and validation

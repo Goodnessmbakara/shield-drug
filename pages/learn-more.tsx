@@ -62,7 +62,7 @@ const LearnMore = () => {
       description:
         "Advanced computer vision algorithms detect visual anomalies in medications",
       details:
-        "Our AI system analyzes packaging, pill appearance, and other visual indicators to identify potential counterfeits with 99.7% accuracy.",
+        "Our AI system analyzes packaging, pill appearance, and other visual indicators to identify potential counterfeits with high accuracy.",
       color: "text-success",
     },
     {
@@ -126,8 +126,8 @@ const LearnMore = () => {
       icon: TrendingUp,
       title: "Reduced Counterfeits",
       description:
-        "99.7% accuracy in counterfeit detection leading to safer medications",
-      impact: "50,000+ counterfeits detected and prevented",
+        "High accuracy in counterfeit detection leading to safer medications",
+      impact: "Advanced counterfeit detection and prevention",
       color: "text-success",
     },
     {
@@ -208,50 +208,50 @@ const LearnMore = () => {
 
   const statistics = [
     {
-      number: "99.7%",
+      number: "High",
       label: "Detection Accuracy",
       icon: CheckCircle,
       color: "text-success",
     },
     {
-      number: "2.8M+",
-      label: "Drugs Verified",
+      number: "Real-time",
+      label: "Drug Verification",
       icon: Database,
       color: "text-primary",
     },
     {
-      number: "50,000+",
-      label: "Counterfeits Detected",
+      number: "Advanced",
+      label: "Counterfeit Detection",
       icon: AlertTriangle,
       color: "text-danger",
     },
     {
-      number: "20,000+",
-      label: "Pharmacies Supported",
+      number: "Multi-role",
+      label: "Platform Support",
       icon: Users,
       color: "text-warning",
     },
     {
-      number: "60%",
-      label: "Faster Verification",
+      number: "Instant",
+      label: "Verification Speed",
       icon: Zap,
       color: "text-success",
     },
     {
       number: "24/7",
-      label: "System Uptime",
+      label: "System Availability",
       icon: Server,
       color: "text-primary",
     },
   ];
 
   const platformStats = {
-    totalBatches: 247000,
-    activeBatches: 156000,
-    totalQRCodes: 2890000,
-    verifications: 145670,
-    authenticityRate: 98.7,
-    systemUptime: 99.9,
+    totalBatches: 0, // Will be populated from actual data
+    activeBatches: 0, // Will be populated from actual data
+    totalQRCodes: 0, // Will be populated from actual data
+    verifications: 0, // Will be populated from actual data
+    authenticityRate: 0, // Will be calculated from actual data
+    systemUptime: 0, // Will be calculated from actual data
   };
 
   return (

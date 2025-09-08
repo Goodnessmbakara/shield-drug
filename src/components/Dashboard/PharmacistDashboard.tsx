@@ -15,23 +15,16 @@ import {
 } from "lucide-react";
 
 export default function PharmacistDashboard() {
-  const [recentScans] = useState([
-    { id: 1, drugName: "Coartem", result: "authentic", time: "2 hours ago", batchId: "CT2024001" },
-    { id: 2, drugName: "Amoxil", result: "authentic", time: "4 hours ago", batchId: "AX2024002" },
-    { id: 3, drugName: "Panadol", result: "suspicious", time: "1 day ago", batchId: "PD2024003" },
-  ]);
+  const [recentScans] = useState<any[]>([]);
 
-  const [inventoryAlerts] = useState([
-    { drug: "Coartem", status: "expiring", days: 15, quantity: 50 },
-    { drug: "Augmentin", status: "low-stock", days: 0, quantity: 5 },
-  ]);
+  const [inventoryAlerts] = useState<any[]>([]);
 
   const stats = {
-    totalScans: 1247,
-    authenticDrugs: 1185,
-    suspiciousDrugs: 42,
-    counterfeitDrugs: 20,
-    inventoryItems: 856
+    totalScans: 0,
+    authenticDrugs: 0,
+    suspiciousDrugs: 0,
+    counterfeitDrugs: 0,
+    inventoryItems: 0
   };
 
   const getResultBadge = (result: string) => {
@@ -71,7 +64,7 @@ export default function PharmacistDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalScans.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              +12% from last month
+              No data available
             </p>
           </CardContent>
         </Card>
@@ -84,7 +77,7 @@ export default function PharmacistDashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-success">{stats.authenticDrugs}</div>
             <p className="text-xs text-muted-foreground">
-              95.1% success rate
+              No data available
             </p>
           </CardContent>
         </Card>

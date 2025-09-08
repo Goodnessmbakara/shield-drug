@@ -301,9 +301,9 @@ Paracetamol 500mg,ABC Pharma,BATCH001,2024-01-15,2027-01-15,10000,Paracetamol,50
 
 ### Contact Support
 - **Email**: support@drugshield.ng
-- **Phone**: +234-XXX-XXX-XXXX (business hours)
-- **Live Chat**: Available during business hours
-- **Ticket System**: Online issue tracking
+- **Documentation**: Comprehensive guides available in the docs folder
+- **NAFDAC Support**: [nafdac.gov.ng](https://nafdac.gov.ng)
+- **Issue Tracking**: Online support system available
 
 ---
 

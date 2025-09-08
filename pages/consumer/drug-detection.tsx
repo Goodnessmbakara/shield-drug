@@ -715,3 +715,4 @@ export default function ConsumerDrugDetectionPage() {
     </DashboardLayout>
   );
 }
+

@@ -439,10 +439,12 @@ export class AIDrugRecognitionService {
       // 2. Compare manufacturer, batch number, expiry date
       // 3. Check if the drug was properly registered
 
+      // In a real implementation, this would query the actual blockchain
+      // For now, return unverified status
       const mockVerification = {
-        verified: Math.random() > 0.2, // 80% chance of being verified
-        transactionHash: '0x' + Math.random().toString(16).substring(2, 10) + '...' + Math.random().toString(16).substring(2, 10),
-        blockNumber: Math.floor(Math.random() * 1000000) + 45000000,
+        verified: false, // Will be determined by actual blockchain query
+        transactionHash: undefined,
+        blockNumber: undefined,
       };
 
       return mockVerification;
@@ -587,8 +589,8 @@ export class AIDrugRecognitionService {
   private checkSecurityFeatures(imageAnalysis: ImageAnalysisResult): { hasHologram: boolean; hasWatermark: boolean } {
     // In real implementation, this would detect security features
     return {
-      hasHologram: Math.random() > 0.5,
-      hasWatermark: Math.random() > 0.5,
+      hasHologram: false, // Will be determined by actual image analysis
+      hasWatermark: false, // Will be determined by actual image analysis
     };
   }
 

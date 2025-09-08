@@ -226,22 +226,22 @@ export default function PharmacistScanPage() {
         // In a real app, this would verify the QR code against the database
         const mockResult = {
           id: "SCAN" + Date.now(),
-          drugName: "Manual Scan Drug",
+          drugName: "Unknown Drug",
           batchId: "MANUAL-" + manualCode.substring(0, 8),
           qrCode: manualCode,
-          result: "authentic",
+          result: "unknown",
           timestamp: new Date().toISOString(),
-          location: "Lagos, Nigeria",
+          location: "Unknown Location",
           pharmacist: userEmail,
-          pharmacy: "MedPlus Pharmacy",
+          pharmacy: "Unknown Pharmacy",
           verificationDetails: {
             manufacturer: "Unknown Manufacturer",
-            expiryDate: "2025-12-31",
-            quantity: 100,
-            blockchainTx: "0x" + Math.random().toString(16).substring(2, 10) + "...",
-            verificationCount: Math.floor(Math.random() * 1000),
-            firstVerified: "2024-01-01",
-            lastVerified: new Date().toISOString().split("T")[0],
+            expiryDate: "Unknown",
+            quantity: 0,
+            blockchainTx: undefined,
+            verificationCount: 0,
+            firstVerified: undefined,
+            lastVerified: undefined,
           },
         };
         setScanResult(mockResult);
@@ -924,7 +924,7 @@ export default function PharmacistScanPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Block Height</p>
-                    <p className="font-medium">45,892,147</p>
+                    <p className="font-medium">0</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Gas Price</p>

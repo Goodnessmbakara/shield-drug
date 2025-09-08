@@ -25,21 +25,21 @@ export default async function handler(
       // Get QR code statistics (for all users, not filtered by userEmail)
       qrStats = await getQRCodeStats();
     } catch (dbError) {
-      console.warn('Database connection failed, using mock data:', dbError);
+      console.warn('Database connection failed:', dbError);
       
-      // Fallback to mock data when database is not available
+      // Return empty stats when database is not available
       uploadStats = {
-        totalUploads: 156,
-        successfulUploads: 142,
-        failedUploads: 14,
-        totalRecords: 2840000,
-        totalQuantity: 1500000
+        totalUploads: 0,
+        successfulUploads: 0,
+        failedUploads: 0,
+        totalRecords: 0,
+        totalQuantity: 0
       };
       
       qrStats = {
-        totalQRCodes: 2890000,
-        scannedQRCodes: 145670,
-        unScannedQRCodes: 2744330
+        totalQRCodes: 0,
+        scannedQRCodes: 0,
+        unScannedQRCodes: 0
       };
     }
 
@@ -52,8 +52,8 @@ export default async function handler(
       ? `${Math.round((uploadStats.totalRecords / uploadStats.totalUploads / 1000) * 10) / 10} KB`
       : "0 KB";
 
-    // Mock blockchain success rate (this would come from blockchain service)
-    const blockchainSuccessRate = 99.8;
+    // Blockchain success rate (this would come from blockchain service)
+    const blockchainSuccessRate = 0; // Will be calculated from actual blockchain data
 
     const stats = {
       totalUploads: uploadStats.totalUploads,

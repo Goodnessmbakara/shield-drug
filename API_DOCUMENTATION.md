@@ -91,9 +91,9 @@ const response = await fetch('/api/manufacturer/dashboard', {
 ```json
 {
   "success": true,
-  "uploadId": "upload_123456789",
-  "progressUrl": "/api/manufacturer/upload-progress/upload_123456789",
-  "estimatedTime": "5-10 minutes",
+  "uploadId": "upload_[unique_id]",
+  "progressUrl": "/api/manufacturer/upload-progress/upload_[unique_id]",
+  "estimatedTime": "Processing time varies based on batch size",
   "message": "Upload started successfully"
 }
 ```
@@ -123,11 +123,11 @@ const response = await fetch('/api/manufacturer/dashboard', {
 **Response**:
 ```json
 {
-  "uploadId": "upload_123456789",
+  "uploadId": "upload_[unique_id]",
   "status": "processing",
   "progress": 65,
   "stage": "qr_generation",
-  "estimatedCompletion": "2024-01-15T11:30:00Z",
+  "estimatedCompletion": "[ISO_timestamp]",
   "processedRows": 6500,
   "totalRows": 10000,
   "errors": [],
@@ -144,22 +144,22 @@ const response = await fetch('/api/manufacturer/dashboard', {
 **Response**:
 ```json
 {
-  "totalBatches": 150,
-  "totalUnits": 2500000,
-  "activeBatches": 45,
+  "totalBatches": "[number]",
+  "totalUnits": "[number]",
+  "activeBatches": "[number]",
   "recentUploads": [
     {
-      "batchId": "CT2024001",
-      "drugName": "Coartem",
-      "quantity": 10000,
-      "uploadDate": "2024-01-15T10:30:00Z",
+      "batchId": "[batch_id]",
+      "drugName": "[drug_name]",
+      "quantity": "[quantity]",
+      "uploadDate": "[ISO_timestamp]",
       "status": "completed"
     }
   ],
   "monthlyStats": {
-    "uploads": 25,
-    "units": 500000,
-    "verifications": 15000
+    "uploads": "[number]",
+    "units": "[number]",
+    "verifications": "[number]"
   }
 }
 ```
@@ -173,16 +173,16 @@ const response = await fetch('/api/manufacturer/dashboard', {
 **Response**:
 ```json
 {
-  "batchId": "CT2024001",
-  "drugName": "Coartem",
-  "manufacturer": "Novartis",
-  "quantity": 10000,
-  "uploadDate": "2024-01-15T10:30:00Z",
+  "batchId": "[batch_id]",
+  "drugName": "[drug_name]",
+  "manufacturer": "[manufacturer_name]",
+  "quantity": "[quantity]",
+  "uploadDate": "[ISO_timestamp]",
   "status": "completed",
-  "qrCodesGenerated": 10000,
-  "blockchainTx": "0x1234567890abcdef...",
-  "verificationCount": 1500,
-  "authenticityRate": 99.8
+  "qrCodesGenerated": "[number]",
+  "blockchainTx": "[transaction_hash]",
+  "verificationCount": "[number]",
+  "authenticityRate": "[percentage]"
 }
 ```
 
@@ -452,17 +452,17 @@ const response = await fetch('/api/manufacturer/dashboard', {
 {
   "success": true,
   "analysis": {
-    "drugName": "Coartem",
-    "confidence": 95.5,
-    "manufacturer": "Novartis",
-    "activeIngredient": "Artemether/Lumefantrine",
-    "strength": "20mg/120mg",
+    "drugName": "[identified_drug_name]",
+    "confidence": "[confidence_percentage]",
+    "manufacturer": "[identified_manufacturer]",
+    "activeIngredient": "[active_ingredient]",
+    "strength": "[drug_strength]",
     "authentic": true,
-    "authenticityScore": 92.3
+    "authenticityScore": "[authenticity_score]"
   },
-  "ocrText": "Coartem 20mg/120mg Artemether/Lumefantrine",
-  "imageQuality": "high",
-  "processingTime": "2.3s"
+  "ocrText": "[extracted_text]",
+  "imageQuality": "[quality_assessment]",
+  "processingTime": "[processing_duration]"
 }
 ```
 
@@ -682,19 +682,19 @@ const response = await fetch('/api/manufacturer/dashboard', {
 {
   "systemHealth": {
     "status": "healthy",
-    "uptime": "99.9%",
-    "lastMaintenance": "2024-01-10T02:00:00Z"
+    "uptime": "[uptime_percentage]",
+    "lastMaintenance": "[ISO_timestamp]"
   },
   "userStats": {
-    "totalUsers": 250,
-    "activeUsers": 245,
-    "newUsersThisMonth": 15
+    "totalUsers": "[number]",
+    "activeUsers": "[number]",
+    "newUsersThisMonth": "[number]"
   },
   "systemStats": {
-    "totalBatches": 2500,
-    "totalVerifications": 1500000,
-    "storageUsed": "75%",
-    "blockchainTransactions": 50000
+    "totalBatches": "[number]",
+    "totalVerifications": "[number]",
+    "storageUsed": "[percentage]",
+    "blockchainTransactions": "[number]"
   },
   "recentActivity": [
     {
