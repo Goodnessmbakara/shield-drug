@@ -21,30 +21,24 @@ const PHARMACEUTICAL_OCR_CONFIG = {
   retries: 3
 };
 
-// Enhanced configuration for different text types
+// Simplified configuration using only safe PSM modes (no osd.traineddata dependency)
 const OCR_CONFIGS = {
-  // For clear, single-line text (batch numbers, expiry dates)
+  // For single text lines (batch numbers, expiry dates)
   singleLine: {
     ...PHARMACEUTICAL_OCR_CONFIG,
-    psm: Tesseract.PSM.SINGLE_TEXT_LINE,
+    psm: Tesseract.PSM.SINGLE_TEXT_LINE, // Valid PSM mode
     charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/:'
   },
-  // For multi-line text blocks (drug names, instructions)
-  multiLine: {
+  // For text blocks (drug names, instructions)
+  textBlock: {
     ...PHARMACEUTICAL_OCR_CONFIG,
-    psm: Tesseract.PSM.SINGLE_BLOCK,
-    charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
-  },
-  // For sparse text (scattered text on packaging) - use SINGLE_BLOCK instead of SPARSE_TEXT
-  sparse: {
-    ...PHARMACEUTICAL_OCR_CONFIG,
-    psm: Tesseract.PSM.SINGLE_BLOCK, // Fixed: Use SINGLE_BLOCK instead of SPARSE_TEXT
+    psm: Tesseract.PSM.SINGLE_BLOCK, // Safe PSM mode
     charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
   },
   // For uniform text blocks (dense text areas)
   uniform: {
     ...PHARMACEUTICAL_OCR_CONFIG,
-    psm: Tesseract.PSM.UNIFORM_BLOCK,
+    psm: Tesseract.PSM.UNIFORM_BLOCK, // Safe PSM mode
     charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
   }
 };
@@ -75,7 +69,7 @@ async function forceCleanupWorker(): Promise<void> {
   }
 }
 
-// Initialize worker with pharmaceutical-optimized settings
+// Initialize worker with pharmaceutical-optimized settings using modern Tesseract.js v5+ API
 async function initializeWorker(): Promise<Tesseract.Worker> {
   // If worker is corrupted, force recreation
   if (workerCorrupted) {
@@ -104,20 +98,19 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
 
     console.log(`🔄 Creating new Tesseract.js worker (attempt #${workerCreationCount})...`);
     
-    // Create new worker with minimal configuration to avoid memory issues
+    // Use basic Tesseract.js API to avoid complex initialization issues
     workerInstance = Tesseract.createWorker({
-      // Remove logger to prevent DataCloneError - functions cannot be cloned for worker threads
-      gzip: false, // Disable gzip to reduce memory usage
-      cachePath: isBrowser ? undefined : './tesseract-cache'
+      cachePath: isBrowser ? undefined : './tesseract-cache',
+      gzip: false // Disable gzip to avoid potential issues
     });
 
-    // Comment 1: Add worker.load() before loadLanguage and initialize
+    // Initialize worker step by step
     await workerInstance.load();
-    await (workerInstance as any).loadLanguage(PHARMACEUTICAL_OCR_CONFIG.language);
-    await (workerInstance as any).initialize(PHARMACEUTICAL_OCR_CONFIG.language);
+    await workerInstance.loadLanguage(PHARMACEUTICAL_OCR_CONFIG.language);
+    await workerInstance.initialize(PHARMACEUTICAL_OCR_CONFIG.language);
 
     // Set pharmaceutical-optimized parameters
-    await (workerInstance as any).setParameters({
+    await workerInstance.setParameters({
       tessedit_char_whitelist: PHARMACEUTICAL_OCR_CONFIG.charWhitelist,
       tessedit_pageseg_mode: PHARMACEUTICAL_OCR_CONFIG.psm,
       preserve_interword_spaces: '1',
@@ -130,7 +123,7 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
 
     lastUsed = Date.now();
     workerCorrupted = false; // Reset corruption flag
-    console.log('✅ OCR Worker initialized successfully');
+    console.log('✅ OCR Worker initialized successfully with modern API');
     
     return workerInstance;
 
@@ -187,13 +180,12 @@ export async function recognizePharmaceuticalTextMultiStrategy(
   options: OCROptions = {}
 ): Promise<{ text: string[]; confidence: number; method: string }> {
   const strategies = [
-    { name: 'auto', config: OCR_CONFIGS.multiLine },
-    { name: 'sparse', config: OCR_CONFIGS.sparse },
-    { name: 'uniform', config: OCR_CONFIGS.uniform },
-    { name: 'singleLine', config: OCR_CONFIGS.singleLine }
+    { name: 'textBlock', config: OCR_CONFIGS.textBlock },
+    { name: 'singleLine', config: OCR_CONFIGS.singleLine },
+    { name: 'uniform', config: OCR_CONFIGS.uniform }
   ];
 
-  let bestResult = { text: [], confidence: 0, method: 'none' };
+  let bestResult: { text: string[]; confidence: number; method: string } = { text: [], confidence: 0, method: 'none' };
 
   for (const strategy of strategies) {
     try {
@@ -323,7 +315,7 @@ export async function recognizePharmaceuticalText(
         isRecognizing = false;
         return await recognizePharmaceuticalText(input, {
           ...options,
-          psm: Number(Tesseract.PSM.SINGLE_TEXT_LINE), // Fixed: Use SINGLE_TEXT_LINE instead of SPARSE_TEXT
+          psm: Number(Tesseract.PSM.SINGLE_TEXT_LINE), // Use valid PSM mode
           retries: config.retries - 1
         });
       }
@@ -360,7 +352,7 @@ export async function recognizePharmaceuticalText(
       isRecognizing = false;
       return await recognizePharmaceuticalText(input, {
         ...options,
-        psm: Number(Tesseract.PSM.SINGLE_TEXT_LINE), // Fixed: Use SINGLE_TEXT_LINE instead of SPARSE_TEXT
+        psm: Number(Tesseract.PSM.SINGLE_TEXT_LINE), // Use valid PSM mode
         retries: config.retries - 1
       });
     }
