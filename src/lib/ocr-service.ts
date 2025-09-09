@@ -104,10 +104,13 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
       gzip: false // Disable gzip to avoid potential issues
     });
 
-    // Initialize worker step by step
+    // Initialize worker step by step with proper error handling
     await workerInstance.load();
-    await workerInstance.loadLanguage(PHARMACEUTICAL_OCR_CONFIG.language);
-    await workerInstance.initialize(PHARMACEUTICAL_OCR_CONFIG.language);
+    
+    // Load language with explicit string to avoid array issues
+    const language = PHARMACEUTICAL_OCR_CONFIG.language || 'eng';
+    await workerInstance.loadLanguage(language);
+    await workerInstance.initialize(language);
 
     // Set pharmaceutical-optimized parameters
     await workerInstance.setParameters({
@@ -219,7 +222,8 @@ export async function recognizePharmaceuticalTextMultiStrategy(
       // If it's a critical error, stop trying more strategies
       if (error instanceof Error && (
         error.message.includes('memory access out of bounds') ||
-        error.message.includes('DataCloneError')
+        error.message.includes('DataCloneError') ||
+        error.message.includes('langsArr.map is not a function')
       )) {
         console.log('🚨 Critical error detected, stopping multi-strategy attempts');
         break;
@@ -331,7 +335,8 @@ export async function recognizePharmaceuticalText(
       error.message.includes('RuntimeError') || 
       error.message.includes('memory access out of bounds') ||
       error.message.includes('Aborted') ||
-      error.message.includes('DataCloneError')
+      error.message.includes('DataCloneError') ||
+      error.message.includes('langsArr.map is not a function')
     )) {
       console.log('🚨 Critical error detected, marking worker as corrupted...');
       workerCorrupted = true;
