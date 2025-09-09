@@ -49,18 +49,41 @@ const OCR_CONFIGS = {
   }
 };
 
-// Worker lifecycle management
+// Worker lifecycle management with isolation
 let workerInstance: Tesseract.Worker | null = null;
 let isInitializing = false;
 let lastUsed = 0;
 let isRecognizing = false; // Semaphore for recognition
+let workerCorrupted = false; // Track worker corruption
+let workerCreationCount = 0; // Track worker recreations
 
 // Environment detection
 const isBrowser = typeof window !== 'undefined';
 
+// Force cleanup worker to prevent memory corruption
+async function forceCleanupWorker(): Promise<void> {
+  if (workerInstance) {
+    try {
+      console.log('🧹 Force cleaning up corrupted worker...');
+      await workerInstance.terminate();
+    } catch (error) {
+      console.warn('⚠️ Error during worker termination:', error);
+    } finally {
+      workerInstance = null;
+      workerCorrupted = false;
+    }
+  }
+}
+
 // Initialize worker with pharmaceutical-optimized settings
 async function initializeWorker(): Promise<Tesseract.Worker> {
-  if (workerInstance && !isWorkerStale()) {
+  // If worker is corrupted, force recreation
+  if (workerCorrupted) {
+    console.log('🔄 Worker marked as corrupted, forcing recreation...');
+    await forceCleanupWorker();
+  }
+
+  if (workerInstance && !isWorkerStale() && !workerCorrupted) {
     return workerInstance;
   }
 
@@ -73,15 +96,24 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
   }
 
   isInitializing = true;
+  workerCreationCount++;
 
   try {
-    // Terminate existing worker if stale
-    if (workerInstance) {
-      await workerInstance.terminate();
-    }
+    // Force cleanup of any existing worker
+    await forceCleanupWorker();
 
-    // Create new worker with pharmaceutical configuration
-    workerInstance = await Tesseract.createWorker();
+    console.log(`🔄 Creating new Tesseract.js worker (attempt #${workerCreationCount})...`);
+    
+    // Create new worker with minimal configuration to avoid memory issues
+    workerInstance = Tesseract.createWorker({
+      logger: (m) => {
+        if (m.status === 'recognizing text') {
+          console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
+        }
+      },
+      gzip: false, // Disable gzip to reduce memory usage
+      cachePath: isBrowser ? undefined : './tesseract-cache'
+    });
 
     // Comment 1: Add worker.load() before loadLanguage and initialize
     await workerInstance.load();
@@ -101,15 +133,19 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
     });
 
     lastUsed = Date.now();
-    console.log('OCR Worker initialized with pharmaceutical optimization');
+    workerCorrupted = false; // Reset corruption flag
+    console.log('✅ OCR Worker initialized successfully');
+    
+    return workerInstance;
+
   } catch (error) {
-    console.error('Failed to initialize OCR worker:', error);
+    console.error('❌ Failed to initialize OCR worker:', error);
+    workerCorrupted = true; // Mark as corrupted
+    await forceCleanupWorker();
     throw error;
   } finally {
     isInitializing = false;
   }
-
-  return workerInstance;
 }
 
 // Check if worker is stale (unused for more than 5 minutes)
@@ -149,7 +185,7 @@ function setupWorkerCleanup() {
   }
 }
 
-// Multi-strategy OCR function that tries different configurations
+// Multi-strategy OCR function that tries different configurations with worker isolation
 export async function recognizePharmaceuticalTextMultiStrategy(
   input: string | Buffer,
   options: OCROptions = {}
@@ -166,6 +202,13 @@ export async function recognizePharmaceuticalTextMultiStrategy(
   for (const strategy of strategies) {
     try {
       console.log(`🔍 Trying OCR strategy: ${strategy.name}`);
+      
+      // Check if worker is corrupted before each attempt
+      if (workerCorrupted) {
+        console.log('⚠️ Worker corrupted, skipping strategy:', strategy.name);
+        continue;
+      }
+      
       const result = await recognizePharmaceuticalText(input, { ...options, ...strategy.config });
       
       if (result.length > bestResult.text.length) {
@@ -175,8 +218,21 @@ export async function recognizePharmaceuticalTextMultiStrategy(
           method: strategy.name
         };
       }
+      
+      // If we got a good result, break early to avoid further corruption
+      if (result.length > 0) {
+        console.log(`✅ Strategy ${strategy.name} succeeded with ${result.length} text items`);
+        break;
+      }
+      
     } catch (error) {
       console.warn(`⚠️ OCR strategy ${strategy.name} failed:`, error);
+      
+      // If it's a memory error, stop trying more strategies
+      if (error instanceof Error && error.message.includes('memory access out of bounds')) {
+        console.log('🚨 Memory error detected, stopping multi-strategy attempts');
+        break;
+      }
       continue;
     }
   }
@@ -279,11 +335,21 @@ export async function recognizePharmaceuticalText(
   } catch (error) {
     console.error('OCR recognition failed:', error);
     
+    // Detect memory access errors and mark worker as corrupted
+    if (error instanceof Error && (
+      error.message.includes('RuntimeError') || 
+      error.message.includes('memory access out of bounds') ||
+      error.message.includes('Aborted')
+    )) {
+      console.log('🚨 Memory access error detected, marking worker as corrupted...');
+      workerCorrupted = true;
+      await forceCleanupWorker();
+    }
+    
     // Comment 4: Cleanup and reinitialize on timeout or RuntimeError
     if (error instanceof Error && (error.message === 'OCR timeout' || error.message.includes('RuntimeError'))) {
       console.log('OCR error detected, cleaning up and reinitializing worker...');
-      await cleanupOCRWorker();
-      workerInstance = null; // Reset worker instance
+      await forceCleanupWorker();
       await initializeWorker();
     }
     
@@ -308,10 +374,7 @@ export async function recognizePharmaceuticalText(
 
 // Cleanup function for manual worker termination
 export async function cleanupOCRWorker(): Promise<void> {
-  if (workerInstance) {
-    await workerInstance.terminate();
-    workerInstance = null;
-  }
+  await forceCleanupWorker();
 }
 
 // Setup cleanup handlers

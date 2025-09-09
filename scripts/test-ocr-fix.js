@@ -4,7 +4,7 @@
  * Quick test to verify OCR fix
  */
 
-const fetch = require('node-fetch');
+// Use built-in fetch (Node.js 18+)
 
 const BASE_URL = 'http://localhost:3000';
 
@@ -31,18 +31,21 @@ async function testOCRFix() {
     const result = await response.json();
     
     console.log('✅ OCR Test Result:', {
-      success: result.success,
+      success: !!result.result,
       hasError: !!result.error,
-      hasText: result.data?.extractedText?.length > 0,
-      textCount: result.data?.extractedText?.length || 0,
-      confidence: result.data?.confidence || 0
+      hasText: result.result?.extractedText?.length > 0,
+      textCount: result.result?.extractedText?.length || 0,
+      confidence: result.result?.confidence || 0,
+      processingTime: result.metadata?.processingTime || 0
     });
 
-    if (result.success && !result.error) {
+    if (result.result && !result.error) {
       console.log('\n🎉 OCR Fix Successful!');
       console.log('- No more RuntimeError crashes');
       console.log('- No more osd.traineddata errors');
       console.log('- OCR system is working properly');
+      console.log(`- Processing time: ${result.metadata?.processingTime}ms`);
+      console.log(`- Model used: ${result.metadata?.modelUsed}`);
     } else {
       console.log('\n❌ OCR still has issues:', result.error);
     }
