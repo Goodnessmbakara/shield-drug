@@ -15,7 +15,7 @@ export interface OCROptions {
 const PHARMACEUTICAL_OCR_CONFIG = {
   language: 'eng',
   dpi: 300,
-  psm: Tesseract.PSM.AUTO, // Changed from SINGLE_BLOCK to AUTO for better text detection
+  psm: Tesseract.PSM.SINGLE_BLOCK, // Fixed: Use SINGLE_BLOCK instead of AUTO to avoid osd dependency
   charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_',
   timeout: 45000, // Increased timeout for better accuracy
   retries: 3
@@ -35,10 +35,10 @@ const OCR_CONFIGS = {
     psm: Tesseract.PSM.SINGLE_BLOCK,
     charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
   },
-  // For sparse text (scattered text on packaging)
+  // For sparse text (scattered text on packaging) - use SINGLE_BLOCK instead of SPARSE_TEXT
   sparse: {
     ...PHARMACEUTICAL_OCR_CONFIG,
-    psm: Tesseract.PSM.SPARSE_TEXT,
+    psm: Tesseract.PSM.SINGLE_BLOCK, // Fixed: Use SINGLE_BLOCK instead of SPARSE_TEXT
     charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
   },
   // For uniform text blocks (dense text areas)
@@ -220,12 +220,17 @@ export async function recognizePharmaceuticalText(
       throw new Error('Invalid input type for OCR');
     }
 
-    // Comment 3: Set PSM parameters before recognition
-    await worker.setParameters({ 
-      tessedit_pageseg_mode: String(config.psm) as any,
-      tessedit_char_whitelist: config.charWhitelist || PHARMACEUTICAL_OCR_CONFIG.charWhitelist,
-      user_defined_dpi: config.dpi ? String(config.dpi) : PHARMACEUTICAL_OCR_CONFIG.dpi.toString()
-    });
+    // Comment 3: Set PSM parameters before recognition with error handling
+    try {
+      await worker.setParameters({ 
+        tessedit_pageseg_mode: String(config.psm) as any,
+        tessedit_char_whitelist: config.charWhitelist || PHARMACEUTICAL_OCR_CONFIG.charWhitelist,
+        user_defined_dpi: config.dpi ? String(config.dpi) : PHARMACEUTICAL_OCR_CONFIG.dpi.toString()
+      });
+    } catch (paramError) {
+      console.warn('⚠️ Failed to set OCR parameters, using defaults:', paramError);
+      // Continue with default parameters
+    }
 
     // Comment 4: Add timeout cancellation
     abortController = new AbortController();
@@ -258,12 +263,12 @@ export async function recognizePharmaceuticalText(
     if (pharmaceuticalLines.length === 0) {
       // Try with different PSM mode if no pharmaceutical text found
       if (config.retries && config.retries > 0) {
-        console.log('No pharmaceutical text found, retrying with SPARSE_TEXT mode...');
+        console.log('No pharmaceutical text found, retrying with SINGLE_TEXT_LINE mode...');
         // Release semaphore before recursive call
         isRecognizing = false;
         return await recognizePharmaceuticalText(input, {
           ...options,
-          psm: Number(Tesseract.PSM.SPARSE_TEXT),
+          psm: Number(Tesseract.PSM.SINGLE_TEXT_LINE), // Fixed: Use SINGLE_TEXT_LINE instead of SPARSE_TEXT
           retries: config.retries - 1
         });
       }
@@ -274,10 +279,11 @@ export async function recognizePharmaceuticalText(
   } catch (error) {
     console.error('OCR recognition failed:', error);
     
-    // Comment 4: Cleanup and reinitialize on timeout
-    if (error instanceof Error && error.message === 'OCR timeout') {
-      console.log('OCR timeout detected, cleaning up and reinitializing...');
+    // Comment 4: Cleanup and reinitialize on timeout or RuntimeError
+    if (error instanceof Error && (error.message === 'OCR timeout' || error.message.includes('RuntimeError'))) {
+      console.log('OCR error detected, cleaning up and reinitializing worker...');
       await cleanupOCRWorker();
+      workerInstance = null; // Reset worker instance
       await initializeWorker();
     }
     
@@ -288,7 +294,7 @@ export async function recognizePharmaceuticalText(
       isRecognizing = false;
       return await recognizePharmaceuticalText(input, {
         ...options,
-        psm: Number(Tesseract.PSM.SPARSE_TEXT),
+        psm: Number(Tesseract.PSM.SINGLE_TEXT_LINE), // Fixed: Use SINGLE_TEXT_LINE instead of SPARSE_TEXT
         retries: config.retries - 1
       });
     }
