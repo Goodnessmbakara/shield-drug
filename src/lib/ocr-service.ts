@@ -15,10 +15,38 @@ export interface OCROptions {
 const PHARMACEUTICAL_OCR_CONFIG = {
   language: 'eng',
   dpi: 300,
-  psm: Tesseract.PSM.SINGLE_BLOCK,
+  psm: Tesseract.PSM.AUTO, // Changed from SINGLE_BLOCK to AUTO for better text detection
   charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_',
-  timeout: 30000,
+  timeout: 45000, // Increased timeout for better accuracy
   retries: 3
+};
+
+// Enhanced configuration for different text types
+const OCR_CONFIGS = {
+  // For clear, single-line text (batch numbers, expiry dates)
+  singleLine: {
+    ...PHARMACEUTICAL_OCR_CONFIG,
+    psm: Tesseract.PSM.SINGLE_TEXT_LINE,
+    charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/:'
+  },
+  // For multi-line text blocks (drug names, instructions)
+  multiLine: {
+    ...PHARMACEUTICAL_OCR_CONFIG,
+    psm: Tesseract.PSM.SINGLE_BLOCK,
+    charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
+  },
+  // For sparse text (scattered text on packaging)
+  sparse: {
+    ...PHARMACEUTICAL_OCR_CONFIG,
+    psm: Tesseract.PSM.SPARSE_TEXT,
+    charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
+  },
+  // For uniform text blocks (dense text areas)
+  uniform: {
+    ...PHARMACEUTICAL_OCR_CONFIG,
+    psm: Tesseract.PSM.UNIFORM_BLOCK,
+    charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
+  }
 };
 
 // Worker lifecycle management
@@ -119,6 +147,41 @@ function setupWorkerCleanup() {
       process.exit(0);
     });
   }
+}
+
+// Multi-strategy OCR function that tries different configurations
+export async function recognizePharmaceuticalTextMultiStrategy(
+  input: string | Buffer,
+  options: OCROptions = {}
+): Promise<{ text: string[]; confidence: number; method: string }> {
+  const strategies = [
+    { name: 'auto', config: OCR_CONFIGS.multiLine },
+    { name: 'sparse', config: OCR_CONFIGS.sparse },
+    { name: 'uniform', config: OCR_CONFIGS.uniform },
+    { name: 'singleLine', config: OCR_CONFIGS.singleLine }
+  ];
+
+  let bestResult = { text: [], confidence: 0, method: 'none' };
+
+  for (const strategy of strategies) {
+    try {
+      console.log(`🔍 Trying OCR strategy: ${strategy.name}`);
+      const result = await recognizePharmaceuticalText(input, { ...options, ...strategy.config });
+      
+      if (result.length > bestResult.text.length) {
+        bestResult = {
+          text: result,
+          confidence: result.length * 10, // Simple confidence based on text length
+          method: strategy.name
+        };
+      }
+    } catch (error) {
+      console.warn(`⚠️ OCR strategy ${strategy.name} failed:`, error);
+      continue;
+    }
+  }
+
+  return bestResult;
 }
 
 // Main OCR function for pharmaceutical text recognition

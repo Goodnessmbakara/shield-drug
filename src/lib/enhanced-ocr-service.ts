@@ -4,7 +4,7 @@
  */
 
 import sharp from 'sharp';
-import { recognizePharmaceuticalText } from './ocr-service';
+import { recognizePharmaceuticalText, recognizePharmaceuticalTextMultiStrategy } from './ocr-service';
 import { preprocessForOCR, assessImageQuality } from './image-preprocessing';
 
 export interface EnhancedOCRResult {
@@ -122,8 +122,14 @@ export class EnhancedOCRService {
       console.log(`📝 OCR completed on ${ocrResults.length} versions`);
       
       // Step 5: Combine and validate results
-      const combinedResult = this.combineOCRResults(ocrResults);
+      let combinedResult = this.combineOCRResults(ocrResults);
       console.log('🔗 OCR results combined');
+      
+      // Step 5.5: Fallback if no text found
+      if (combinedResult.text.length === 0) {
+        console.log('⚠️ No text found with preprocessing, trying fallback strategies...');
+        combinedResult = await this.fallbackOCRStrategies(buffer, options);
+      }
       
       // Step 6: Extract pharmaceutical information
       const pharmaceuticalData = this.extractPharmaceuticalInfo(combinedResult.text);
@@ -216,6 +222,15 @@ export class EnhancedOCRService {
     let strategy: OCRPreprocessingOptions = { ...userOptions };
     let method = 'adaptive';
 
+    // Validate and fix gamma parameter
+    if (strategy.gamma !== undefined) {
+      if (strategy.gamma < 1.0) {
+        strategy.gamma = 1.0;
+      } else if (strategy.gamma > 3.0) {
+        strategy.gamma = 3.0;
+      }
+    }
+
     // Low sharpness - apply sharpening
     if (quality.sharpness < 0.5) {
       method = 'sharpening-focused';
@@ -238,7 +253,7 @@ export class EnhancedOCRService {
     if (quality.lighting < 0.4) {
       method = 'lighting-correction';
       strategy.brightness = 1.2;
-      strategy.gamma = 0.8;
+      strategy.gamma = 1.2; // Fixed: gamma must be between 1.0-3.0
     }
 
     // High noise - apply denoising
@@ -411,15 +426,21 @@ export class EnhancedOCRService {
           // Convert buffer to base64 for existing OCR service
           const base64 = `data:image/png;base64,${image.toString('base64')}`;
           
-          // Use existing pharmaceutical OCR service
-          const text = await recognizePharmaceuticalText(base64, {
-            psm: 6, // Uniform block of text
+          // Use multi-strategy OCR for better results
+          const ocrResult = await recognizePharmaceuticalTextMultiStrategy(base64, {
             language: (options.languages && options.languages[0]) || 'eng',
             retries: 1
           });
 
-          // Calculate confidence based on text quality
-          const confidence = this.calculateOCRConfidence(text);
+          // Use the best result from multi-strategy approach
+          const text = ocrResult.text;
+          const confidence = Math.max(ocrResult.confidence, this.calculateOCRConfidence(text));
+
+          console.log(`📊 OCR result for version ${index + 1}:`, {
+            method: ocrResult.method,
+            textCount: text.length,
+            confidence: confidence
+          });
 
           return { text, confidence };
 
@@ -431,6 +452,77 @@ export class EnhancedOCRService {
     );
 
     return results.filter(result => result.confidence > 0);
+  }
+
+  /**
+   * Fallback OCR strategies when preprocessing fails
+   */
+  private async fallbackOCRStrategies(
+    buffer: Buffer,
+    options: OCRPreprocessingOptions
+  ): Promise<{ text: string[]; confidence: number }> {
+    console.log('🔄 Trying fallback OCR strategies...');
+    
+    const fallbackStrategies = [
+      // Strategy 1: Simple grayscale conversion
+      async () => {
+        const processed = await sharp(buffer)
+          .grayscale()
+          .normalize()
+          .png()
+          .toBuffer();
+        return processed;
+      },
+      // Strategy 2: High contrast binarization
+      async () => {
+        const processed = await sharp(buffer)
+          .grayscale()
+          .threshold(128)
+          .png()
+          .toBuffer();
+        return processed;
+      },
+      // Strategy 3: Upscale and sharpen
+      async () => {
+        const processed = await sharp(buffer)
+          .resize(2000, 2000, { fit: 'inside', withoutEnlargement: false })
+          .sharpen()
+          .png()
+          .toBuffer();
+        return processed;
+      },
+      // Strategy 4: Original image with different OCR settings
+      async () => {
+        return buffer;
+      }
+    ];
+
+    for (let i = 0; i < fallbackStrategies.length; i++) {
+      try {
+        console.log(`🔄 Trying fallback strategy ${i + 1}/${fallbackStrategies.length}`);
+        const processedBuffer = await fallbackStrategies[i]();
+        const base64 = `data:image/png;base64,${processedBuffer.toString('base64')}`;
+        
+        const ocrResult = await recognizePharmaceuticalTextMultiStrategy(base64, {
+          language: 'eng',
+          retries: 1
+        });
+
+        if (ocrResult.text.length > 0) {
+          console.log(`✅ Fallback strategy ${i + 1} succeeded with ${ocrResult.text.length} text items`);
+          return {
+            text: ocrResult.text,
+            confidence: ocrResult.confidence
+          };
+        }
+      } catch (error) {
+        console.warn(`⚠️ Fallback strategy ${i + 1} failed:`, error);
+        continue;
+      }
+    }
+
+    console.log('❌ All fallback strategies failed');
+    return { text: [], confidence: 0 };
   }
 
   /**
