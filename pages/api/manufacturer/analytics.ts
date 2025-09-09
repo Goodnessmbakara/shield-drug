@@ -5,6 +5,7 @@ import QRCode from '@/lib/models/QRCode';
 import Report from '@/lib/models/Report';
 import User from '@/lib/models/User';
 import BlockchainTransaction from '@/lib/models/BlockchainTransaction';
+import Verification from '@/lib/models/Verification';
 import mongoose from 'mongoose';
 
 export default async function handler(
