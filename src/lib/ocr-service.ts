@@ -106,11 +106,7 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
     
     // Create new worker with minimal configuration to avoid memory issues
     workerInstance = Tesseract.createWorker({
-      logger: (m) => {
-        if (m.status === 'recognizing text') {
-          console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
-        }
-      },
+      // Remove logger to prevent DataCloneError - functions cannot be cloned for worker threads
       gzip: false, // Disable gzip to reduce memory usage
       cachePath: isBrowser ? undefined : './tesseract-cache'
     });
@@ -228,9 +224,12 @@ export async function recognizePharmaceuticalTextMultiStrategy(
     } catch (error) {
       console.warn(`⚠️ OCR strategy ${strategy.name} failed:`, error);
       
-      // If it's a memory error, stop trying more strategies
-      if (error instanceof Error && error.message.includes('memory access out of bounds')) {
-        console.log('🚨 Memory error detected, stopping multi-strategy attempts');
+      // If it's a critical error, stop trying more strategies
+      if (error instanceof Error && (
+        error.message.includes('memory access out of bounds') ||
+        error.message.includes('DataCloneError')
+      )) {
+        console.log('🚨 Critical error detected, stopping multi-strategy attempts');
         break;
       }
       continue;
@@ -339,9 +338,10 @@ export async function recognizePharmaceuticalText(
     if (error instanceof Error && (
       error.message.includes('RuntimeError') || 
       error.message.includes('memory access out of bounds') ||
-      error.message.includes('Aborted')
+      error.message.includes('Aborted') ||
+      error.message.includes('DataCloneError')
     )) {
-      console.log('🚨 Memory access error detected, marking worker as corrupted...');
+      console.log('🚨 Critical error detected, marking worker as corrupted...');
       workerCorrupted = true;
       await forceCleanupWorker();
     }
