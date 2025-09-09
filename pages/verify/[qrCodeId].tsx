@@ -12,7 +12,9 @@ import {
   Building, 
   Hash,
   ExternalLink,
-  ArrowLeft
+  ArrowLeft,
+  Copy,
+  Link
 } from 'lucide-react';
 
 interface VerificationData {
@@ -40,6 +42,7 @@ export default function VerifyPage() {
   const [verificationData, setVerificationData] = useState<VerificationData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiedHash, setCopiedHash] = useState(false);
 
   useEffect(() => {
     console.log('🔄 useEffect triggered with qrCodeId:', qrCodeId);
@@ -177,6 +180,16 @@ export default function VerifyPage() {
     }
   };
 
+  const copyTransactionHash = async (hash: string) => {
+    try {
+      await navigator.clipboard.writeText(hash);
+      setCopiedHash(true);
+      setTimeout(() => setCopiedHash(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy transaction hash:', err);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -308,26 +321,52 @@ export default function VerifyPage() {
             {/* Blockchain Verification */}
             {verificationData.blockchainTx && verificationData.blockchainTx.hash && verificationData.blockchainTx.hash.length > 0 && (
               <div className="border-t pt-4">
-                <div className="flex items-center space-x-3 mb-2">
+                <div className="flex items-center space-x-3 mb-3">
                   <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span className="font-semibold">Blockchain Verified</span>
+                  <span className="font-semibold text-green-700">Blockchain Verified</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-2">
-                  This product has been verified on the blockchain
+                <p className="text-sm text-muted-foreground mb-4">
+                  This product has been verified and recorded on the blockchain
                 </p>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-muted-foreground">Transaction:</span>
-                  <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {verificationData.blockchainTx.hash.substring(0, 10)}...
-                  </code>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => window.open(`https://testnet.snowtrace.io/tx/${verificationData.blockchainTx?.hash}`, '_blank')}
-                  >
-                    <ExternalLink className="w-3 h-3 mr-1" />
-                    View
-                  </Button>
+                
+                {/* Transaction Hash Section */}
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Link className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Transaction Hash</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <code className="flex-1 text-xs bg-white border px-3 py-2 rounded font-mono break-all">
+                      {verificationData.blockchainTx.hash}
+                    </code>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => copyTransactionHash(verificationData.blockchainTx!.hash)}
+                      className="shrink-0"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      {copiedHash ? 'Copied!' : 'Copy'}
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => window.open(`https://testnet.snowtrace.io/tx/${verificationData.blockchainTx?.hash}`, '_blank')}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      View on Explorer
+                    </Button>
+                    {verificationData.blockchainTx.blockNumber && (
+                      <span className="text-xs text-muted-foreground">
+                        Block #{verificationData.blockchainTx.blockNumber}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

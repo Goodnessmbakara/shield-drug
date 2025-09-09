@@ -52,6 +52,7 @@ export default function QRCodesPage() {
   const [selectedBatch, setSelectedBatch] = useState("");
   const [qrQuantity, setQrQuantity] = useState(1000);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [showBulkGenerate, setShowBulkGenerate] = useState(false);
@@ -59,11 +60,13 @@ export default function QRCodesPage() {
   const [showSettings, setShowSettings] = useState(false);
   
   // Data states
-  const [qrCodes, setQrCodes] = useState<any[]>([]);
+  const [allQrCodes, setAllQrCodes] = useState<any[]>([]);
+  const [filteredQrCodes, setFilteredQrCodes] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
   const [batches, setBatches] = useState<any[]>([]);
   const [pagination, setPagination] = useState<any>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -85,7 +88,21 @@ export default function QRCodesPage() {
     }
   }, [router]);
 
-  // Fetch QR codes data
+  // Debounce search term
+  useEffect(() => {
+    if (searchTerm !== debouncedSearchTerm) {
+      setIsSearching(true);
+    }
+    
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearching(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, debouncedSearchTerm]);
+
+  // Fetch QR codes data (only when user changes or page changes, not on search)
   useEffect(() => {
     if (!userEmail) return;
 
@@ -96,8 +113,7 @@ export default function QRCodesPage() {
 
         const params = new URLSearchParams({
           page: currentPage.toString(),
-          limit: '10',
-          search: searchTerm,
+          limit: '50', // Fetch more data for client-side filtering
           status: filterStatus,
           batchId: selectedBatch || 'all'
         });
@@ -115,8 +131,8 @@ export default function QRCodesPage() {
 
         const data = await response.json();
         
-        // Use real data from the API
-        setQrCodes(data.qrCodes);
+        // Store all QR codes for client-side filtering
+        setAllQrCodes(data.qrCodes);
         setStats(data.stats);
         setBatches(data.batches);
         setPagination(data.pagination);
@@ -129,7 +145,29 @@ export default function QRCodesPage() {
     };
 
     fetchQRCodes();
-  }, [userEmail, currentPage, searchTerm, filterStatus, selectedBatch]);
+  }, [userEmail, currentPage, filterStatus, selectedBatch]);
+
+  // Client-side filtering based on search term and status
+  useEffect(() => {
+    let filtered = allQrCodes;
+
+    // Filter by search term
+    if (debouncedSearchTerm) {
+      filtered = filtered.filter(qr => 
+        qr.id.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        qr.drug.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        qr.batchId.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        qr.qrCodeId.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by status
+    if (filterStatus !== "all") {
+      filtered = filtered.filter(qr => qr.status === filterStatus);
+    }
+
+    setFilteredQrCodes(filtered);
+  }, [allQrCodes, debouncedSearchTerm, filterStatus]);
 
   // Generate QR codes function
   const handleGenerateQRCodes = async () => {
@@ -310,7 +348,7 @@ export default function QRCodesPage() {
 
   return (
     <DashboardLayout userRole="manufacturer" userName={userEmail}>
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -424,7 +462,7 @@ export default function QRCodesPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* QR Code Generation */}
           <Card className="shadow-soft lg:col-span-1">
             <CardHeader>
@@ -520,13 +558,18 @@ export default function QRCodesPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground ${isSearching ? 'animate-pulse' : ''}`} />
                     <Input
                       placeholder="Search QR codes..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 w-64"
                     />
+                    {isSearching && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      </div>
+                    )}
                   </div>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="w-32">
@@ -544,17 +587,7 @@ export default function QRCodesPage() {
             </CardHeader>
             <CardContent>
               <QRCodeDisplay
-                qrCodes={qrCodes.filter(
-                  (qr) =>
-                    (filterStatus === "all" || qr.status === filterStatus) &&
-                    (qr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      qr.drug
-                        .toLowerCase()
-                        .includes(searchTerm.toLowerCase()) ||
-                      qr.batchId
-                        .toLowerCase()
-                        .includes(searchTerm.toLowerCase()))
-                )}
+                qrCodes={filteredQrCodes}
                 onDownload={handleDownloadQR}
                 onPreview={handlePreviewQR}
                 onCopyLink={handleCopyLink}

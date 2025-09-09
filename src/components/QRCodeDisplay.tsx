@@ -179,46 +179,46 @@ export default function QRCodeDisplay({
   return (
     <div className="space-y-6">
       {/* QR Codes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {qrCodes.map((qrCode) => (
-          <Card key={qrCode.id} className="hover:shadow-lg transition-shadow p-1">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium truncate">
+          <Card key={qrCode.id} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] p-0">
+            <CardHeader className="pb-4 px-6 pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <CardTitle className="text-base font-semibold truncate">
                   {qrCode.drug}
                 </CardTitle>
                 {getStatusBadge(qrCode.status)}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground font-mono">
                 ID: {qrCode.qrCodeId}
               </p>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4 px-6 pb-6">
               {/* QR Code Image */}
-              <div className="flex justify-center p-4 bg-gray-50 rounded-lg">
+              <div className="flex justify-center p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl">
                 <QRCodeGenerator
                   data={qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`}
-                  size={140}
-                  className="rounded-lg border-2 border-gray-300 shadow-sm"
+                  size={160}
+                  className="rounded-lg border-2 border-white shadow-lg"
                   alt={`QR Code for ${qrCode.drug}`}
                 />
               </div>
 
               {/* QR Code Info */}
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Batch:</span>
-                  <span className="font-medium truncate">{qrCode.batchId}</span>
+                  <span className="font-medium truncate max-w-[120px]">{qrCode.batchId}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Downloads:</span>
-                  <span className="font-medium">{qrCode.downloads}</span>
+                  <span className="font-semibold text-blue-600">{qrCode.downloads}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Verifications:</span>
-                  <span className="font-medium">{qrCode.verifications}</span>
+                  <span className="font-semibold text-green-600">{qrCode.verifications}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Date:</span>
                   <span className="font-medium">
                     {new Date(qrCode.date).toLocaleDateString()}
@@ -227,38 +227,38 @@ export default function QRCodeDisplay({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-1 pt-2">
+              <div className="flex items-center gap-2 pt-4">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 h-8"
+                  className="flex-1 h-9 hover:bg-blue-50 hover:border-blue-200"
                   onClick={() => handleDownload(qrCode)}
                 >
-                  <Download className="w-3 h-3" />
+                  <Download className="w-4 h-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 h-8"
+                  className="flex-1 h-9 hover:bg-green-50 hover:border-green-200"
                   onClick={() => handlePreview(qrCode)}
                 >
-                  <Eye className="w-3 h-3" />
+                  <Eye className="w-4 h-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 h-8"
+                  className="flex-1 h-9 hover:bg-purple-50 hover:border-purple-200"
                   onClick={() => handleCopyLink(qrCode)}
                 >
-                  <Copy className="w-3 h-3" />
+                  <Copy className="w-4 h-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 h-8"
+                  className="flex-1 h-9 hover:bg-orange-50 hover:border-orange-200"
                   onClick={() => handleShare(qrCode)}
                 >
-                  <Share2 className="w-3 h-3" />
+                  <Share2 className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>

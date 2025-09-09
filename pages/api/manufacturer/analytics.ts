@@ -108,7 +108,7 @@ async function getOverviewStats(userEmail: string, startDate: Date) {
   ] = await Promise.all([
     Upload.countDocuments({ userEmail, createdAt: { $gte: startDate } }),
     QRCode.countDocuments({ userEmail, createdAt: { $gte: startDate } }),
-    QRCode.countDocuments({ userEmail, isScanned: true, scannedAt: { $gte: startDate } }),
+    Verification.countDocuments({ userEmail, verifiedAt: { $gte: startDate } }),
     Upload.countDocuments({ userEmail, status: 'completed', createdAt: { $gte: startDate } }),
     Upload.aggregate([
       { $match: { userEmail, createdAt: { $gte: startDate } } },
@@ -157,11 +157,11 @@ async function getTrendsData(userEmail: string, startDate: Date, timeRange: stri
   // Get daily/weekly/monthly data based on time range
   const groupBy = timeRange === '7d' ? '$dayOfYear' : timeRange === '30d' ? '$week' : '$month';
   
-  const verifications = await QRCode.aggregate([
-    { $match: { userEmail, isScanned: true, scannedAt: { $gte: startDate } } },
+  const verifications = await Verification.aggregate([
+    { $match: { userEmail, verifiedAt: { $gte: startDate } } },
     {
       $group: {
-        _id: { $dateToString: { format: "%Y-%m-%d", date: "$scannedAt" } },
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$verifiedAt" } },
         count: { $sum: 1 }
       }
     },
@@ -221,14 +221,15 @@ async function getTrendsData(userEmail: string, startDate: Date, timeRange: stri
 }
 
 async function getTopDrugs(userEmail: string, startDate: Date) {
-  const topDrugs = await Upload.aggregate([
-    { $match: { userEmail, createdAt: { $gte: startDate } } },
+  const topDrugs = await Verification.aggregate([
+    { $match: { userEmail, verifiedAt: { $gte: startDate } } },
     {
       $group: {
-        _id: '$drug',
-        verifications: { $sum: { $ifNull: ['$verificationCount', 0] } },
-        qrCodes: { $sum: { $ifNull: ['$qrCodesGenerated', 0] } },
-        batches: { $sum: 1 }
+        _id: '$drugName',
+        verifications: { $sum: 1 },
+        authenticCount: { $sum: { $cond: [{ $eq: ['$result', 'authentic'] }, 1, 0] } },
+        counterfeitCount: { $sum: { $cond: [{ $eq: ['$result', 'counterfeit'] }, 1, 0] } },
+        suspiciousCount: { $sum: { $cond: [{ $eq: ['$result', 'suspicious'] }, 1, 0] } }
       }
     },
     { $sort: { verifications: -1 } },
@@ -238,27 +239,28 @@ async function getTopDrugs(userEmail: string, startDate: Date) {
   return topDrugs.map(drug => ({
     name: drug._id,
     verifications: drug.verifications,
-    qrCodes: drug.qrCodes,
-    authenticity: 98.5 // Mock value for now - could be calculated from verification success rate
+    authenticCount: drug.authenticCount,
+    counterfeitCount: drug.counterfeitCount,
+    suspiciousCount: drug.suspiciousCount,
+    authenticity: drug.verifications > 0 ? Math.round((drug.authenticCount / drug.verifications) * 100 * 10) / 10 : 0
   }));
 }
 
 async function getRegionalData(userEmail: string, startDate: Date) {
-  // REAL regional data from QR scan locations
-  const regionalStats = await QRCode.aggregate([
+  // REAL regional data from verification locations
+  const regionalStats = await Verification.aggregate([
     { 
       $match: { 
         userEmail, 
-        isScanned: true, 
-        scannedAt: { $gte: startDate },
-        scannedLocation: { $exists: true, $ne: null }
+        verifiedAt: { $gte: startDate },
+        location: { $exists: true, $ne: null }
       } 
     },
     {
       $group: {
-        _id: '$scannedLocation',
+        _id: '$location',
         verifications: { $sum: 1 },
-        uniquePharmacies: { $addToSet: '$scannedBy' }
+        uniquePharmacies: { $addToSet: '$verifiedBy' }
       }
     },
     { $sort: { verifications: -1 } },
