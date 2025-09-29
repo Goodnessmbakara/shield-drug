@@ -3,6 +3,7 @@ import dbConnect from '@/lib/database';
 import Upload from '@/lib/models/Upload';
 import QRCode from '@/lib/models/QRCode';
 import { qrCodeService } from '@/lib/qr-code';
+import { blockchainService } from '@/lib/blockchain';
 import mongoose from 'mongoose';
 
 export default async function handler(
@@ -178,6 +179,47 @@ export default async function handler(
             try {
               let qrCode;
               try {
+                // First, ensure the pharmaceutical batch is recorded on blockchain
+                console.log(`🔗 Checking if batch ${upload._id.toString()} exists on blockchain...`);
+                try {
+                  await blockchainService.getPharmaceuticalBatch(upload._id.toString());
+                  console.log(`✅ Batch ${upload._id.toString()} found on blockchain`);
+                } catch (blockchainError) {
+                  console.log(`⚠️ Batch not found on blockchain, recording it first...`);
+
+                  // Create a validation result from the upload data
+                  const validationResult = {
+                    data: [{
+                      drug_name: upload.drug || 'Unknown',
+                      batch_id: upload.batchId || upload._id.toString(),
+                      quantity: upload.quantity || batchQuantity,
+                      manufacturer: upload.manufacturer || 'Unknown',
+                      expiry_date: upload.expiryDate || new Date().toISOString()
+                    }],
+                    isValid: true,
+                    errors: [],
+                    warnings: [],
+                    totalRows: 1
+                  };
+
+                  // Generate file hash (mock for missing file content)
+                  const fileHash = blockchainService.generateFileHash(JSON.stringify(validationResult));
+
+                  // Record the batch on blockchain
+                  const batchTx = await blockchainService.recordPharmaceuticalBatch(
+                    upload._id.toString(),
+                    validationResult,
+                    fileHash
+                  );
+
+                  if (batchTx.status === 'failed') {
+                    console.error(`❌ Failed to record batch ${upload._id.toString()} on blockchain:`, batchTx.errorMessage);
+                    throw new Error(`Failed to record pharmaceutical batch on blockchain: ${batchTx.errorMessage}`);
+                  }
+
+                  console.log(`✅ Successfully recorded batch ${upload._id.toString()} on blockchain:`, batchTx.hash);
+                }
+
                 qrCode = await qrCodeService.generateQRCode(
                   upload._id.toString(), // Use the actual upload ID
                   upload.drug || 'Unknown',
@@ -278,6 +320,47 @@ export default async function handler(
           try {
             let qrCode;
             try {
+              // First, ensure the pharmaceutical batch is recorded on blockchain
+              console.log(`🔗 Checking if batch ${upload._id.toString()} exists on blockchain...`);
+              try {
+                await blockchainService.getPharmaceuticalBatch(upload._id.toString());
+                console.log(`✅ Batch ${upload._id.toString()} found on blockchain`);
+              } catch (blockchainError) {
+                console.log(`⚠️ Batch not found on blockchain, recording it first...`);
+
+                // Create a validation result from the upload data
+                const validationResult = {
+                  data: [{
+                    drug_name: upload.drug || 'Unknown',
+                    batch_id: upload.batchId || upload._id.toString(),
+                    quantity: upload.quantity || qty,
+                    manufacturer: upload.manufacturer || 'Unknown',
+                    expiry_date: upload.expiryDate || new Date().toISOString()
+                  }],
+                  isValid: true,
+                  errors: [],
+                  warnings: [],
+                  totalRows: 1
+                };
+
+                // Generate file hash (mock for missing file content)
+                const fileHash = blockchainService.generateFileHash(JSON.stringify(validationResult));
+
+                // Record the batch on blockchain
+                const batchTx = await blockchainService.recordPharmaceuticalBatch(
+                  upload._id.toString(),
+                  validationResult,
+                  fileHash
+                );
+
+                if (batchTx.status === 'failed') {
+                  console.error(`❌ Failed to record batch ${upload._id.toString()} on blockchain:`, batchTx.errorMessage);
+                  throw new Error(`Failed to record pharmaceutical batch on blockchain: ${batchTx.errorMessage}`);
+                }
+
+                console.log(`✅ Successfully recorded batch ${upload._id.toString()} on blockchain:`, batchTx.hash);
+              }
+
               qrCode = await qrCodeService.generateQRCode(
                 upload._id.toString(), // Use the actual upload ID
                 upload.drug || 'Unknown',

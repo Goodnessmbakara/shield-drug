@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { DrugAnalysisResult } from "@/services/aiDrugAnalysis";
 import { useToast } from "@/hooks/use-toast";
+import PharmaceuticalAnalysis from "@/components/AI/PharmaceuticalAnalysis";
 
 interface PhotoCaptureProps {
   onResult: (imageData: string) => void;
@@ -157,6 +158,7 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisStartTime, setAnalysisStartTime] = useState<number | null>(null);
+  const [showPharmaceuticalAnalysis, setShowPharmaceuticalAnalysis] = useState(false);
 
   const startCamera = useCallback(async () => {
     setCameraLoading(true);
@@ -305,90 +307,8 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
   }, [stopCamera, onResult, toast]);
 
   const analyzeImage = async (imageData: string) => {
-    setAnalysis({ status: "analyzing", confidence: 0, issues: [] });
-    setIsAnalyzing(true);
-    setAnalysisProgress(0);
-    setAnalysisStartTime(Date.now());
-
-    try {
-      // Create an AbortController for timeout handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 185000); // 185 seconds (3 minutes + 5s buffer) to match backend
-
-      // Start progress simulation
-      const progressInterval = setInterval(() => {
-        setAnalysisProgress(prev => {
-          const elapsed = Date.now() - (analysisStartTime || Date.now());
-          const maxProgress = Math.min(90, (elapsed / 185000) * 90); // Max 90% until completion for 3-minute timeout
-          return Math.min(prev + 2, maxProgress);
-        });
-      }, 1000);
-
-      // Use API route for image analysis
-      const response = await fetch('/api/ai/analyze-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageData }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      clearInterval(progressInterval);
-      setAnalysisProgress(100);
-
-      if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.statusText}`);
-      }
-
-      const apiResponse = await response.json();
-      
-      // Handle both legacy and new response formats
-      let result: DrugAnalysisResult;
-      if (apiResponse.result) {
-        // New format with metadata
-        result = apiResponse.result;
-      } else {
-        // Legacy format
-        result = apiResponse;
-      }
-
-      const analysisResult: AnalysisResult = {
-        status: result.status,
-        confidence: Math.round(result.confidence * 100),
-        issues: result.issues,
-        drugName: result.drugName,
-        extractedText: result.extractedText,
-        visualFeatures: result.visualFeatures,
-        isDrugImage: result.isDrugImage,
-        imageClassification: result.imageClassification,
-      };
-
-      setAnalysis(analysisResult);
-    } catch (error) {
-      console.error("Analysis failed:", error);
-      
-      let errorMessage = "Analysis failed";
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          errorMessage = "Analysis timed out after 3 minutes. Please try again.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      setAnalysis({
-        status: "suspicious",
-        confidence: 0,
-        issues: [errorMessage, "Please try again with better lighting"],
-        drugName: "Unknown",
-      });
-    } finally {
-      setIsAnalyzing(false);
-      setAnalysisProgress(0);
-      setAnalysisStartTime(null);
-    }
+    // Show the new pharmaceutical analysis component
+    setShowPharmaceuticalAnalysis(true);
   };
 
   const analyzeUploadedImage = async (photoId: string, imageData: string) => {
@@ -1043,6 +963,50 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
           </CardContent>
         </Card>
       </TooltipProvider>
+      
+      {/* Pharmaceutical Analysis Modal */}
+      {showPharmaceuticalAnalysis && capturedImage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-60">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-xl">🔬 Pharmaceutical Analysis</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPharmaceuticalAnalysis(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <PharmaceuticalAnalysis
+                imageData={capturedImage}
+                onResult={(result) => {
+                  // Convert pharmaceutical analysis result to legacy format
+                  const legacyResult: AnalysisResult = {
+                    status: result.isAuthentic ? "authentic" : "suspicious",
+                    confidence: Math.round(result.confidence * 100),
+                    issues: result.counterfeitRisk > 0.5 ? ["High counterfeit risk detected"] : [],
+                    drugName: result.drugName,
+                    extractedText: result.textExtraction.extractedText,
+                    visualFeatures: {
+                      color: result.detectedFeatures.pillColor,
+                      shape: result.detectedFeatures.pillShape,
+                      markings: result.detectedFeatures.markings,
+                    },
+                    isDrugImage: result.imageClassification.isPharmaceutical,
+                    imageClassification: result.imageClassification,
+                  };
+                  setAnalysis(legacyResult);
+                  setShowPharmaceuticalAnalysis(false);
+                }}
+                onClose={() => setShowPharmaceuticalAnalysis(false)}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

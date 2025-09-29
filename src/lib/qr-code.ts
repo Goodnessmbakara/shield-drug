@@ -1,4 +1,5 @@
 import { blockchainService } from './blockchain';
+import { generateUniqueQRCodeId } from './utils';
 import crypto from 'crypto';
 
 export interface QRCodeData {
@@ -67,19 +68,19 @@ export class QRCodeService {
       const maxAttempts = 10;
       
       do {
-        qrCodeId = this.generateUniqueQRCodeId(uploadId, drugCode, serialNumber);
+        qrCodeId = generateUniqueQRCodeId(uploadId, drugCode, serialNumber);
         attempts++;
-        
+
         // Check if this ID already exists
         const isUnique = await this.isQRCodeIdUnique(qrCodeId);
         if (isUnique) {
           break;
         }
-        
+
         if (attempts >= maxAttempts) {
           throw new Error(`Failed to generate unique QR code ID after ${maxAttempts} attempts`);
         }
-        
+
         // Add a small delay before retrying
         await new Promise(resolve => setTimeout(resolve, 10));
       } while (true);
@@ -145,51 +146,6 @@ export class QRCodeService {
     return qrCodeData.verificationUrl;
   }
 
-  /**
-   * Generate unique QR code ID with improved uniqueness
-   */
-  private generateUniqueQRCodeId(uploadId: string, drugCode: string, serialNumber: number): string {
-    try {
-      // Use crypto.randomUUID for guaranteed uniqueness
-      const uuid = crypto.randomUUID();
-      const timestamp = Date.now();
-      
-      // Create a unique string combining essential elements (without uploadId to keep it shorter)
-      const uniqueString = `${drugCode}-${serialNumber}-${timestamp}-${uuid}`;
-      
-      // Use SHA-256 hash for better distribution and uniqueness
-      const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
-      
-      // Take first 12 characters for a shorter but still unique ID
-      const shortHash = hash.substring(0, 12);
-      
-      // Validate the generated ID
-      if (!shortHash || shortHash.length < 8) {
-        throw new Error('Generated QR Code ID is invalid');
-      }
-      
-      return shortHash;
-    } catch (error) {
-      console.error('Error generating unique QR code ID:', error);
-      // Fallback to a simpler but still unique method
-      return this.generateQRCodeIdFallback(uploadId, drugCode, serialNumber);
-    }
-  }
-
-  /**
-   * Generate QR code ID with fallback method (for environments without crypto.randomUUID)
-   */
-  private generateQRCodeIdFallback(uploadId: string, drugCode: string, serialNumber: number): string {
-    const timestamp = Date.now();
-    const randomPart = Math.random().toString(36).substring(2, 10);
-    const uniqueString = `${drugCode}-${serialNumber}-${timestamp}-${randomPart}`;
-    
-    // Use SHA-256 hash
-    const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
-    const shortHash = hash.substring(0, 12);
-    
-    return shortHash;
-  }
 
   /**
    * Reserve a QR code ID to prevent collisions during batch generation
@@ -225,17 +181,40 @@ export class QRCodeService {
     try {
       // Import database models
       const { default: QRCode } = await import('./models/QRCode');
-      
+
       console.log('🔍 Looking for QR code with ID:', qrCodeId);
-      
-      // Find QR code in database
-      const qrCodeDoc = await QRCode.findOne({ qrCodeId });
-      
+
+      // Find QR code in database - handle multiple formats for backward compatibility
+      let qrCodeDoc = await QRCode.findOne({ qrCodeId });
+
+      // If not found with exact match, try pattern matching for different formats
+      if (!qrCodeDoc) {
+        console.log('⚠️ Exact match not found, trying pattern matching...');
+
+        // Try to find similar QR codes with different formats
+        const similarQRCodes = await QRCode.find({
+          $or: [
+            { qrCodeId: qrCodeId }, // Exact match (already tried above)
+            { qrCodeId: qrCodeId.toUpperCase() }, // Try uppercase
+            { qrCodeId: qrCodeId.toLowerCase() }, // Try lowercase
+            { qrCodeId: `QR-${qrCodeId}` }, // Try with QR- prefix
+            { qrCodeId: qrCodeId.replace('QR-', '') }, // Try without QR- prefix
+            // Pattern matching for hash-like IDs
+            { qrCodeId: { $regex: new RegExp(qrCodeId.replace(/[^a-zA-Z0-9]/g, ''), 'i') } }
+          ]
+        }).limit(1);
+
+        if (similarQRCodes.length > 0) {
+          qrCodeDoc = similarQRCodes[0];
+          console.log(`✅ Found QR code with alternate format: ${qrCodeDoc.qrCodeId}`);
+        }
+      }
+
       if (!qrCodeDoc) {
         console.log('❌ QR code not found in database. Available QR codes:');
-        const allQRCodes = await QRCode.find({}).select('qrCodeId').limit(5);
+        const allQRCodes = await QRCode.find({}).select('qrCodeId').limit(10);
         console.log('Sample QR codes in database:', allQRCodes.map(qr => qr.qrCodeId));
-        
+
         return {
           isValid: false,
           error: 'QR Code not found in database'

@@ -105,11 +105,11 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
     });
 
     // Initialize worker step by step with proper error handling
-    await workerInstance.load();
+    // Note: createWorker() already handles loading, so we skip .load()
     
-    // Load language with explicit string to avoid array issues
+    // Load language with array format as required by Tesseract.js API
     const language = PHARMACEUTICAL_OCR_CONFIG.language || 'eng';
-    await workerInstance.loadLanguage(language);
+    await workerInstance.loadLanguage([language]); // Pass as array to fix langsArr.map error
     await workerInstance.initialize(language);
 
     // Set pharmaceutical-optimized parameters
