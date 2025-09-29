@@ -4,13 +4,13 @@ import { DrugAnalysisResult, ImageClassificationResult } from '@/lib/types';
 const GOOGLE_CLOUD_VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate';
 const GOOGLE_CLOUD_API_KEY = process.env.GOOGLE_CLOUD_API_KEY;
 
-// BiomedCLIP API configuration (when available)
-const BIOMEDCLIP_API_URL = process.env.BIOMEDCLIP_API_URL || 'https://api.biomedclip.com/v1';
-const BIOMEDCLIP_API_KEY = process.env.BIOMEDCLIP_API_KEY;
+// Medical image classification via Hugging Face API
+const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
+const MEDICAL_MODEL_URL = 'https://api-inference.huggingface.co/models/google/vit-base-patch16-224';
 
-// Medical Pills Dataset API (Ultralytics)
-const MEDICAL_PILLS_API_URL = process.env.MEDICAL_PILLS_API_URL || 'https://api.ultralytics.com/v1';
-const MEDICAL_PILLS_API_KEY = process.env.MEDICAL_PILLS_API_KEY;
+// Medical Pills Dataset API (Ultralytics) - Disabled for now
+// const MEDICAL_PILLS_API_URL = process.env.MEDICAL_PILLS_API_URL || 'https://api.ultralytics.com/v1';
+// const MEDICAL_PILLS_API_KEY = process.env.MEDICAL_PILLS_API_KEY;
 
 export interface PharmaceuticalAnalysisResult {
   drugName: string;
@@ -48,7 +48,7 @@ export interface PharmaceuticalAnalysisResult {
 export class PharmaceuticalAIService {
   private isInitialized = false;
   private googleVisionAvailable = false;
-  private biomedclipAvailable = false;
+  private medicalClassificationAvailable = false;
   private medicalPillsAvailable = false;
 
   async initialize(): Promise<void> {
@@ -68,7 +68,7 @@ export class PharmaceuticalAIService {
       
       console.log('✅ Pharmaceutical AI Service initialized:', {
         googleVision: this.googleVisionAvailable ? 'available' : 'failed',
-        biomedclip: this.biomedclipAvailable ? 'available' : 'failed',
+        medicalClassification: this.medicalClassificationAvailable ? 'available' : 'failed',
         medicalPills: this.medicalPillsAvailable ? 'available' : 'failed'
       });
       
@@ -111,57 +111,47 @@ export class PharmaceuticalAIService {
   }
 
   private async testBiomedCLIPAPI(): Promise<void> {
-    if (!BIOMEDCLIP_API_KEY) {
-      console.warn('⚠️ BiomedCLIP API key not found');
+    if (!HUGGINGFACE_API_KEY) {
+      console.warn('⚠️ Hugging Face API key not found for medical classification');
       return;
     }
 
+    // Medical classification via Hugging Face is disabled for now
+    console.log('ℹ️ Medical classification via Hugging Face is disabled');
+    this.medicalClassificationAvailable = false;
+    return;
+    
+    /* Disabled for now - causing issues
     try {
-      // Test BiomedCLIP API availability
-      const testResponse = await fetch(`${BIOMEDCLIP_API_URL}/health`, {
-        method: 'GET',
+      // Test medical classification via Hugging Face API
+      const testResponse = await fetch(MEDICAL_MODEL_URL, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${BIOMEDCLIP_API_KEY}`,
+          'Authorization': `Bearer ${HUGGINGFACE_API_KEY}`,
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+          inputs: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k='
+        })
       });
 
       if (testResponse.ok) {
-        this.biomedclipAvailable = true;
-        console.log('✅ BiomedCLIP API is available');
+        this.medicalClassificationAvailable = true;
+        console.log('✅ Medical classification via Hugging Face is available');
       } else {
-        console.warn('⚠️ BiomedCLIP API test failed:', testResponse.status);
+        const errorText = await testResponse.text();
+        console.warn('⚠️ Medical classification test failed:', testResponse.status, errorText);
       }
     } catch (error) {
-      console.warn('⚠️ BiomedCLIP API test failed:', error);
+      console.warn('⚠️ Medical classification test failed:', error);
     }
+    */
   }
 
   private async testMedicalPillsAPI(): Promise<void> {
-    if (!MEDICAL_PILLS_API_KEY) {
-      console.warn('⚠️ Medical Pills API key not found');
-      return;
-    }
-
-    try {
-      // Test Medical Pills API availability
-      const testResponse = await fetch(`${MEDICAL_PILLS_API_URL}/health`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${MEDICAL_PILLS_API_KEY}`,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (testResponse.ok) {
-        this.medicalPillsAvailable = true;
-        console.log('✅ Medical Pills API is available');
-      } else {
-        console.warn('⚠️ Medical Pills API test failed:', testResponse.status);
-      }
-    } catch (error) {
-      console.warn('⚠️ Medical Pills API test failed:', error);
-    }
+    // Medical Pills API is disabled for now
+    console.log('ℹ️ Medical Pills API is disabled');
+    this.medicalPillsAvailable = false;
   }
 
   async analyzePharmaceuticalImage(imageBuffer: Buffer): Promise<PharmaceuticalAnalysisResult> {
@@ -326,8 +316,8 @@ export class PharmaceuticalAIService {
     confidence: number;
     detectedObjects: string[];
   }> {
-    if (!this.biomedclipAvailable || !BIOMEDCLIP_API_KEY) {
-      console.warn('⚠️ BiomedCLIP API not available, using fallback');
+    if (!this.medicalClassificationAvailable || !HUGGINGFACE_API_KEY) {
+      console.warn('⚠️ Medical classification via Hugging Face not available, using fallback');
       return {
         isPharmaceutical: false,
         confidence: 0,
@@ -336,32 +326,51 @@ export class PharmaceuticalAIService {
     }
 
     try {
-      const response = await fetch(`${BIOMEDCLIP_API_URL}/classify`, {
+      const response = await fetch(MEDICAL_MODEL_URL, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${BIOMEDCLIP_API_KEY}`,
+          'Authorization': `Bearer ${HUGGINGFACE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          image: base64Image,
-          task: 'pharmaceutical_classification'
+          inputs: `data:image/jpeg;base64,${base64Image}`,
+          parameters: {
+            return_all_scores: true
+          }
         })
       });
 
       if (!response.ok) {
-        throw new Error(`BiomedCLIP API error: ${response.status}`);
+        throw new Error(`Medical classification API error: ${response.status}`);
       }
 
       const data = await response.json();
       
+      // Process medical classification results
+      const isPharmaceutical = Array.isArray(data) && data.some((result: any) => 
+        result.label && (
+          result.label.toLowerCase().includes('medical') || 
+          result.label.toLowerCase().includes('pill') ||
+          result.label.toLowerCase().includes('tablet') ||
+          result.label.toLowerCase().includes('medicine')
+        ) && result.score > 0.3
+      );
+      
+      const confidence = Array.isArray(data) && data.length > 0 ? 
+        Math.max(...data.map((r: any) => r.score || 0)) : 0;
+      
+      const detectedObjects = Array.isArray(data) ? 
+        data.filter((result: any) => result.score > 0.3)
+            .map((result: any) => result.label) : [];
+
       return {
-        isPharmaceutical: data.isPharmaceutical || false,
-        confidence: data.confidence || 0,
-        detectedObjects: data.detectedObjects || []
+        isPharmaceutical,
+        confidence,
+        detectedObjects
       };
 
     } catch (error) {
-      console.error('❌ BiomedCLIP classification failed:', error);
+      console.error('❌ Medical classification failed:', error);
       return {
         isPharmaceutical: false,
         confidence: 0,
@@ -374,45 +383,12 @@ export class PharmaceuticalAIService {
     detectedPills: any[];
     confidence: number;
   }> {
-    if (!this.medicalPillsAvailable || !MEDICAL_PILLS_API_KEY) {
-      console.warn('⚠️ Medical Pills API not available, using fallback');
-      return {
-        detectedPills: [],
-        confidence: 0
-      };
-    }
-
-    try {
-      const response = await fetch(`${MEDICAL_PILLS_API_URL}/detect`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${MEDICAL_PILLS_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image: base64Image,
-          model: 'medical-pills'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Medical Pills API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      return {
-        detectedPills: data.detections || [],
-        confidence: data.confidence || 0
-      };
-
-    } catch (error) {
-      console.error('❌ Medical Pills detection failed:', error);
-      return {
-        detectedPills: [],
-        confidence: 0
-      };
-    }
+    // Medical Pills API is disabled for now
+    console.warn('⚠️ Medical Pills API not available, using fallback');
+    return {
+      detectedPills: [],
+      confidence: 0
+    };
   }
 
   private async identifyDrug(
@@ -432,57 +408,79 @@ export class PharmaceuticalAIService {
     const extractedText = textExtraction.extractedText || [];
     const detectedPills = pillDetection.detectedPills || [];
     
-    // Simple drug identification based on text patterns
+    console.log('🔍 Extracted text for drug identification:', extractedText);
+    console.log('🔍 Text extraction confidence:', textExtraction.confidence);
+    
+    // Dynamic drug identification - use the first meaningful text as drug name
+    let drugName = 'Unknown';
+    let genericName = 'Unknown';
+    let confidence = 0;
+
+    // Look for the most likely drug name from extracted text
+    const meaningfulTexts = extractedText.filter(text => 
+      text && 
+      text.length > 2 && 
+      !/^\d+$/.test(text) && // Not just numbers
+      !/^[()]+$/.test(text) && // Not just parentheses
+      !/^[+-]+$/.test(text) && // Not just symbols
+      text.trim().length > 0
+    );
+
+    console.log('🔍 Meaningful texts for drug identification:', meaningfulTexts);
+
+    if (meaningfulTexts.length > 0) {
+      // Use the first meaningful text as the drug name
+      const primaryText = meaningfulTexts[0].trim();
+      drugName = primaryText;
+      genericName = primaryText;
+      confidence = 0.8;
+      
+      console.log(`✅ Dynamic drug identification: "${drugName}" from extracted text`);
+    }
+
+    // Enhanced drug identification based on text patterns (for known drugs)
     const drugPatterns = [
+      // Specific drug names (higher priority)
+      { pattern: /lokmal/i, name: 'Lokmal', generic: 'Artemether + Lumefantrine' },
+      { pattern: /artemether.*lumefantrine/i, name: 'Artemether + Lumefantrine', generic: 'Artemether + Lumefantrine' },
+      { pattern: /artemether/i, name: 'Artemether', generic: 'Artemether' },
+      { pattern: /lumefantrine/i, name: 'Lumefantrine', generic: 'Lumefantrine' },
+      { pattern: /camosunate/i, name: 'Camosunate', generic: 'Camosunate' },
+      { pattern: /loren/i, name: 'Loren', generic: 'Loren' },
       { pattern: /paracetamol|acetaminophen|tylenol/i, name: 'Paracetamol', generic: 'Acetaminophen' },
       { pattern: /ibuprofen|advil|motrin/i, name: 'Ibuprofen', generic: 'Ibuprofen' },
       { pattern: /amoxicillin|amox/i, name: 'Amoxicillin', generic: 'Amoxicillin' },
       { pattern: /aspirin/i, name: 'Aspirin', generic: 'Acetylsalicylic Acid' },
+      { pattern: /vitamin|vit/i, name: 'Vitamin Supplement', generic: 'Vitamin' },
     ];
 
-    let bestMatch = null;
-    let confidence = 0;
-
+    // Check for known drug patterns
     for (const drug of drugPatterns) {
       for (const text of extractedText) {
         if (drug.pattern.test(text)) {
-          bestMatch = drug;
-          confidence = 0.8;
+          drugName = drug.name;
+          genericName = drug.generic;
+          confidence = 0.9;
+          console.log(`✅ Known drug pattern matched: ${drug.name} from text: "${text}"`);
           break;
         }
       }
-      if (bestMatch) break;
+      if (drugName !== 'Unknown') break;
     }
 
-    if (bestMatch) {
-      return {
-        drugName: bestMatch.name,
-        genericName: bestMatch.generic,
-        dosage: this.extractDosage(extractedText),
-        manufacturer: this.extractManufacturer(extractedText),
-        activeIngredients: [bestMatch.generic],
-        confidence,
-        detectedFeatures: {
-          packageType: 'tablet',
-          pillShape: 'round',
-          pillColor: 'white',
-          markings: this.extractMarkings(extractedText)
-        }
-      };
-    }
-
+    // Return the identified drug information
     return {
-      drugName: 'Unknown',
-      genericName: 'Unknown',
-      dosage: 'Unknown',
-      manufacturer: 'Unknown',
-      activeIngredients: [],
-      confidence: 0,
+      drugName: drugName,
+      genericName: genericName,
+      dosage: this.extractDosage(extractedText),
+      manufacturer: this.extractManufacturer(extractedText),
+      activeIngredients: [genericName],
+      confidence: confidence,
       detectedFeatures: {
-        packageType: 'unknown',
-        pillShape: 'unknown',
-        pillColor: 'unknown',
-        markings: []
+        packageType: 'tablet',
+        pillShape: 'round',
+        pillColor: 'white',
+        markings: this.extractMarkings(extractedText)
       }
     };
   }

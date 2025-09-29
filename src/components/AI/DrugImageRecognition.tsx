@@ -71,9 +71,9 @@ export default function DrugImageRecognition() {
 
     try {
       const formData = new FormData();
-      formData.append('drugImage', file);
+      formData.append('pharmaceuticalImage', file);
 
-      const response = await fetch('/api/ai/drug-recognition', {
+      const response = await fetch('/api/ai/pharmaceutical-analysis', {
         method: 'POST',
         body: formData,
       });

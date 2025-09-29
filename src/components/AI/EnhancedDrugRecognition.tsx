@@ -264,26 +264,27 @@ export default function EnhancedDrugRecognition() {
         await new Promise(resolve => setTimeout(resolve, 800));
       }
 
-      const response = await fetch('/api/ai/analyze-image', {
+      // Convert base64 to blob for upload
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+      
+      const formData = new FormData();
+      formData.append('pharmaceuticalImage', blob, 'pharmaceutical-image.jpg');
+
+      const apiResponse = await fetch('/api/ai/pharmaceutical-analysis', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          imageData,
-          useEnhanced: true 
-        }),
+        body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json();
         throw new Error(errorData.details || 'Failed to analyze drug image');
       }
 
-      const result = await response.json();
+      const result = await apiResponse.json();
       
-      // Handle both old and new response formats
-      const analysisData = result.result || result;
+      // Handle new pharmaceutical analysis response format
+      const analysisData = result.data?.analysis || result;
       setAnalysisResult(analysisData);
       
       setAnalysisProgress(100);

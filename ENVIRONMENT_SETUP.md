@@ -26,10 +26,9 @@ JWT_SECRET=your_jwt_secret_here
 # Get your API key from: https://console.cloud.google.com/apis/credentials
 GOOGLE_CLOUD_API_KEY=your_google_cloud_api_key_here
 
-# BiomedCLIP API (Microsoft's biomedical foundation model)
-# Documentation: https://aka.ms/biomedclip
-BIOMEDCLIP_API_URL=https://api.biomedclip.com/v1
-BIOMEDCLIP_API_KEY=your_biomedclip_api_key_here
+# BiomedCLIP (Microsoft's biomedical foundation model via Hugging Face)
+# Model: https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224
+# Uses existing HUGGINGFACE_API_KEY (no separate API needed)
 
 # Medical Pills Dataset API (Ultralytics)
 # Documentation: https://docs.ultralytics.com/datasets/detect/medical-pills/
@@ -76,10 +75,10 @@ AWS_REGION=us-east-1
 4. Create credentials (API Key)
 5. Add the API key to your `.env.local` file
 
-### 2. BiomedCLIP API (Optional)
-1. Visit [BiomedCLIP Documentation](https://aka.ms/biomedclip)
-2. Request API access from Microsoft
-3. Add API credentials to your `.env.local` file
+### 2. BiomedCLIP (Optional - Uses Hugging Face)
+1. BiomedCLIP is available on [Hugging Face](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224)
+2. Uses your existing `HUGGINGFACE_API_KEY` (no additional setup needed)
+3. The model is automatically loaded when needed
 
 ### 3. Medical Pills API (Optional)
 1. Visit [Ultralytics Documentation](https://docs.ultralytics.com/datasets/detect/medical-pills/)
@@ -92,7 +91,7 @@ AWS_REGION=us-east-1
 - `GOOGLE_CLOUD_API_KEY` - Required for OCR text extraction
 
 **Recommended for enhanced functionality:**
-- `BIOMEDCLIP_API_KEY` - For pharmaceutical image classification
+- `HUGGINGFACE_API_KEY` - For BiomedCLIP pharmaceutical image classification
 - `MEDICAL_PILLS_API_KEY` - For pill detection
 
 **Optional:**

@@ -324,47 +324,41 @@ export default function PhotoCapture({ onResult, onClose }: PhotoCaptureProps) {
     );
 
     try {
-      // Create an AbortController for timeout handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 65000); // 65 seconds to match backend
+      // Convert base64 to blob for upload
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+      
+      const formData = new FormData();
+      formData.append('pharmaceuticalImage', blob, 'pharmaceutical-image.jpg');
 
-      // Use API route for image analysis
-      const response = await fetch('/api/ai/analyze-image', {
+      // Use new pharmaceutical analysis API
+      const apiResponse = await fetch('/api/ai/pharmaceutical-analysis', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageData }),
-        signal: controller.signal,
+        body: formData,
       });
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.statusText}`);
+      if (!apiResponse.ok) {
+        throw new Error(`Analysis failed: ${apiResponse.statusText}`);
       }
 
-      const apiResponse = await response.json();
+      const result = await apiResponse.json();
       
-      // Handle both legacy and new response formats
-      let result: DrugAnalysisResult;
-      if (apiResponse.result) {
-        // New format with metadata
-        result = apiResponse.result;
-      } else {
-        // Legacy format
-        result = apiResponse;
-      }
+      // Handle new pharmaceutical analysis response format
+      const analysisData = result.data?.analysis || result;
 
       const analysisResult: AnalysisResult = {
-        status: result.status,
-        confidence: Math.round(result.confidence * 100),
-        issues: result.issues,
-        drugName: result.drugName,
-        extractedText: result.extractedText,
-        visualFeatures: result.visualFeatures,
-        isDrugImage: result.isDrugImage,
-        imageClassification: result.imageClassification,
+        status: analysisData.isAuthentic ? "authentic" : "suspicious",
+        confidence: Math.round(analysisData.confidence * 100),
+        issues: analysisData.counterfeitRisk > 0.5 ? ["High counterfeit risk detected"] : [],
+        drugName: analysisData.drugName,
+        extractedText: analysisData.textExtraction?.extractedText || [],
+        visualFeatures: {
+          color: analysisData.detectedFeatures?.pillColor || 'unknown',
+          shape: analysisData.detectedFeatures?.pillShape || 'unknown',
+          markings: analysisData.detectedFeatures?.markings || [],
+        },
+        isDrugImage: analysisData.imageClassification?.isPharmaceutical || false,
+        imageClassification: analysisData.imageClassification,
       };
 
       setUploadedPhotos((prev) =>
