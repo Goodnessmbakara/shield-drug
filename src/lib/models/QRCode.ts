@@ -13,13 +13,19 @@ export interface IQRCode {
     timestamp: string;
   };
   verificationUrl: string;
-  imageUrl: string;
+  imageUrl?: string; // Deprecated: QR codes are now generated client-side
   metadata: {
     drugName: string;
+    genericName?: string;
     batchId: string;
     manufacturer: string;
     expiryDate: string;
     quantity: number;
+    unit?: string;
+    category?: string;
+    location?: string;
+    supplier?: string;
+    purchaseDate?: string;
   };
   status: string;
   downloadCount: number;
@@ -93,13 +99,18 @@ const QRCodeSchema = new Schema({
   },
   imageUrl: {
     type: String,
-    required: true,
+    required: false, // Deprecated: QR codes are now generated client-side
     trim: true
   },
   metadata: {
     drugName: {
       type: String,
       required: true,
+      trim: true
+    },
+    genericName: {
+      type: String,
+      required: false,
       trim: true
     },
     batchId: {
@@ -121,6 +132,31 @@ const QRCodeSchema = new Schema({
       type: Number,
       required: true,
       min: [1, 'Quantity must be at least 1']
+    },
+    unit: {
+      type: String,
+      required: false,
+      trim: true
+    },
+    category: {
+      type: String,
+      required: false,
+      trim: true
+    },
+    location: {
+      type: String,
+      required: false,
+      trim: true
+    },
+    supplier: {
+      type: String,
+      required: false,
+      trim: true
+    },
+    purchaseDate: {
+      type: String,
+      required: false,
+      trim: true
     }
   },
   status: {

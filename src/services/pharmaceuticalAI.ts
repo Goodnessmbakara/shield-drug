@@ -304,6 +304,111 @@ export class PharmaceuticalAIService {
     }
   }
 
+  private async classifyWithGoogleVision(base64Image: string): Promise<{
+    isPharmaceutical: boolean;
+    confidence: number;
+    detectedObjects: string[];
+  } | null> {
+    if (!GOOGLE_CLOUD_API_KEY) {
+      return null;
+    }
+
+    try {
+      console.log('🔍 Using Google Vision for object and face detection...');
+      
+      const response = await fetch(`${GOOGLE_CLOUD_VISION_API_URL}?key=${GOOGLE_CLOUD_API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [{
+            image: { content: base64Image },
+            features: [
+              { type: 'LABEL_DETECTION', maxResults: 20 },
+              { type: 'FACE_DETECTION', maxResults: 5 },
+              { type: 'OBJECT_LOCALIZATION', maxResults: 20 }
+            ]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        console.warn('⚠️ Google Vision classification failed:', response.status);
+        return null;
+      }
+
+      const data = await response.json();
+      const result = data.responses[0];
+      
+      // Check for face detection - CRITICAL: reject if faces are detected
+      const faceAnnotations = result.faceAnnotations || [];
+      if (faceAnnotations.length > 0) {
+        console.warn('❌ FACES DETECTED - rejecting as non-pharmaceutical image');
+        return {
+          isPharmaceutical: false,
+          confidence: 0.95, // High confidence that this is NOT pharmaceutical
+          detectedObjects: ['person', 'face', 'human']
+        };
+      }
+
+      // Check for person-related labels
+      const labelAnnotations = result.labelAnnotations || [];
+      const personLabels = ['Person', 'Face', 'Human', 'Selfie', 'Portrait', 'People', 'Man', 'Woman', 'Child', 'Human face', 'Human body', 'Facial expression', 'Smile', 'Forehead', 'Cheek', 'Chin', 'Nose', 'Eye', 'Mouth', 'Hair', 'Skin'];
+      
+      const hasPerson = labelAnnotations.some((label: any) => 
+        personLabels.some(personLabel => 
+          label.description?.toLowerCase().includes(personLabel.toLowerCase())
+        ) && label.score > 0.5
+      );
+
+      if (hasPerson) {
+        console.warn('❌ PERSON/FACE LABELS DETECTED - rejecting as non-pharmaceutical image');
+        return {
+          isPharmaceutical: false,
+          confidence: 0.9,
+          detectedObjects: labelAnnotations.slice(0, 5).map((l: any) => l.description)
+        };
+      }
+
+      // Check for pharmaceutical-related labels
+      const pharmaLabels = ['Pill', 'Tablet', 'Capsule', 'Medicine', 'Medication', 'Drug', 'Pharmaceutical', 'Prescription', 'Pharmacy', 'Medical', 'Healthcare', 'Treatment', 'Bottle', 'Container', 'Package', 'Box', 'Blister pack'];
+      
+      const pharmaceuticalDetections = labelAnnotations.filter((label: any) =>
+        pharmaLabels.some(pharmaLabel =>
+          label.description?.toLowerCase().includes(pharmaLabel.toLowerCase())
+        ) && label.score > 0.5
+      );
+
+      const isPharmaceutical = pharmaceuticalDetections.length > 0;
+      const confidence = pharmaceuticalDetections.length > 0 
+        ? Math.max(...pharmaceuticalDetections.map((l: any) => l.score))
+        : 0.3;
+
+      const detectedObjects = labelAnnotations
+        .slice(0, 10)
+        .map((label: any) => label.description);
+
+      console.log('✅ Google Vision classification:', {
+        isPharmaceutical,
+        confidence,
+        detectedObjects: detectedObjects.slice(0, 5),
+        pharmaceuticalDetections: pharmaceuticalDetections.length,
+        facesDetected: faceAnnotations.length
+      });
+
+      return {
+        isPharmaceutical,
+        confidence,
+        detectedObjects
+      };
+
+    } catch (error) {
+      console.error('❌ Google Vision classification error:', error);
+      return null;
+    }
+  }
+
   private async extractTextWithGoogleVision(base64Image: string): Promise<{
     extractedText: string[];
     confidence: number;
@@ -372,6 +477,22 @@ export class PharmaceuticalAIService {
     confidence: number;
     detectedObjects: string[];
   }> {
+    // Enhanced pharmaceutical detection with person/face filtering
+    console.log('🔍 Starting pharmaceutical image classification with face detection...');
+    
+    // Try to use Google Vision API for object/face detection first
+    if (this.googleVisionAvailable && GOOGLE_CLOUD_API_KEY) {
+      try {
+        const visionClassification = await this.classifyWithGoogleVision(base64Image);
+        if (visionClassification) {
+          console.log('✅ Using Google Vision classification results');
+          return visionClassification;
+        }
+      } catch (error) {
+        console.warn('⚠️ Google Vision classification failed, using fallback:', error);
+      }
+    }
+    
     // Enhanced fallback: Use text-based pharmaceutical detection
     const pharmaceuticalTextKeywords = [
       'tablet', 'tablets', 'capsule', 'capsules', 'pill', 'pills', 'medicine', 'medication',
@@ -382,26 +503,16 @@ export class PharmaceuticalAIService {
       'dispersible', 'flavour', 'orange', 'white', 'yellow', 'blue', 'red'
     ];
 
-    // Simple fallback: Assume pharmaceutical if we have a Hugging Face API key
-    // This provides a basic working solution while we debug the API issues
-    if (HUGGINGFACE_API_KEY) {
-      console.log('🔍 Using enhanced text-based pharmaceutical detection');
-      return {
-        isPharmaceutical: true, // Assume pharmaceutical for now
-        confidence: 0.7, // Moderate confidence
-        detectedObjects: ['pharmaceutical_product', 'medicine', 'tablet']
-      };
-    }
+    // IMPORTANT: Without proper AI models, we cannot reliably classify images
+    // Return conservative result that requires manual verification
+    console.warn('⚠️ No reliable AI classification available - using conservative fallback');
+    return {
+      isPharmaceutical: false, // Conservative: require proper verification
+      confidence: 0.3, // Low confidence without proper AI
+      detectedObjects: ['unclassified_object']
+    };
 
-    if (!this.medicalClassificationAvailable || !HUGGINGFACE_API_KEY) {
-      console.warn('⚠️ Medical classification via Hugging Face not available, using fallback');
-      return {
-        isPharmaceutical: false,
-        confidence: 0,
-        detectedObjects: []
-      };
-    }
-
+    /* Disabled: Unreachable code - keeping for reference
     try {
       // Try primary model first (BiomedCLIP)
       let response = await fetch(MEDICAL_MODEL_URL, {
@@ -489,6 +600,7 @@ export class PharmaceuticalAIService {
         detectedObjects: []
       };
     }
+    */
   }
 
   private async detectPillsWithMedicalAPI(base64Image: string): Promise<{

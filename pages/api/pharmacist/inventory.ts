@@ -8,7 +8,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -26,6 +26,95 @@ export default async function handler(
     }
 
     await dbConnect();
+
+    // Handle POST request for adding new inventory item
+    if (req.method === 'POST') {
+      const {
+        drugName,
+        genericName,
+        batchId,
+        manufacturer,
+        quantity,
+        unit,
+        category,
+        expiryDate,
+        location,
+        supplier,
+        purchaseDate
+      } = req.body;
+
+      // Validate required fields
+      if (!drugName || !batchId || !manufacturer || !quantity) {
+        return res.status(400).json({
+          error: 'Missing required fields: drugName, batchId, manufacturer, quantity are required'
+        });
+      }
+
+      // Check if batch ID already exists
+      const existingBatch = await QRCode.findOne({ 
+        'metadata.batchId': batchId,
+        userEmail: userEmail as string
+      });
+
+      if (existingBatch) {
+        return res.status(400).json({
+          error: 'Batch ID already exists in your inventory'
+        });
+      }
+
+      // Generate unique QR code ID
+      const crypto = require('crypto');
+      const timestamp = Date.now();
+      const randomBytes = crypto.randomBytes(6);
+      const qrCodeId = `QR-${randomBytes.toString('hex').toUpperCase()}`;
+
+      // Create verification URL
+      const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/verify/${qrCodeId}`;
+
+      // Create QR code entry
+      const qrCodeData = {
+        qrCodeId,
+        uploadId: `manual-${timestamp}`, // Manual upload ID for pharmacist-added items
+        userEmail: userEmail as string,
+        drugCode: drugName.toLowerCase().replace(/\s+/g, '-'),
+        serialNumber: 1,
+        verificationUrl,
+        metadata: {
+          drugName,
+          batchId,
+          manufacturer,
+          expiryDate: expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 1 year from now
+          quantity: parseInt(quantity.toString())
+        },
+        status: 'generated',
+        isScanned: false
+      };
+
+      // Add additional metadata if provided
+      if (genericName) qrCodeData.metadata.genericName = genericName;
+      if (unit) qrCodeData.metadata.unit = unit;
+      if (category) qrCodeData.metadata.category = category;
+      if (location) qrCodeData.metadata.location = location;
+      if (supplier) qrCodeData.metadata.supplier = supplier;
+      if (purchaseDate) qrCodeData.metadata.purchaseDate = purchaseDate;
+
+      const newQRCode = new QRCode(qrCodeData);
+      await newQRCode.save();
+
+      return res.status(201).json({
+        success: true,
+        message: 'Inventory item added successfully',
+        qrCode: {
+          id: newQRCode._id,
+          qrCodeId: newQRCode.qrCodeId,
+          drugName: newQRCode.metadata.drugName,
+          batchId: newQRCode.metadata.batchId,
+          manufacturer: newQRCode.metadata.manufacturer,
+          verificationUrl: newQRCode.verificationUrl,
+          status: newQRCode.status
+        }
+      });
+    }
 
     // Get query parameters
     const { 

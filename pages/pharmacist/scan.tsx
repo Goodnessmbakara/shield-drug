@@ -22,6 +22,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ScanLine,
   CheckCircle,
   AlertTriangle,
@@ -223,41 +231,107 @@ export default function PharmacistScanPage() {
   const handleManualScan = async () => {
     if (manualCode.trim()) {
       try {
-        // In a real app, this would verify the QR code against the database
-        const mockResult = {
-          id: "SCAN" + Date.now(),
-          drugName: "Unknown Drug",
-          batchId: "MANUAL-" + manualCode.substring(0, 8),
-          qrCode: manualCode,
-          result: "unknown",
-          timestamp: new Date().toISOString(),
-          location: "Unknown Location",
-          pharmacist: userEmail,
-          pharmacy: "Unknown Pharmacy",
-          verificationDetails: {
-            manufacturer: "Unknown Manufacturer",
-            expiryDate: "Unknown",
-            quantity: 0,
-            blockchainTx: undefined,
-            verificationCount: 0,
-            firstVerified: undefined,
-            lastVerified: undefined,
-          },
-        };
-        setScanResult(mockResult);
-        setScanHistory([mockResult, ...scanHistory]);
-        setManualCode("");
+        setLoading(true);
+        setError(null);
         
-        toast({
-          title: "Scan Complete",
-          description: "Manual scan completed successfully.",
+        // Call the pharmacist verification API
+        const response = await fetch('/api/pharmacist/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            qrCodeId: manualCode.trim(),
+            pharmacistEmail: userEmail,
+            pharmacy: 'Current Pharmacy',
+            location: 'Manual Entry',
+            method: 'QR Code Scan',
+            result: 'authentic'
+          })
         });
+
+        if (!response.ok) {
+          throw new Error('Failed to verify QR code');
+        }
+
+        const verificationData = await response.json();
+        
+        if (verificationData.success && verificationData.data?.qrCode) {
+          const qrCode = verificationData.data.qrCode;
+          const result = {
+            id: "SCAN" + Date.now(),
+            drugName: qrCode.drugName || "Unknown Drug",
+            batchId: qrCode.batchId || "Unknown Batch",
+            qrCode: qrCode.qrCodeId,
+            result: "authentic", // Since verification was successful
+            timestamp: new Date().toISOString(),
+            location: "Manual Entry",
+            pharmacist: userEmail,
+            pharmacy: "Current Pharmacy",
+            verificationDetails: {
+              manufacturer: qrCode.manufacturer || "Unknown Manufacturer",
+              expiryDate: qrCode.expiryDate ? new Date(qrCode.expiryDate).toLocaleDateString() : "Unknown",
+              quantity: 1, // Each QR code represents one unit
+              blockchainTx: qrCode.blockchainTx?.hash || null,
+              verificationCount: qrCode.verificationCount || 1,
+              firstVerified: new Date().toISOString(),
+              lastVerified: new Date().toISOString(),
+            },
+          };
+          
+          setScanResult(result);
+          setScanHistory([result, ...scanHistory]);
+          setManualCode("");
+          
+          // Trigger dashboard refresh
+          localStorage.setItem('dashboardRefresh', Date.now().toString());
+          window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+          
+          toast({
+            title: "✅ Verification Successful",
+            description: `${qrCode.drugName} verified successfully`,
+          });
+        } else {
+          // QR code not found or verification failed
+          const failedResult = {
+            id: "SCAN" + Date.now(),
+            drugName: "Unknown Drug",
+            batchId: "MANUAL-" + manualCode.substring(0, 8),
+            qrCode: manualCode,
+            result: "unknown",
+            timestamp: new Date().toISOString(),
+            location: "Unknown Location",
+            pharmacist: userEmail,
+            pharmacy: "Unknown Pharmacy",
+            verificationDetails: {
+              manufacturer: "Unknown Manufacturer",
+              expiryDate: "Unknown",
+              quantity: 0,
+              blockchainTx: undefined,
+              verificationCount: 0,
+              firstVerified: undefined,
+              lastVerified: undefined,
+            },
+          };
+          setScanResult(failedResult);
+          setScanHistory([failedResult, ...scanHistory]);
+          setManualCode("");
+          
+          toast({
+            title: "⚠️ QR Code Not Found",
+            description: "QR code not found in database",
+            variant: "destructive",
+          });
+        }
       } catch (error) {
+        console.error('Manual scan error:', error);
         toast({
           title: "Scan Error",
-          description: "Failed to process manual scan.",
+          description: error instanceof Error ? error.message : "Failed to process manual scan.",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -548,9 +622,16 @@ export default function PharmacistScanPage() {
                   <Button
                     size="touch"
                     onClick={handleManualScan}
-                    disabled={!manualCode.trim()}
+                    disabled={!manualCode.trim() || loading}
                   >
-                    Scan
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Scanning...
+                      </>
+                    ) : (
+                      'Scan'
+                    )}
                   </Button>
                 </div>
               </div>
@@ -645,15 +726,19 @@ export default function PharmacistScanPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Blockchain Transaction</span>
-                      <a
-                        href={`https://testnet.snowtrace.io/tx/${scanResult.verificationDetails.blockchainTx}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
-                        title="View on Snowtrace"
-                      >
-                        {scanResult.verificationDetails.blockchainTx}
-                      </a>
+                      {scanResult.verificationDetails.blockchainTx ? (
+                        <a
+                          href={`https://testnet.snowtrace.io/tx/${scanResult.verificationDetails.blockchainTx}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
+                          title="View on Snowtrace"
+                        >
+                          {scanResult.verificationDetails.blockchainTx.substring(0, 10)}...
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Not recorded</span>
+                      )}
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Verification Count</span>
@@ -788,15 +873,19 @@ export default function PharmacistScanPage() {
                         </div>
                         <div>
                           <p className="text-muted-foreground">Blockchain TX</p>
-                          <a
-                            href={`https://testnet.snowtrace.io/tx/${scan.verificationDetails.blockchainTx}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
-                            title="View on Snowtrace"
-                          >
-                            {scan.verificationDetails.blockchainTx}
-                          </a>
+                          {scan.verificationDetails.blockchainTx ? (
+                            <a
+                              href={`https://testnet.snowtrace.io/tx/${scan.verificationDetails.blockchainTx}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium font-mono text-xs hover:text-blue-600 transition-colors cursor-pointer"
+                              title="View on Snowtrace"
+                            >
+                              {scan.verificationDetails.blockchainTx.substring(0, 10)}...
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">Not recorded</span>
+                          )}
                         </div>
                       </div>
 
@@ -985,6 +1074,239 @@ export default function PharmacistScanPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Scan History Modal */}
+        <Dialog open={showHistory} onOpenChange={setShowHistory}>
+          <DialogContent className="sm:max-w-[800px]">
+            <DialogHeader>
+              <DialogTitle>Scan History</DialogTitle>
+              <DialogDescription>
+                View and manage your QR code scan history and verification records.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[400px] overflow-y-auto">
+              {scanHistory.length > 0 ? (
+                <div className="space-y-4">
+                  {scanHistory.map((scan) => (
+                    <div key={scan.id} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">{scan.drugName}</h4>
+                        <Badge className={`text-xs ${
+                          scan.result === 'authentic' ? 'bg-success text-success-foreground' :
+                          scan.result === 'suspicious' ? 'bg-warning text-warning-foreground' :
+                          'bg-danger text-danger-foreground'
+                        }`}>
+                          {scan.result === 'authentic' ? 'Verified' : 
+                           scan.result === 'suspicious' ? 'Pending' : 'Failed'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                        <div>
+                          <p><strong>Batch ID:</strong> {scan.batchId}</p>
+                          <p><strong>QR Code:</strong> {scan.qrCode}</p>
+                        </div>
+                        <div>
+                          <p><strong>Timestamp:</strong> {new Date(scan.timestamp).toLocaleString()}</p>
+                          <p><strong>Location:</strong> {scan.location}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCopyResult(scan.id)}
+                        >
+                          <Copy className="w-3 h-3 mr-1" />
+                          Copy
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShareResult(scan.id)}
+                        >
+                          <Share className="w-3 h-3 mr-1" />
+                          Share
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <History className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                  <p className="text-muted-foreground">No scan history available</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Start scanning QR codes to build your history.
+                  </p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowHistory(false)}>
+                Close
+              </Button>
+              <Button onClick={handleExportHistory}>
+                <Download className="w-4 h-4 mr-2" />
+                Export History
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Analytics Modal */}
+        <Dialog open={showAnalytics} onOpenChange={setShowAnalytics}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Scan Analytics</DialogTitle>
+              <DialogDescription>
+                View detailed analytics and performance metrics for your QR code scans.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Total Scans</h4>
+                  <p className="text-2xl font-bold text-success">{stats.totalScans}</p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Success Rate</h4>
+                  <p className="text-2xl font-bold text-success">{stats.successRate}%</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg text-center">
+                  <h4 className="font-medium mb-2">Authentic</h4>
+                  <p className="text-xl font-bold text-success">{stats.authenticScans}</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <h4 className="font-medium mb-2">Suspicious</h4>
+                  <p className="text-xl font-bold text-warning">{stats.suspiciousScans}</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <h4 className="font-medium mb-2">Counterfeit</h4>
+                  <p className="text-xl font-bold text-danger">{stats.counterfeitScans}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Performance Metrics</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Average Scan Time</p>
+                    <p className="font-medium">{stats.averageScanTime}s</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Today's Scans</p>
+                    <p className="font-medium">{stats.todayScans}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAnalytics(false)}>
+                Close
+              </Button>
+              <Button onClick={() => {
+                setShowAnalytics(false);
+                router.push("/pharmacist/analytics");
+              }}>
+                <BarChart3 className="w-4 h-4 mr-2" />
+                View Full Analytics
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Settings Modal */}
+        <Dialog open={showSettings} onOpenChange={setShowSettings}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Scan Settings</DialogTitle>
+              <DialogDescription>
+                Configure your QR code scanning preferences and verification settings.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Auto-save Scans</h4>
+                    <p className="text-sm text-muted-foreground">Automatically save scan results to history</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    {cameraActive ? "Enabled" : "Disabled"}
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Flashlight</h4>
+                    <p className="text-sm text-muted-foreground">Use flashlight for better scanning in low light</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setFlashActive(!flashActive)}
+                  >
+                    {flashActive ? "On" : "Off"}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Sound Feedback</h4>
+                    <p className="text-sm text-muted-foreground">Play sound when scan is successful</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Enabled
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Vibration</h4>
+                    <p className="text-sm text-muted-foreground">Vibrate device on successful scan</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Enabled
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Verification Settings</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="verification-mode">Verification Mode</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select verification mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="automatic">Automatic</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
+                      <SelectItem value="hybrid">Hybrid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSettings(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                setShowSettings(false);
+                toast({
+                  title: "Settings Saved",
+                  description: "Your scan settings have been updated.",
+                });
+              }}>
+                Save Settings
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

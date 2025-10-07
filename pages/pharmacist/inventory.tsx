@@ -21,6 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Package,
   ScanLine,
   CheckCircle,
@@ -105,6 +113,22 @@ export default function PharmacistInventoryPage() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Form state for add item modal
+  const [formData, setFormData] = useState({
+    drugName: '',
+    genericName: '',
+    batchId: '',
+    manufacturer: '',
+    quantity: '',
+    unit: '',
+    category: '',
+    expiryDate: '',
+    location: '',
+    supplier: '',
+    purchaseDate: ''
+  });
   
   // Live data states
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -289,8 +313,75 @@ export default function PharmacistInventoryPage() {
 
   const handleAddItem = () => {
     setShowAddItem(true);
-    // In a real app, this would open add item modal
-    console.log("Opening add inventory item modal...");
+    // Reset form data when opening modal
+    setFormData({
+      drugName: '',
+      genericName: '',
+      batchId: '',
+      manufacturer: '',
+      quantity: '',
+      unit: '',
+      category: '',
+      expiryDate: '',
+      location: '',
+      supplier: '',
+      purchaseDate: ''
+    });
+  };
+
+  const handleFormChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmitAddItem = async (formData: any) => {
+    try {
+      setIsSubmitting(true);
+      
+      const response = await fetch('/api/pharmacist/inventory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'pharmacist',
+          'x-user-email': userEmail
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add inventory item');
+      }
+
+      // Close modal and refresh data
+      setShowAddItem(false);
+      
+      // Trigger dashboard refresh
+      localStorage.setItem('dashboardRefresh', Date.now().toString());
+      window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+      
+      // Refresh inventory data
+      if (userEmail) {
+        await fetchInventoryData(userEmail, pagination.currentPage);
+      }
+
+      toast({
+        title: "Success",
+        description: "Inventory item added successfully.",
+      });
+    } catch (error) {
+      console.error('Error adding inventory item:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add inventory item",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleViewAnalytics = () => {
@@ -840,6 +931,329 @@ export default function PharmacistInventoryPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Add Item Modal */}
+        <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Add New Inventory Item</DialogTitle>
+              <DialogDescription>
+                Add a new pharmaceutical item to your inventory with blockchain verification.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="drugName">Drug Name</Label>
+                  <Input
+                    id="drugName"
+                    placeholder="Enter drug name"
+                    value={formData.drugName}
+                    onChange={(e) => handleFormChange('drugName', e.target.value)}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="genericName">Generic Name</Label>
+                  <Input
+                    id="genericName"
+                    placeholder="Enter generic name"
+                    value={formData.genericName}
+                    onChange={(e) => handleFormChange('genericName', e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="batchId">Batch ID</Label>
+                  <Input
+                    id="batchId"
+                    placeholder="Enter batch ID"
+                    value={formData.batchId}
+                    onChange={(e) => handleFormChange('batchId', e.target.value)}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manufacturer">Manufacturer</Label>
+                  <Input
+                    id="manufacturer"
+                    placeholder="Enter manufacturer"
+                    value={formData.manufacturer}
+                    onChange={(e) => handleFormChange('manufacturer', e.target.value)}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">Quantity</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    placeholder="0"
+                    value={formData.quantity}
+                    onChange={(e) => handleFormChange('quantity', e.target.value)}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unit</Label>
+                  <Select value={formData.unit} onValueChange={(value) => handleFormChange('unit', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tablets">Tablets</SelectItem>
+                      <SelectItem value="capsules">Capsules</SelectItem>
+                      <SelectItem value="ml">ML</SelectItem>
+                      <SelectItem value="mg">MG</SelectItem>
+                      <SelectItem value="vials">Vials</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={formData.category} onValueChange={(value) => handleFormChange('category', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="antibiotics">Antibiotics</SelectItem>
+                      <SelectItem value="pain-relief">Pain Relief</SelectItem>
+                      <SelectItem value="vitamins">Vitamins</SelectItem>
+                      <SelectItem value="prescription">Prescription</SelectItem>
+                      <SelectItem value="otc">Over-the-Counter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expiryDate">Expiry Date</Label>
+                  <Input
+                    id="expiryDate"
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => handleFormChange('expiryDate', e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    placeholder="Shelf A1, Refrigerator, etc."
+                    value={formData.location}
+                    onChange={(e) => handleFormChange('location', e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="supplier">Supplier</Label>
+                  <Input
+                    id="supplier"
+                    placeholder="Enter supplier name"
+                    value={formData.supplier}
+                    onChange={(e) => handleFormChange('supplier', e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="purchaseDate">Purchase Date</Label>
+                  <Input
+                    id="purchaseDate"
+                    type="date"
+                    value={formData.purchaseDate}
+                    onChange={(e) => handleFormChange('purchaseDate', e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddItem(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => handleSubmitAddItem(formData)}
+                disabled={isSubmitting || !formData.drugName || !formData.batchId || !formData.manufacturer || !formData.quantity}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  'Add Item'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Analytics Modal */}
+        <Dialog open={showAnalytics} onOpenChange={setShowAnalytics}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Inventory Analytics</DialogTitle>
+              <DialogDescription>
+                View detailed analytics and performance metrics for your inventory management.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Total Items</h4>
+                  <p className="text-2xl font-bold text-success">{stats.totalItems}</p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Verification Rate</h4>
+                  <p className="text-2xl font-bold text-success">{stats.verificationRate}%</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg text-center">
+                  <h4 className="font-medium mb-2">Active Items</h4>
+                  <p className="text-xl font-bold text-success">{stats.activeItems}</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <h4 className="font-medium mb-2">Pending Verification</h4>
+                  <p className="text-xl font-bold text-warning">{stats.pendingVerification}</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <h4 className="font-medium mb-2">Verified Items</h4>
+                  <p className="text-xl font-bold text-success">{stats.verifiedItems}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Inventory Metrics</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Value</p>
+                    <p className="font-medium">₦{(stats.totalValue / 1000000).toFixed(1)}M</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Monthly Sales</p>
+                    <p className="font-medium">₦{(stats.monthlySales / 1000000).toFixed(1)}M</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAnalytics(false)}>
+                Close
+              </Button>
+              <Button onClick={() => {
+                setShowAnalytics(false);
+                router.push("/pharmacist/analytics");
+              }}>
+                <BarChart3 className="w-4 h-4 mr-2" />
+                View Full Analytics
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Settings Modal */}
+        <Dialog open={showSettings} onOpenChange={setShowSettings}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Inventory Settings</DialogTitle>
+              <DialogDescription>
+                Configure your inventory management preferences and verification settings.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Auto-verification</h4>
+                    <p className="text-sm text-muted-foreground">Automatically verify items when scanned</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Enabled
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Low Stock Alerts</h4>
+                    <p className="text-sm text-muted-foreground">Get notified when stock levels are low</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Enabled
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Expiry Alerts</h4>
+                    <p className="text-sm text-muted-foreground">Get notified when items are expiring soon</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Enabled
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Blockchain Sync</h4>
+                    <p className="text-sm text-muted-foreground">Automatically sync with blockchain</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Enabled
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Notification Settings</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="notification-frequency">Notification Frequency</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="immediate">Immediate</SelectItem>
+                      <SelectItem value="hourly">Hourly</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSettings(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                setShowSettings(false);
+                toast({
+                  title: "Settings Saved",
+                  description: "Your inventory settings have been updated.",
+                });
+              }}>
+                Save Settings
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

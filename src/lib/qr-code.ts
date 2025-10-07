@@ -231,11 +231,11 @@ export class QRCodeService {
         uploadId: qrCodeDoc.uploadId,
         drugCode: qrCodeDoc.drugCode,
         serialNumber: qrCodeDoc.serialNumber,
-        blockchainTx: qrCodeDoc.blockchainTx ? {
+        blockchainTx: qrCodeDoc.blockchainTx && (qrCodeDoc.blockchainTx.hash || typeof qrCodeDoc.blockchainTx === 'string') ? {
           hash: typeof qrCodeDoc.blockchainTx === 'string' ? qrCodeDoc.blockchainTx : qrCodeDoc.blockchainTx.hash,
-          status: 'confirmed',
+          status: qrCodeDoc.blockchainTx.status || 'confirmed',
           blockNumber: typeof qrCodeDoc.blockchainTx === 'object' ? qrCodeDoc.blockchainTx.blockNumber : undefined,
-          timestamp: qrCodeDoc.createdAt.toISOString(),
+          timestamp: qrCodeDoc.blockchainTx.timestamp || qrCodeDoc.createdAt.toISOString(),
         } : undefined,
         verificationUrl: qrCodeDoc.verificationUrl,
         metadata: qrCodeDoc.metadata,

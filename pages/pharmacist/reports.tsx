@@ -96,6 +96,35 @@ import {
   Tags,
 } from "lucide-react";
 
+interface ReportData {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  dateCreated: string;
+  dateRange: string;
+  generatedBy: string;
+  pharmacy: string;
+  summary: any;
+  fileSize: string;
+  format: string;
+  downloads: number;
+  lastAccessed: string;
+}
+
+interface StatsData {
+  totalReports: number;
+  completedReports: number;
+  pendingReports: number;
+  urgentReports: number;
+  totalDownloads: number;
+  averageReportSize: string;
+  reportSuccessRate: number;
+  monthlyReports: number;
+  weeklyReports: number;
+  dailyReports: number;
+}
+
 export default function PharmacistReportsPage() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("");
@@ -106,6 +135,21 @@ export default function PharmacistReportsPage() {
   const [showGenerateReport, setShowGenerateReport] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [reportsData, setReportsData] = useState<ReportData[]>([]);
+  const [stats, setStats] = useState<StatsData>({
+    totalReports: 0,
+    completedReports: 0,
+    pendingReports: 0,
+    urgentReports: 0,
+    totalDownloads: 0,
+    averageReportSize: "0 MB",
+    reportSuccessRate: 0,
+    monthlyReports: 0,
+    weeklyReports: 0,
+    dailyReports: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -125,152 +169,38 @@ export default function PharmacistReportsPage() {
     }
   }, [router]);
 
-  const reportsData = [
-    {
-      id: "RPT001",
-      title: "Monthly Verification Report",
-      type: "verification",
-      status: "completed",
-      dateCreated: "2024-01-25",
-      dateRange: "2024-01-01 to 2024-01-31",
-      generatedBy: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      summary: {
-        totalScans: 1247,
-        authenticScans: 1185,
-        suspiciousScans: 42,
-        counterfeitScans: 20,
-        successRate: 95.0,
-        averageScanTime: 2.3,
-      },
-      fileSize: "2.4 MB",
-      format: "PDF",
-      downloads: 15,
-      lastAccessed: "2024-01-25 14:30:22",
-    },
-    {
-      id: "RPT002",
-      title: "Inventory Status Report",
-      type: "inventory",
-      status: "completed",
-      dateCreated: "2024-01-24",
-      dateRange: "2024-01-01 to 2024-01-31",
-      generatedBy: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      summary: {
-        totalItems: 856,
-        activeItems: 789,
-        lowStockItems: 45,
-        outOfStockItems: 22,
-        expiringItems: 18,
-        totalValue: 2847000,
-      },
-      fileSize: "1.8 MB",
-      format: "Excel",
-      downloads: 8,
-      lastAccessed: "2024-01-24 16:45:12",
-    },
-    {
-      id: "RPT003",
-      title: "Counterfeit Detection Alert",
-      type: "security",
-      status: "urgent",
-      dateCreated: "2024-01-23",
-      dateRange: "2024-01-20 to 2024-01-23",
-      generatedBy: "System Alert",
-      pharmacy: "MedPlus Pharmacy",
-      summary: {
-        suspiciousItems: 5,
-        counterfeitItems: 2,
-        alertsGenerated: 7,
-        investigations: 3,
-        resolvedCases: 2,
-        pendingCases: 1,
-      },
-      fileSize: "856 KB",
-      format: "PDF",
-      downloads: 23,
-      lastAccessed: "2024-01-23 09:15:45",
-    },
-    {
-      id: "RPT004",
-      title: "NAFDAC Compliance Report",
-      type: "compliance",
-      status: "completed",
-      dateCreated: "2024-01-22",
-      dateRange: "2024-01-01 to 2024-01-31",
-      generatedBy: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      summary: {
-        complianceRate: 98.5,
-        verifiedItems: 812,
-        pendingVerification: 44,
-        violations: 0,
-        recommendations: 3,
-        auditScore: 95.2,
-      },
-      fileSize: "3.2 MB",
-      format: "PDF",
-      downloads: 12,
-      lastAccessed: "2024-01-22 11:20:33",
-    },
-    {
-      id: "RPT005",
-      title: "Weekly Analytics Summary",
-      type: "analytics",
-      status: "completed",
-      dateCreated: "2024-01-21",
-      dateRange: "2024-01-15 to 2024-01-21",
-      generatedBy: "Dr. Sarah Johnson",
-      pharmacy: "MedPlus Pharmacy",
-      summary: {
-        weeklyScans: 892,
-        weeklyGrowth: 12.5,
-        topDrugs: ["Coartem", "Amoxil", "Panadol"],
-        regionalData: "Lagos, Abuja, Port Harcourt",
-        blockchainTxns: 1247,
-        successRate: 94.8,
-      },
-      fileSize: "1.5 MB",
-      format: "Excel",
-      downloads: 6,
-      lastAccessed: "2024-01-21 17:30:18",
-    },
-    {
-      id: "RPT006",
-      title: "Blockchain Transaction Log",
-      type: "blockchain",
-      status: "completed",
-      dateCreated: "2024-01-20",
-      dateRange: "2024-01-01 to 2024-01-31",
-      generatedBy: "System",
-      pharmacy: "MedPlus Pharmacy",
-      summary: {
-        totalTransactions: 2847,
-        successfulTxns: 2832,
-        failedTxns: 15,
-        successRate: 99.5,
-        averageGasUsed: 45000,
-        totalGasCost: 125000,
-      },
-      fileSize: "4.1 MB",
-      format: "CSV",
-      downloads: 4,
-      lastAccessed: "2024-01-20 13:45:27",
-    },
-  ];
+  // Fetch reports data from API
+  useEffect(() => {
+    if (userEmail) {
+      fetchReportsData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userEmail, selectedReport, dateRange]);
 
-  const stats = {
-    totalReports: 156,
-    completedReports: 142,
-    pendingReports: 8,
-    urgentReports: 6,
-    totalDownloads: 2847,
-    averageReportSize: "2.1 MB",
-    reportSuccessRate: 91.0,
-    monthlyReports: 24,
-    weeklyReports: 6,
-    dailyReports: 1,
+  const fetchReportsData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(
+        `/api/pharmacist/reports?userEmail=${encodeURIComponent(userEmail)}&type=${selectedReport}&dateRange=${dateRange}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setStats(result.data.stats);
+        setReportsData(result.data.reports);
+      }
+    } catch (err) {
+      console.error('Error fetching reports:', err);
+      setError('Failed to load reports. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reportTypes = [
@@ -433,6 +363,27 @@ export default function PharmacistReportsPage() {
   return (
     <DashboardLayout userRole="pharmacist" userName={userEmail}>
       <div className="space-y-6">
+        {/* Error Message */}
+        {error && (
+          <Card className="bg-danger/10 border-danger">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-danger">
+                <AlertTriangle className="h-5 w-5" />
+                <p>{error}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={fetchReportsData}
+                  className="ml-auto"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -443,13 +394,37 @@ export default function PharmacistReportsPage() {
               Generate, manage, and analyze comprehensive pharmacy reports
             </p>
           </div>
-          <Button variant="hero" size="xl" onClick={handleGenerateReport}>
-            <Plus className="mr-2 h-5 w-5" />
-            Generate Report
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              onClick={fetchReportsData}
+              disabled={loading}
+            >
+              <RefreshCw className={`mr-2 h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button variant="hero" size="xl" onClick={handleGenerateReport}>
+              <Plus className="mr-2 h-5 w-5" />
+              Generate Report
+            </Button>
+          </div>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-4 text-lg text-muted-foreground">Loading reports...</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats Grid */}
+        {!loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -462,7 +437,9 @@ export default function PharmacistReportsPage() {
               <div className="text-2xl font-bold">
                 {stats.totalReports.toLocaleString()}
               </div>
-              <p className="text-xs text-muted-foreground">+24 this month</p>
+              <p className="text-xs text-muted-foreground">
+                {stats.monthlyReports > 0 ? `+${stats.monthlyReports} this month` : 'No new reports this month'}
+              </p>
             </CardContent>
           </Card>
 
@@ -527,8 +504,10 @@ export default function PharmacistReportsPage() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Report Types Overview */}
+        {!loading && (
         <Card className="shadow-soft">
           <CardHeader>
             <CardTitle>Report Types Overview</CardTitle>
@@ -562,8 +541,10 @@ export default function PharmacistReportsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Reports Management */}
+        {!loading && (
         <Card className="shadow-soft">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -739,8 +720,29 @@ export default function PharmacistReportsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
+
+        {/* No Data Message */}
+        {!loading && reportsData.length === 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Reports Found</h3>
+                <p className="text-muted-foreground mb-4">
+                  You haven't generated any reports yet. Click "Generate Report" to create your first report.
+                </p>
+                <Button onClick={handleGenerateReport}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Generate Your First Report
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Report Analytics */}
+        {!loading && (
         <Card className="shadow-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -829,8 +831,10 @@ export default function PharmacistReportsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Quick Actions */}
+        {!loading && (
         <Card className="shadow-soft">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
@@ -877,6 +881,7 @@ export default function PharmacistReportsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </DashboardLayout>
   );

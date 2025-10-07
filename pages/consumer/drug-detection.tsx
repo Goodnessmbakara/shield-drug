@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -90,7 +90,7 @@ export default function ConsumerDrugDetectionPage() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // Initialize component
-  useState(() => {
+  useEffect(() => {
     setIsClient(true);
     if (typeof window !== "undefined") {
       const role = localStorage.getItem("userRole");
@@ -104,14 +104,33 @@ export default function ConsumerDrugDetectionPage() {
         loadAnalysisHistory(email);
       }
     }
-  });
+  }, []);
 
   const loadAnalysisHistory = async (email: string) => {
     try {
       const response = await fetch(`/api/consumer/analysis-history?userEmail=${encodeURIComponent(email)}`);
       if (response.ok) {
         const history = await response.json();
-        setAnalysisHistory(history);
+        // Transform database records to match UI format
+        const transformedHistory = history.map((item: any) => ({
+          id: item._id || item.id,
+          timestamp: new Date(item.createdAt),
+          imageUrl: item.imageUrl || '',
+          result: {
+            drugName: item.drugName,
+            strength: item.strength,
+            confidence: item.confidence,
+            status: item.status,
+            issues: item.issues,
+            extractedText: item.extractedText,
+            visualFeatures: item.visualFeatures,
+            isDrugImage: item.isDrugImage,
+            imageClassification: item.imageClassification,
+            processingTime: item.processingTime
+          },
+          status: item.status
+        }));
+        setAnalysisHistory(transformedHistory);
       }
     } catch (error) {
       console.error('Failed to load analysis history:', error);
@@ -253,14 +272,23 @@ export default function ConsumerDrugDetectionPage() {
     setError(null);
     setAnalysisResult(null);
 
+    // Show analyzing toast
+    toast({
+      title: "Starting Analysis...",
+      description: "Our AI is processing your image. This may take a few moments.",
+    });
+
     try {
       const formData = new FormData();
       formData.append('drugImage', file);
 
+      const startTime = Date.now();
       const response = await fetch('/api/ai/enhanced-drug-detection', {
         method: 'POST',
         body: formData,
       });
+
+      const processingTime = Date.now() - startTime;
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -272,8 +300,47 @@ export default function ConsumerDrugDetectionPage() {
       
       setAnalysisResult(analysis);
       
-      // Save to history
-      if (analysis) {
+      // Save to database and local history
+      if (analysis && userEmail) {
+        try {
+          const saveResponse = await fetch('/api/consumer/analysis-history', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              userEmail,
+              drugName: analysis.drugName,
+              strength: analysis.strength,
+              confidence: analysis.confidence,
+              status: analysis.status,
+              issues: analysis.issues,
+              extractedText: analysis.extractedText,
+              visualFeatures: analysis.visualFeatures,
+              isDrugImage: analysis.isDrugImage,
+              imageClassification: analysis.imageClassification,
+              processingTime: analysis.processingTime,
+              modelStatus: analysis.modelStatus,
+              imageUrl: uploadedImage || '',
+              method: 'Photo Analysis'
+            })
+          });
+
+          if (saveResponse.ok) {
+            const saved = await saveResponse.json();
+            console.log('✅ Analysis saved to database:', saved.analysis.id);
+            
+            // Reload history from database
+            await loadAnalysisHistory(userEmail);
+          } else {
+            console.warn('⚠️ Failed to save analysis to database');
+          }
+        } catch (saveError) {
+          console.error('Failed to save analysis:', saveError);
+          // Continue with local storage even if DB save fails
+        }
+
+        // Also update local state immediately for responsiveness
         const historyItem: AnalysisHistory = {
           id: Date.now().toString(),
           timestamp: new Date(),
@@ -284,9 +351,10 @@ export default function ConsumerDrugDetectionPage() {
         setAnalysisHistory(prev => [historyItem, ...prev.slice(0, 9)]);
       }
 
+      // Success toast with more details
       toast({
-        title: "Analysis Complete",
-        description: `Drug identified: ${analysis.drugName}`,
+        title: "✅ Analysis Complete",
+        description: `${analysis.drugName} detected in ${(processingTime / 1000).toFixed(1)}s with ${(analysis.confidence * 100).toFixed(0)}% confidence`,
         variant: analysis.status === 'authentic' ? 'default' : 'destructive'
       });
 
@@ -294,7 +362,7 @@ export default function ConsumerDrugDetectionPage() {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred during analysis';
       setError(errorMessage);
       toast({
-        title: "Analysis Failed",
+        title: "❌ Analysis Failed",
         description: errorMessage,
         variant: "destructive"
       });
@@ -500,12 +568,35 @@ export default function ConsumerDrugDetectionPage() {
           <TabsContent value="results" className="space-y-4">
             {isAnalyzing ? (
               <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Analyzing Image...</h3>
-                  <p className="text-muted-foreground text-center">
-                    Our AI is analyzing your drug image for authenticity and identification
-                  </p>
+                <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
+                  <div className="relative">
+                    <Loader2 className="h-16 w-16 animate-spin text-primary" />
+                    <Zap className="h-6 w-6 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-primary" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-xl font-bold">Analyzing Image...</h3>
+                    <p className="text-muted-foreground max-w-md">
+                      Our AI is analyzing your drug image for authenticity and identification
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+                      <Shield className="h-4 w-4" />
+                      <span>Performing multi-model analysis</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                      <span>OCR Text Extraction</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                      <span>Visual Feature Analysis</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
+                      <span>Drug Identification</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ) : analysisResult ? (

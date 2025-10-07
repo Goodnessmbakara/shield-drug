@@ -7,20 +7,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "POST") {
     // Submit a new report
-    const { userEmail, drugName, batchNumber, description } = req.body;
+    const { userEmail, drugName, batchNumber, description, title, type, priority } = req.body;
     if (!userEmail || !drugName || !batchNumber || !description) {
       return res.status(400).json({ error: "Missing required fields" });
     }
     try {
       const report = await Report.create({
         userEmail,
+        reportedBy: userEmail,
         drugName,
         batchNumber,
+        title: title || `Report: ${drugName}`,
         description,
+        type: type || "security",
         status: "pending",
+        priority: priority || "medium",
+        category: "consumer_report",
+        summary: {
+          drugName,
+          batchNumber,
+          description,
+          reportedAt: new Date().toISOString()
+        }
       });
       return res.status(201).json({ success: true, report });
     } catch (error) {
+      console.error("Failed to submit report:", error);
       return res.status(500).json({ error: "Failed to submit report" });
     }
   }

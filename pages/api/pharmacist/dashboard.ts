@@ -83,23 +83,23 @@ async function getPharmacistStats(userEmail: string, startDate: Date) {
     counterfeitVerifications
   ] = await Promise.all([
     Verification.countDocuments({ 
-      userEmail, 
-      createdAt: { $gte: startDate } 
+      verifiedBy: userEmail, 
+      verifiedAt: { $gte: startDate } 
     }),
     Verification.countDocuments({ 
-      userEmail, 
-      status: { $in: ['authentic', 'verified', 'valid'] },
-      createdAt: { $gte: startDate }
+      verifiedBy: userEmail, 
+      result: { $in: ['authentic', 'verified', 'valid'] },
+      verifiedAt: { $gte: startDate }
     }),
     Verification.countDocuments({ 
-      userEmail, 
-      status: { $in: ['suspicious', 'questionable'] },
-      createdAt: { $gte: startDate }
+      verifiedBy: userEmail, 
+      result: { $in: ['suspicious', 'questionable'] },
+      verifiedAt: { $gte: startDate }
     }),
     Verification.countDocuments({ 
-      userEmail, 
-      status: { $in: ['counterfeit', 'invalid', 'fake'] },
-      createdAt: { $gte: startDate }
+      verifiedBy: userEmail, 
+      result: { $in: ['counterfeit', 'invalid', 'fake'] },
+      verifiedAt: { $gte: startDate }
     })
   ]);
 
@@ -121,7 +121,7 @@ async function getPharmacistStats(userEmail: string, startDate: Date) {
 
   // Get report statistics
   const totalReports = await Report.countDocuments({ 
-    userEmail, 
+    reportedBy: userEmail, 
     createdAt: { $gte: startDate } 
   });
 
@@ -147,16 +147,16 @@ async function getPharmacistStats(userEmail: string, startDate: Date) {
 }
 
 async function getRecentVerifications(userEmail: string) {
-  const verifications = await Verification.find({ userEmail })
-    .sort({ createdAt: -1 })
+  const verifications = await Verification.find({ verifiedBy: userEmail })
+    .sort({ verifiedAt: -1 })
     .limit(5)
     .lean();
 
   return verifications.map(verification => ({
     id: (verification._id as any).toString(),
     drugName: verification.drugName,
-    result: verification.status,
-    time: verification.createdAt,
+    result: verification.result,
+    time: verification.verifiedAt,
     batchId: verification.batchId || 'N/A',
     method: verification.method
   }));

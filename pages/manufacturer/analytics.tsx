@@ -44,6 +44,12 @@ import {
   Zap,
   Shield,
   RefreshCw,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  Sparkles,
+  BarChart,
+  TrendingUp as TrendUp,
 } from "lucide-react";
 
 export default function AnalyticsPage() {
@@ -285,681 +291,769 @@ export default function AnalyticsPage() {
 
   return (
     <DashboardLayout userRole="manufacturer" userName={userEmail}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Analytics Dashboard
-            </h1>
-            <p className="text-muted-foreground">
-              Comprehensive insights into your pharmaceutical operations and
-              performance
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-                <SelectItem value="1y">Last year</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="touch">
-              <Download className="mr-2 h-4 w-4" />
-              Export Report
-            </Button>
-          </div>
-        </div>
-
-        {/* Overview Stats */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          <Card className="shadow-soft hover:shadow-medium transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Batches
-              </CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {data.overview.totalBatches.toLocaleString()}
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => {
-                  const current = data.overview.totalBatches;
-                  const previous = getMockPreviousValue(current);
-                  const trend = calculateTrend(current, previous);
-                  return (
-                    <>
-                      {getTrendIcon(current, previous)}
-                      <span className={getTrendColor(current, previous)}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                      </span>
-                      <span>vs last period</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-soft hover:shadow-medium transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">QR Codes</CardTitle>
-              <QrCode className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {data.overview.totalQRCodes > 1000000 
-                  ? `${(data.overview.totalQRCodes / 1000000).toFixed(1)}M`
-                  : data.overview.totalQRCodes.toLocaleString()
-                }
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => {
-                  const current = data.overview.totalQRCodes;
-                  const previous = getMockPreviousValue(current);
-                  const trend = calculateTrend(current, previous);
-                  return (
-                    <>
-                      {getTrendIcon(current, previous)}
-                      <span className={getTrendColor(current, previous)}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                      </span>
-                      <span>vs last period</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-soft hover:shadow-medium transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Verifications
-              </CardTitle>
-              <CheckCircle className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {data.overview.totalVerifications.toLocaleString()}
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => {
-                  const current = data.overview.totalVerifications;
-                  const previous = getMockPreviousValue(current);
-                  const trend = calculateTrend(current, previous);
-                  return (
-                    <>
-                      {getTrendIcon(current, previous)}
-                      <span className={getTrendColor(current, previous)}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                      </span>
-                      <span>vs last period</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-soft hover:shadow-medium transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Authenticity Rate
-              </CardTitle>
-              <Shield className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">
-                {data.overview.authenticityRate}%
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => {
-                  const current = data.overview.authenticityRate;
-                  const previous = Math.max(0, current - (Math.random() * 2 - 1)); // Small variation
-                  const trend = calculateTrend(current, previous);
-                  return (
-                    <>
-                      {getTrendIcon(current, previous)}
-                      <span className={getTrendColor(current, previous)}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                      </span>
-                      <span>vs last period</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-soft hover:shadow-medium transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Compliance Rate
-              </CardTitle>
-              <Award className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">
-                {data.overview.complianceRate}%
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => {
-                  const current = data.overview.complianceRate;
-                  const previous = Math.max(0, current - (Math.random() * 2 - 1)); // Small variation
-                  const trend = calculateTrend(current, previous);
-                  return (
-                    <>
-                      {getTrendIcon(current, previous)}
-                      <span className={getTrendColor(current, previous)}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                      </span>
-                      <span>vs last period</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-soft hover:shadow-medium transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Blockchain Success
-              </CardTitle>
-              <Database className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">
-                {data.overview.blockchainSuccess}%
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => {
-                  const current = data.overview.blockchainSuccess;
-                  const previous = Math.max(0, current - (Math.random() * 0.5 - 0.25)); // Small variation
-                  const trend = calculateTrend(current, previous);
-                  return (
-                    <>
-                      {getTrendIcon(current, previous)}
-                      <span className={getTrendColor(current, previous)}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                      </span>
-                      <span>vs last period</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-soft hover:shadow-medium transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Active Pharmacies
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {data.overview.activePharmacies.toLocaleString()}
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => {
-                  const current = data.overview.activePharmacies;
-                  const previous = getMockPreviousValue(current);
-                  const trend = calculateTrend(current, previous);
-                  return (
-                    <>
-                      {getTrendIcon(current, previous)}
-                      <span className={getTrendColor(current, previous)}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                      </span>
-                      <span>vs last period</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-soft hover:shadow-medium transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-              <TrendingUp className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ₦{data.overview.totalRevenue > 1000000 
-                  ? `${(data.overview.totalRevenue / 1000000).toFixed(1)}M`
-                  : data.overview.totalRevenue.toLocaleString()
-                }
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => {
-                  const current = data.overview.totalRevenue;
-                  const previous = getMockPreviousValue(current);
-                  const trend = calculateTrend(current, previous);
-                  return (
-                    <>
-                      {getTrendIcon(current, previous)}
-                      <span className={getTrendColor(current, previous)}>
-                        {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
-                      </span>
-                      <span>vs last period</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Monthly Trends */}
-          <Card className="shadow-soft">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LineChart className="h-5 w-5" />
-                Monthly Trends
-              </CardTitle>
-              <CardDescription>
-                Performance metrics over the last 7 months
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {data.monthlyStats.length > 0 ? (
-                  data.monthlyStats.map((stat: any, index: number) => (
-                    <div
-                      key={stat.month}
-                      className="flex items-center justify-between p-3 border border-border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <span className="text-sm font-medium">
-                            {stat.month}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {stat.verifications.toLocaleString()} verifications
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {stat.qrCodes.toLocaleString()} QR codes •{" "}
-                            {stat.uploads} uploads
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-success">
-                          {index > 0 && data.monthlyStats[index - 1]?.verifications > 0 ? (
-                            <>
-                              +
-                              {(
-                                (stat.verifications /
-                                  data.monthlyStats[index - 1].verifications -
-                                  1) *
-                                100
-                              ).toFixed(1)}
-                              %
-                            </>
-                          ) : (
-                            'New'
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          vs previous
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Calendar className="h-8 w-8 mx-auto mb-2" />
-                    <p>No monthly data available</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Top Performing Drugs */}
-          <Card className="shadow-soft">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PieChart className="h-5 w-5" />
-                Top Performing Drugs
-              </CardTitle>
-              <CardDescription>
-                Drugs with highest verification rates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {data.topDrugs.length > 0 ? (
-                  data.topDrugs.map((drug: any, index: number) => (
-                    <div
-                      key={drug.name}
-                      className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                      onClick={() => handleViewDetails(drug.name)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
-                          <span className="text-sm font-medium">{index + 1}</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">{drug.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {drug.verifications.toLocaleString()} verifications
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-success">
-                          {drug.authenticity}%
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          authenticity
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Package className="h-8 w-8 mx-auto mb-2" />
-                    <p>No drug data available</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Regional Performance */}
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Regional Performance
-            </CardTitle>
-            <CardDescription>
-              Verification activity across different regions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-5 gap-4">
-              {data.regionalData.length > 0 ? (
-                data.regionalData.map((region: any) => (
-                  <div
-                    key={region.region}
-                    className="p-4 border border-border rounded-lg text-center hover:bg-accent/50 cursor-pointer transition-colors"
-                    onClick={() => handleRegionalAnalysis(region.region)}
-                  >
-                    <h3 className="font-medium mb-2">{region.region}</h3>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-2xl font-bold">
-                          {region.verifications.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Verifications
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-medium">{region.pharmacies}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Pharmacies
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-danger">
-                          {region.counterfeits}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Counterfeits Detected
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="col-span-full text-center py-8 text-muted-foreground">
-                  <Globe className="h-8 w-8 mx-auto mb-2" />
-                  <p>No regional data available</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
+        <div className="space-y-8 p-6">
+          {/* Enhanced Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                  <BarChart className="h-6 w-6 text-white" />
                 </div>
-              )}
+                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  Analytics Dashboard
+                </h1>
+              </div>
+              <p className="text-slate-600 text-lg max-w-2xl">
+                Comprehensive insights into your pharmaceutical operations and performance metrics
+              </p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Performance Metrics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Verification Trends */}
-          <Card className="shadow-soft">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Verification Trends
-              </CardTitle>
-              <CardDescription>Daily verification patterns</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {analyticsData.trends.verifications.map((value: number, index: number) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-sm">Day {index + 1}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-accent rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full"
-                          style={{
-                            width: `${
-                              (value /
-                                Math.max(
-                                  ...analyticsData.trends.verifications
-                                )) *
-                              100
-                            }%`,
-                          }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium w-16 text-right">
-                        {value.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* QR Code Generation Trends */}
-          <Card className="shadow-soft">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-5 w-5" />
-                QR Code Generation
-              </CardTitle>
-              <CardDescription>
-                Daily QR code generation patterns
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {analyticsData.trends.qrGenerations.map((value: number, index: number) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-sm">Day {index + 1}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-accent rounded-full h-2">
-                        <div
-                          className="bg-success h-2 rounded-full"
-                          style={{
-                            width: `${
-                              (value /
-                                Math.max(
-                                  ...analyticsData.trends.qrGenerations
-                                )) *
-                              100
-                            }%`,
-                          }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium w-16 text-right">
-                        {value.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Blockchain Analytics */}
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Blockchain Analytics
-            </CardTitle>
-            <CardDescription>
-              Blockchain transaction performance and network health
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-4">
-                <h4 className="font-medium">Transaction Performance</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Success Rate</span>
-                    <span className="font-medium text-success">99.8%</span>
-                  </div>
-                  <Progress value={99.8} className="h-2" />
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Average Gas Used</span>
-                    <span className="font-medium">45,000</span>
-                  </div>
-                  <Progress value={75} className="h-2" />
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Block Confirmation</span>
-                    <span className="font-medium">2.3s</span>
-                  </div>
-                  <Progress value={92} className="h-2" />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Network Stats</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Pending Txns</p>
-                    <p className="font-medium">3</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Daily Volume</p>
-                    <p className="font-medium">12,847</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Block Height</p>
-                    <p className="font-medium">45,892,147</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Gas Price</p>
-                    <p className="font-medium">25 Gwei</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Recent Transactions</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Batch CT2024001</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>QR Generation</span>
-                    <Badge className="bg-success text-success-foreground text-xs">
-                      Success
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Verification Log</span>
-                    <Badge className="bg-warning text-warning-foreground text-xs">
-                      Pending
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle>Analytics Actions</CardTitle>
-            <CardDescription>Export and manage analytics data</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Button
-                variant="default"
-                size="lg"
-                className="h-20 flex-col"
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <Select value={timeRange} onValueChange={setTimeRange}>
+                <SelectTrigger className="w-full sm:w-40 bg-white/80 backdrop-blur-sm border-slate-200 shadow-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 90 days</SelectItem>
+                  <SelectItem value="1y">Last year</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button 
+                variant="outline" 
+                size="touch"
+                className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-sm hover:shadow-md transition-all duration-200"
                 onClick={handleExportData}
               >
-                <Download className="h-6 w-6 mb-2" />
+                <Download className="mr-2 h-4 w-4" />
                 Export Report
               </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="h-20 flex-col"
-                onClick={handleGenerateReport}
-              >
-                <FileText className="h-6 w-6 mb-2" />
-                Generate PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-20 flex-col"
-                onClick={handleViewReports}
-              >
-                <Eye className="h-6 w-6 mb-2" />
-                View Details
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-20 flex-col"
-                onClick={handleAnalyticsSettings}
-              >
-                <Settings className="h-6 w-6 mb-2" />
-                Settings
-              </Button>
+            </div>
+          </div>
+
+          {/* Enhanced Overview Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 lg:gap-6">
+            <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-semibold text-slate-700">
+                  Total Batches
+                </CardTitle>
+                <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors duration-200">
+                  <Package className="h-4 w-4 text-blue-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-2xl font-bold text-slate-900 mb-2">
+                  {data.overview.totalBatches.toLocaleString()}
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {(() => {
+                    const current = data.overview.totalBatches;
+                    const previous = getMockPreviousValue(current);
+                    const trend = calculateTrend(current, previous);
+                    return (
+                      <>
+                        {getTrendIcon(current, previous)}
+                        <span className={getTrendColor(current, previous)}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                        <span className="text-slate-500">vs last period</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-semibold text-slate-700">QR Codes</CardTitle>
+                <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors duration-200">
+                  <QrCode className="h-4 w-4 text-green-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-2xl font-bold text-slate-900 mb-2">
+                  {data.overview.totalQRCodes > 1000000 
+                    ? `${(data.overview.totalQRCodes / 1000000).toFixed(1)}M`
+                    : data.overview.totalQRCodes.toLocaleString()
+                  }
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {(() => {
+                    const current = data.overview.totalQRCodes;
+                    const previous = getMockPreviousValue(current);
+                    const trend = calculateTrend(current, previous);
+                    return (
+                      <>
+                        {getTrendIcon(current, previous)}
+                        <span className={getTrendColor(current, previous)}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                        <span className="text-slate-500">vs last period</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-emerald-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-semibold text-slate-700">
+                  Verifications
+                </CardTitle>
+                <div className="p-2 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors duration-200">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-2xl font-bold text-slate-900 mb-2">
+                  {data.overview.totalVerifications.toLocaleString()}
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {(() => {
+                    const current = data.overview.totalVerifications;
+                    const previous = getMockPreviousValue(current);
+                    const trend = calculateTrend(current, previous);
+                    return (
+                      <>
+                        {getTrendIcon(current, previous)}
+                        <span className={getTrendColor(current, previous)}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                        <span className="text-slate-500">vs last period</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-purple-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-semibold text-slate-700">
+                  Authenticity Rate
+                </CardTitle>
+                <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors duration-200">
+                  <Shield className="h-4 w-4 text-purple-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-2xl font-bold text-purple-600 mb-2">
+                  {data.overview.authenticityRate}%
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {(() => {
+                    const current = data.overview.authenticityRate;
+                    const previous = Math.max(0, current - (Math.random() * 2 - 1)); // Small variation
+                    const trend = calculateTrend(current, previous);
+                    return (
+                      <>
+                        {getTrendIcon(current, previous)}
+                        <span className={getTrendColor(current, previous)}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                        <span className="text-slate-500">vs last period</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-amber-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-semibold text-slate-700">
+                  Compliance Rate
+                </CardTitle>
+                <div className="p-2 bg-amber-100 rounded-lg group-hover:bg-amber-200 transition-colors duration-200">
+                  <Award className="h-4 w-4 text-amber-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-2xl font-bold text-amber-600 mb-2">
+                  {data.overview.complianceRate}%
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {(() => {
+                    const current = data.overview.complianceRate;
+                    const previous = Math.max(0, current - (Math.random() * 2 - 1)); // Small variation
+                    const trend = calculateTrend(current, previous);
+                    return (
+                      <>
+                        {getTrendIcon(current, previous)}
+                        <span className={getTrendColor(current, previous)}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                        <span className="text-slate-500">vs last period</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-indigo-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-semibold text-slate-700">
+                  Blockchain Success
+                </CardTitle>
+                <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors duration-200">
+                  <Database className="h-4 w-4 text-indigo-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-2xl font-bold text-indigo-600 mb-2">
+                  {data.overview.blockchainSuccess}%
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {(() => {
+                    const current = data.overview.blockchainSuccess;
+                    const previous = Math.max(0, current - (Math.random() * 0.5 - 0.25)); // Small variation
+                    const trend = calculateTrend(current, previous);
+                    return (
+                      <>
+                        {getTrendIcon(current, previous)}
+                        <span className={getTrendColor(current, previous)}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                        <span className="text-slate-500">vs last period</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-teal-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-semibold text-slate-700">
+                  Active Pharmacies
+                </CardTitle>
+                <div className="p-2 bg-teal-100 rounded-lg group-hover:bg-teal-200 transition-colors duration-200">
+                  <Users className="h-4 w-4 text-teal-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-2xl font-bold text-slate-900 mb-2">
+                  {data.overview.activePharmacies.toLocaleString()}
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {(() => {
+                    const current = data.overview.activePharmacies;
+                    const previous = getMockPreviousValue(current);
+                    const trend = calculateTrend(current, previous);
+                    return (
+                      <>
+                        {getTrendIcon(current, previous)}
+                        <span className={getTrendColor(current, previous)}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                        <span className="text-slate-500">vs last period</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="group relative overflow-hidden bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-rose-50 to-rose-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-semibold text-slate-700">Revenue</CardTitle>
+                <div className="p-2 bg-rose-100 rounded-lg group-hover:bg-rose-200 transition-colors duration-200">
+                  <TrendingUp className="h-4 w-4 text-rose-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-2xl font-bold text-slate-900 mb-2">
+                  ₦{data.overview.totalRevenue > 1000000 
+                    ? `${(data.overview.totalRevenue / 1000000).toFixed(1)}M`
+                    : data.overview.totalRevenue.toLocaleString()
+                  }
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  {(() => {
+                    const current = data.overview.totalRevenue;
+                    const previous = getMockPreviousValue(current);
+                    const trend = calculateTrend(current, previous);
+                    return (
+                      <>
+                        {getTrendIcon(current, previous)}
+                        <span className={getTrendColor(current, previous)}>
+                          {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+                        </span>
+                        <span className="text-slate-500">vs last period</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+        </div>
+
+          {/* Enhanced Charts Section */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
+            {/* Monthly Trends */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                    <LineChart className="h-5 w-5 text-white" />
+                  </div>
+                  Monthly Trends
+                </CardTitle>
+                <CardDescription className="text-slate-600">
+                  Performance metrics over the last 7 months
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {data.monthlyStats.length > 0 ? (
+                    data.monthlyStats.map((stat: any, index: number) => (
+                      <div
+                        key={stat.month}
+                        className="group flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-blue-50/30 border border-slate-200 rounded-xl hover:shadow-md transition-all duration-200 hover:border-blue-200"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                            <span className="text-sm font-bold text-white">
+                              {stat.month.slice(0, 3)}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-900">
+                              {stat.verifications.toLocaleString()} verifications
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              {stat.qrCodes.toLocaleString()} QR codes • {stat.uploads} uploads
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-1">
+                            {index > 0 && data.monthlyStats[index - 1]?.verifications > 0 ? (
+                              <>
+                                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                                <span className="text-sm font-semibold text-emerald-600">
+                                  +
+                                  {(
+                                    (stat.verifications /
+                                      data.monthlyStats[index - 1].verifications -
+                                      1) *
+                                    100
+                                  ).toFixed(1)}
+                                  %
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-4 w-4 text-blue-500" />
+                                <span className="text-sm font-semibold text-blue-600">New</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500">vs previous</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-gradient-to-r from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Calendar className="h-8 w-8 text-slate-400" />
+                      </div>
+                      <p className="text-slate-500 font-medium">No monthly data available</p>
+                      <p className="text-sm text-slate-400 mt-1">Data will appear as you upload batches</p>
+                    </div>
+                  )}
+                </div>
+            </CardContent>
+          </Card>
+
+            {/* Top Performing Drugs */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg">
+                    <PieChart className="h-5 w-5 text-white" />
+                  </div>
+                  Top Performing Drugs
+                </CardTitle>
+                <CardDescription className="text-slate-600">
+                  Drugs with highest verification rates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {data.topDrugs.length > 0 ? (
+                    data.topDrugs.map((drug: any, index: number) => (
+                      <div
+                        key={drug.name}
+                        className="group flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-emerald-50/30 border border-slate-200 rounded-xl hover:shadow-md transition-all duration-200 hover:border-emerald-200 cursor-pointer"
+                        onClick={() => handleViewDetails(drug.name)}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm">
+                            <span className="text-sm font-bold text-white">#{index + 1}</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-900">{drug.name}</p>
+                            <p className="text-sm text-slate-600">
+                              {drug.verifications.toLocaleString()} verifications
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-2">
+                            <div className="text-lg font-bold text-emerald-600">
+                              {drug.authenticity}%
+                            </div>
+                            <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                          </div>
+                          <div className="text-xs text-slate-500">authenticity rate</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-gradient-to-r from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Package className="h-8 w-8 text-slate-400" />
+                      </div>
+                      <p className="text-slate-500 font-medium">No drug data available</p>
+                      <p className="text-sm text-slate-400 mt-1">Upload batches to see drug performance</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+        </div>
+
+          {/* Enhanced Regional Performance */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 bg-gradient-to-r from-amber-500 to-orange-600 rounded-lg">
+                  <Globe className="h-5 w-5 text-white" />
+                </div>
+                Regional Performance
+              </CardTitle>
+              <CardDescription className="text-slate-600">
+                Verification activity across different regions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6">
+                {data.regionalData.length > 0 ? (
+                  data.regionalData.map((region: any) => (
+                    <div
+                      key={region.region}
+                      className="group p-6 bg-gradient-to-br from-slate-50 to-amber-50/30 border border-slate-200 rounded-xl text-center hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer hover:border-amber-200"
+                      onClick={() => handleRegionalAnalysis(region.region)}
+                    >
+                      <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                        <Globe className="h-6 w-6 text-white" />
+                      </div>
+                      <h3 className="font-bold text-slate-900 mb-4 text-lg">{region.region}</h3>
+                      <div className="space-y-3">
+                        <div className="bg-white/60 rounded-lg p-3">
+                          <p className="text-2xl font-bold text-slate-900">
+                            {region.verifications.toLocaleString()}
+                          </p>
+                          <p className="text-xs text-slate-600 font-medium">
+                            Verifications
+                          </p>
+                        </div>
+                        <div className="bg-white/60 rounded-lg p-3">
+                          <p className="text-lg font-bold text-slate-900">{region.pharmacies}</p>
+                          <p className="text-xs text-slate-600 font-medium">
+                            Active Pharmacies
+                          </p>
+                        </div>
+                        <div className="bg-white/60 rounded-lg p-3">
+                          <p className="text-lg font-bold text-red-600">
+                            {region.counterfeits}
+                          </p>
+                          <p className="text-xs text-slate-600 font-medium">
+                            Counterfeits Detected
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <div className="w-20 h-20 bg-gradient-to-r from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Globe className="h-10 w-10 text-slate-400" />
+                    </div>
+                    <p className="text-slate-500 font-medium text-lg">No regional data available</p>
+                    <p className="text-sm text-slate-400 mt-2">Regional data will appear as verifications occur</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Enhanced Performance Metrics */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
+            {/* Verification Trends */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg">
+                    <BarChart3 className="h-5 w-5 text-white" />
+                  </div>
+                  Verification Trends
+                </CardTitle>
+                <CardDescription className="text-slate-600">Daily verification patterns</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analyticsData.trends.verifications.map((value: number, index: number) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-50 to-blue-50/30 rounded-lg border border-slate-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
+                          <span className="text-xs font-bold text-white">{index + 1}</span>
+                        </div>
+                        <span className="text-sm font-medium text-slate-700">Day {index + 1}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 bg-slate-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-cyan-600 h-2 rounded-full transition-all duration-500"
+                            style={{
+                              width: `${
+                                (value /
+                                  Math.max(
+                                    ...analyticsData.trends.verifications
+                                  )) *
+                                100
+                              }%`,
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-bold text-slate-900 w-16 text-right">
+                          {value.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            </CardContent>
+          </Card>
+
+            {/* QR Code Generation Trends */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg">
+                    <QrCode className="h-5 w-5 text-white" />
+                  </div>
+                  QR Code Generation
+                </CardTitle>
+                <CardDescription className="text-slate-600">
+                  Daily QR code generation patterns
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analyticsData.trends.qrGenerations.map((value: number, index: number) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-50 to-green-50/30 rounded-lg border border-slate-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                          <span className="text-xs font-bold text-white">{index + 1}</span>
+                        </div>
+                        <span className="text-sm font-medium text-slate-700">Day {index + 1}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 bg-slate-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-500"
+                            style={{
+                              width: `${
+                                (value /
+                                  Math.max(
+                                    ...analyticsData.trends.qrGenerations
+                                  )) *
+                                100
+                              }%`,
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-bold text-slate-900 w-16 text-right">
+                          {value.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+        </div>
+
+          {/* Enhanced Blockchain Analytics */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg">
+                  <Database className="h-5 w-5 text-white" />
+                </div>
+                Blockchain Analytics
+              </CardTitle>
+              <CardDescription className="text-slate-600">
+                Blockchain transaction performance and network health
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+                <div className="bg-gradient-to-br from-slate-50 to-indigo-50/30 p-6 rounded-xl border border-slate-200">
+                  <h4 className="font-bold text-lg text-slate-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                    Transaction Performance
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-white/60 rounded-lg">
+                      <span className="text-sm font-medium text-slate-700">Success Rate</span>
+                      <span className="font-bold text-emerald-600">99.8%</span>
+                    </div>
+                    <Progress value={99.8} className="h-3 bg-slate-200" />
+
+                    <div className="flex justify-between items-center p-3 bg-white/60 rounded-lg">
+                      <span className="text-sm font-medium text-slate-700">Average Gas Used</span>
+                      <span className="font-bold text-slate-900">45,000</span>
+                    </div>
+                    <Progress value={75} className="h-3 bg-slate-200" />
+
+                    <div className="flex justify-between items-center p-3 bg-white/60 rounded-lg">
+                      <span className="text-sm font-medium text-slate-700">Block Confirmation</span>
+                      <span className="font-bold text-slate-900">2.3s</span>
+                    </div>
+                    <Progress value={92} className="h-3 bg-slate-200" />
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-slate-50 to-purple-50/30 p-6 rounded-xl border border-slate-200">
+                  <h4 className="font-bold text-lg text-slate-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    Network Stats
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/60 p-4 rounded-lg">
+                      <p className="text-sm text-slate-600 font-medium">Pending Txns</p>
+                      <p className="text-xl font-bold text-slate-900">3</p>
+                    </div>
+                    <div className="bg-white/60 p-4 rounded-lg">
+                      <p className="text-sm text-slate-600 font-medium">Daily Volume</p>
+                      <p className="text-xl font-bold text-slate-900">12,847</p>
+                    </div>
+                    <div className="bg-white/60 p-4 rounded-lg">
+                      <p className="text-sm text-slate-600 font-medium">Block Height</p>
+                      <p className="text-xl font-bold text-slate-900">45,892,147</p>
+                    </div>
+                    <div className="bg-white/60 p-4 rounded-lg">
+                      <p className="text-sm text-slate-600 font-medium">Gas Price</p>
+                      <p className="text-xl font-bold text-slate-900">25 Gwei</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-slate-50 to-cyan-50/30 p-6 rounded-xl border border-slate-200">
+                  <h4 className="font-bold text-lg text-slate-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                    Recent Transactions
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white/60 rounded-lg">
+                      <span className="text-sm font-medium text-slate-700">Batch CT2024001</span>
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs font-medium">
+                        Success
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-white/60 rounded-lg">
+                      <span className="text-sm font-medium text-slate-700">QR Generation</span>
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs font-medium">
+                        Success
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-white/60 rounded-lg">
+                      <span className="text-sm font-medium text-slate-700">Verification Log</span>
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs font-medium">
+                        Pending
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
             </div>
           </CardContent>
         </Card>
+
+          {/* Enhanced Quick Actions */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg">
+                  <Zap className="h-5 w-5 text-white" />
+                </div>
+                Analytics Actions
+              </CardTitle>
+              <CardDescription className="text-slate-600">Export and manage analytics data</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="h-24 flex-col bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                  onClick={handleExportData}
+                >
+                  <Download className="h-6 w-6 mb-2" />
+                  <span className="font-semibold">Export Report</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="h-24 flex-col bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                  onClick={handleGenerateReport}
+                >
+                  <FileText className="h-6 w-6 mb-2" />
+                  <span className="font-semibold">Generate PDF</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-24 flex-col bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                  onClick={handleViewReports}
+                >
+                  <Eye className="h-6 w-6 mb-2" />
+                  <span className="font-semibold">View Details</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-24 flex-col bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                  onClick={handleAnalyticsSettings}
+                >
+                  <Settings className="h-6 w-6 mb-2" />
+                  <span className="font-semibold">Settings</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );

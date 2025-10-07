@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Activity,
   Server,
@@ -19,12 +20,68 @@ import {
   AlertTriangle,
   Clock,
   Info,
+  RefreshCw,
+  Users,
+  Upload,
+  QrCode,
+  Shield,
+  FileWarning,
+  AlertCircle,
 } from "lucide-react";
+
+type HealthStatus = "healthy" | "warning" | "critical";
+
+interface ServiceHealth {
+  name: string;
+  status: HealthStatus;
+  uptime: string;
+  responseTime: string;
+  lastCheck: string;
+  details?: string;
+}
+
+interface SystemMetrics {
+  cpuUsage: number;
+  memoryUsage: number;
+  diskUsage: number;
+  networkLatency: number;
+  activeConnections: number;
+  totalTransactions: number;
+}
+
+interface DatabaseStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalUploads: number;
+  totalQRCodes: number;
+  totalVerifications: number;
+  totalReports: number;
+  pendingReports: number;
+  resolvedReports: number;
+  recentReports: number;
+  authenticVerifications: number;
+  counterfeitVerifications: number;
+}
+
+interface HealthData {
+  overallStatus: HealthStatus;
+  uptime: string;
+  lastCheck: string;
+  services: ServiceHealth[];
+  metrics: SystemMetrics;
+  database: DatabaseStats;
+  timestamp: string;
+}
 
 export default function AdminHealthPage() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("");
   const [isClient, setIsClient] = useState(false);
+  const [healthData, setHealthData] = useState<HealthData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
     setIsClient(true);
@@ -41,48 +98,48 @@ export default function AdminHealthPage() {
     }
   }, [router]);
 
-  const systemHealth = {
-    overallStatus: "healthy",
-    uptime: "99.9%",
-    lastCheck: "2024-06-01 15:00",
-    services: [
-      {
-        name: "Web Server",
-        status: "healthy",
-        uptime: "99.9%",
-        responseTime: "45ms",
-        lastCheck: "2024-06-01 15:00",
-      },
-      {
-        name: "Database",
-        status: "healthy",
-        uptime: "99.8%",
-        responseTime: "12ms",
-        lastCheck: "2024-06-01 15:00",
-      },
-      {
-        name: "Blockchain Network",
-        status: "healthy",
-        uptime: "99.7%",
-        responseTime: "2.3s",
-        lastCheck: "2024-06-01 15:00",
-      },
-      {
-        name: "NAFDAC API",
-        status: "warning",
-        uptime: "95.2%",
-        responseTime: "1.8s",
-        lastCheck: "2024-06-01 15:00",
-      },
-    ],
-    metrics: {
-      cpuUsage: 23,
-      memoryUsage: 67,
-      diskUsage: 45,
-      networkLatency: 45,
-      activeConnections: 1247,
-      totalTransactions: 2847,
-    },
+  const fetchHealthData = async () => {
+    try {
+      const response = await fetch("/api/admin/health");
+      if (!response.ok) {
+        throw new Error("Failed to fetch health data");
+      }
+      const data = await response.json();
+      setHealthData(data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching health data:", err);
+      setError("Failed to load health data. Please try again.");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isClient) {
+      fetchHealthData();
+    }
+  }, [isClient]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!autoRefresh || !isClient) return;
+
+    const interval = setInterval(() => {
+      fetchHealthData();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, isClient]);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchHealthData();
+  };
+
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(!autoRefresh);
   };
 
   const getStatusBadge = (status: string) => {
@@ -128,14 +185,65 @@ export default function AdminHealthPage() {
 
   if (!isClient) return null;
 
+  if (isLoading) {
+    return (
+      <DashboardLayout userRole="admin" userName={userEmail}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading health data...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !healthData) {
+    return (
+      <DashboardLayout userRole="admin" userName={userEmail}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-destructive" />
+            <p className="text-muted-foreground mb-4">
+              {error || "Failed to load health data"}
+            </p>
+            <Button onClick={handleRefresh}>Try Again</Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout userRole="admin" userName={userEmail}>
-      <div className="space-y-6 max-w-5xl mx-auto">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">System Health</h1>
-          <p className="text-muted-foreground">
-            Monitor system performance and service status
-          </p>
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">System Health</h1>
+            <p className="text-muted-foreground">
+              Monitor system performance and service status in real-time
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={autoRefresh ? "default" : "outline"}
+              size="sm"
+              onClick={toggleAutoRefresh}
+            >
+              {autoRefresh ? "Auto-refresh ON" : "Auto-refresh OFF"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Overall Status */}
@@ -153,13 +261,13 @@ export default function AdminHealthPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-success">
-                  {systemHealth.uptime}
+                  {healthData.uptime}
                 </div>
                 <p className="text-sm text-muted-foreground">System Uptime</p>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold">
-                  {systemHealth.metrics.activeConnections}
+                  {healthData.metrics.activeConnections}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Active Connections
@@ -167,7 +275,7 @@ export default function AdminHealthPage() {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold">
-                  {systemHealth.metrics.totalTransactions}
+                  {healthData.metrics.totalTransactions}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Total Transactions
@@ -175,9 +283,156 @@ export default function AdminHealthPage() {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold">
-                  {systemHealth.metrics.networkLatency}ms
+                  {healthData.metrics.networkLatency}ms
                 </div>
                 <p className="text-sm text-muted-foreground">Network Latency</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Database Statistics */}
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Database Statistics
+            </CardTitle>
+            <CardDescription>
+              Real-time database metrics and activity
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 border rounded-lg">
+                <Users className="h-6 w-6 mx-auto mb-2 text-primary" />
+                <div className="text-2xl font-bold">{healthData.database.totalUsers}</div>
+                <p className="text-xs text-muted-foreground">Total Users</p>
+                <p className="text-xs text-success mt-1">
+                  {healthData.database.activeUsers} active
+                </p>
+              </div>
+              <div className="text-center p-4 border rounded-lg">
+                <Upload className="h-6 w-6 mx-auto mb-2 text-primary" />
+                <div className="text-2xl font-bold">{healthData.database.totalUploads}</div>
+                <p className="text-xs text-muted-foreground">Total Uploads</p>
+              </div>
+              <div className="text-center p-4 border rounded-lg">
+                <QrCode className="h-6 w-6 mx-auto mb-2 text-primary" />
+                <div className="text-2xl font-bold">{healthData.database.totalQRCodes}</div>
+                <p className="text-xs text-muted-foreground">QR Codes</p>
+              </div>
+              <div className="text-center p-4 border rounded-lg">
+                <Shield className="h-6 w-6 mx-auto mb-2 text-primary" />
+                <div className="text-2xl font-bold">{healthData.database.totalVerifications}</div>
+                <p className="text-xs text-muted-foreground">Verifications</p>
+                <p className="text-xs text-success mt-1">
+                  {healthData.database.authenticVerifications} authentic
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Consumer Reports Section */}
+        <Card className="shadow-soft border-l-4 border-l-warning">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileWarning className="h-5 w-5 text-warning" />
+              Consumer Reports
+            </CardTitle>
+            <CardDescription>
+              Counterfeit drug reports submitted by consumers
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* Report Statistics */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 border rounded-lg bg-accent/5">
+                  <div className="text-3xl font-bold text-foreground">
+                    {healthData.database.totalReports}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Total Reports</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg bg-destructive/5">
+                  <div className="flex items-center justify-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                    <div className="text-3xl font-bold text-destructive">
+                      {healthData.database.pendingReports}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Pending Review</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 text-xs"
+                    onClick={() => window.location.href = '/admin/logs?filter=reports'}
+                  >
+                    Review Now
+                  </Button>
+                </div>
+                <div className="text-center p-4 border rounded-lg bg-success/5">
+                  <div className="flex items-center justify-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-success" />
+                    <div className="text-3xl font-bold text-success">
+                      {healthData.database.resolvedReports}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Resolved</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg bg-warning/5">
+                  <div className="flex items-center justify-center gap-2">
+                    <Clock className="h-5 w-5 text-warning" />
+                    <div className="text-3xl font-bold text-warning">
+                      {healthData.database.recentReports}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Last 24 Hours</p>
+                </div>
+              </div>
+
+              {/* Alert if there are pending reports */}
+              {healthData.database.pendingReports > 0 && (
+                <div className="flex items-center gap-3 p-4 border border-warning/50 bg-warning/10 rounded-lg">
+                  <AlertTriangle className="h-6 w-6 text-warning flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">
+                      Action Required: {healthData.database.pendingReports} Pending Report{healthData.database.pendingReports > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Consumer reports need administrative review to ensure drug safety
+                    </p>
+                  </div>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => window.location.href = '/admin/logs?filter=reports'}
+                  >
+                    View Reports
+                  </Button>
+                </div>
+              )}
+
+              {/* Resolution Rate */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Resolution Rate</span>
+                  <span className="font-bold">
+                    {healthData.database.totalReports > 0
+                      ? Math.round((healthData.database.resolvedReports / healthData.database.totalReports) * 100)
+                      : 0}%
+                  </span>
+                </div>
+                <Progress
+                  value={healthData.database.totalReports > 0
+                    ? (healthData.database.resolvedReports / healthData.database.totalReports) * 100
+                    : 0}
+                  className="h-2"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {healthData.database.resolvedReports} of {healthData.database.totalReports} reports resolved
+                </p>
               </div>
             </div>
           </CardContent>
@@ -193,7 +448,7 @@ export default function AdminHealthPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {systemHealth.services.map((service, index) => (
+              {healthData.services.map((service, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-4 border border-border rounded-lg"
@@ -205,6 +460,11 @@ export default function AdminHealthPage() {
                       <p className="text-xs text-muted-foreground">
                         Response: {service.responseTime}
                       </p>
+                      {service.details && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {service.details}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -234,11 +494,11 @@ export default function AdminHealthPage() {
                 <h4 className="font-medium">CPU Usage</h4>
                 <div className="flex items-center gap-2">
                   <Progress
-                    value={systemHealth.metrics.cpuUsage}
+                    value={healthData.metrics.cpuUsage}
                     className="h-2"
                   />
                   <span className="font-bold">
-                    {systemHealth.metrics.cpuUsage}%
+                    {Math.round(healthData.metrics.cpuUsage)}%
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -250,11 +510,11 @@ export default function AdminHealthPage() {
                 <h4 className="font-medium">Memory Usage</h4>
                 <div className="flex items-center gap-2">
                   <Progress
-                    value={systemHealth.metrics.memoryUsage}
+                    value={healthData.metrics.memoryUsage}
                     className="h-2"
                   />
                   <span className="font-bold">
-                    {systemHealth.metrics.memoryUsage}%
+                    {Math.round(healthData.metrics.memoryUsage)}%
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">RAM utilization</p>
@@ -264,11 +524,11 @@ export default function AdminHealthPage() {
                 <h4 className="font-medium">Disk Usage</h4>
                 <div className="flex items-center gap-2">
                   <Progress
-                    value={systemHealth.metrics.diskUsage}
+                    value={healthData.metrics.diskUsage}
                     className="h-2"
                   />
                   <span className="font-bold">
-                    {systemHealth.metrics.diskUsage}%
+                    {Math.round(healthData.metrics.diskUsage)}%
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -291,8 +551,17 @@ export default function AdminHealthPage() {
         </Card>
 
         {/* Last Updated */}
-        <div className="text-right text-xs text-muted-foreground">
-          Last updated: {systemHealth.lastCheck}
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3" />
+            <span>Last updated: {healthData.lastCheck}</span>
+          </div>
+          {autoRefresh && (
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+              <span>Auto-refreshing every 30s</span>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

@@ -61,16 +61,28 @@ export default async function handler(
       }
 
       if (batchId !== 'all') {
-        // Support both uploadId and metadata.batchId filtering
+        // Support multiple ways QR codes might be linked to batches
         const { ObjectId } = mongoose.Types;
-        filter.$or = [
+        const batchIdFilters = [
           { uploadId: batchId },
           { 'metadata.batchId': batchId }
         ];
         
         // If batchId looks like a Mongo ObjectId, also include the string version
         if (ObjectId.isValid(batchId as string)) {
-          filter.$or.push({ uploadId: new ObjectId(batchId as string).toString() });
+          batchIdFilters.push({ uploadId: new ObjectId(batchId as string).toString() });
+          batchIdFilters.push({ uploadId: batchId }); // Also try the original string
+        }
+        
+        // If we already have an $or filter from search, combine them
+        if (filter.$or) {
+          filter.$and = [
+            { $or: filter.$or },
+            { $or: batchIdFilters }
+          ];
+          delete filter.$or;
+        } else {
+          filter.$or = batchIdFilters;
         }
       }
 
@@ -112,7 +124,7 @@ export default async function handler(
           verifications: qrCode.verificationCount || 0,
           blockchainTx: qrCode.blockchainTx,
           verificationUrl: qrCode.verificationUrl,
-          imageUrl: qrCode.imageUrl
+          serialNumber: qrCode.serialNumber
         })),
         pagination: {
           currentPage: pageNum,

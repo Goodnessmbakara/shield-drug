@@ -37,6 +37,7 @@ import {
 import { DrugBatch, BatchDetails } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { generateUnifiedCSVExport, convertToCSV } from "@/lib/utils";
+import QRCodeGenerator from "@/components/QRCodeGenerator";
 
 // Use shared BatchDetails type from lib/types
 type LocalBatchDetails = Partial<BatchDetails>;
@@ -260,13 +261,42 @@ export default function BatchDetailsPage() {
     });
   };
 
-  const downloadQRCode = (qrCode: QRCode) => {
-    const a = document.createElement("a");
-    a.href = qrCode.imageUrl;
-    a.download = `QR_${qrCode.id}.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const downloadQRCode = async (qrCode: QRCode) => {
+    try {
+      // Import the QRCode library for download
+      const QRCode = await import('qrcode');
+      const verificationUrl = qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`;
+      
+      const url = await QRCode.toDataURL(verificationUrl, {
+        width: 400,
+        margin: 4,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'H', // High error correction for downloads
+      });
+
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `QR_${qrCode.id}.png`;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "QR Code Downloaded",
+        description: `QR code ${qrCode.id} has been downloaded successfully.`,
+      });
+    } catch (error) {
+      console.error('Error downloading QR code:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download QR code. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!isClient) {
@@ -728,7 +758,7 @@ export default function BatchDetailsPage() {
                         Generated QR Codes
                       </DialogTitle>
                       <DialogDescription>
-                        Showing first 50 QR codes from{" "}
+                        Showing {Math.min(50, qrCodes.length)} QR codes from{" "}
                         {batchDetails.qrCodesGenerated?.toLocaleString() || qrCodes.length.toLocaleString()}{" "}
                         generated codes
                       </DialogDescription>
@@ -750,11 +780,14 @@ export default function BatchDetailsPage() {
                           key={qrCode.id}
                           className="border rounded-lg p-4 text-center"
                         >
-                          <img
-                            src={qrCode.imageUrl}
-                            alt={`QR Code ${index + 1}`}
-                            className="w-full h-auto mb-2"
-                          />
+                          <div className="flex justify-center mb-2">
+                            <QRCodeGenerator
+                              data={qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`}
+                              size={120}
+                              className="rounded border-2 border-gray-200"
+                              alt={`QR Code ${index + 1}`}
+                            />
+                          </div>
                           <p className="text-xs font-medium mb-1">
                             #{index + 1}
                           </p>

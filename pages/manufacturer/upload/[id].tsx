@@ -689,51 +689,57 @@ export default function UploadDetailsPage() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {qrCodes.map((qrCode) => (
-                        <div
-                          key={qrCode.id}
-                          className="border rounded-lg p-4 text-center"
-                        >
-                          <QRCodeGenerator
-                            data={qrCode.verificationUrl}
-                            size={150}
-                            className="w-full mb-2"
-                            alt={`QR Code ${qrCode.serialNumber}`}
-                          />
-                          <p className="text-xs font-medium mb-1">
-                            #{qrCode.serialNumber}
-                          </p>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            {qrCode.id}
-                          </p>
-                          <div className="space-y-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full text-xs"
-                              onClick={() => downloadQRCodeImage(
-                                qrCode.verificationUrl,
-                                `${qrCode.qrCodeId || qrCode.id}.png`,
-                                400
-                              )}
-                            >
-                              <Download className="h-3 w-3 mr-1" />
-                              Download
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-full text-xs"
-                              onClick={() =>
-                                copyToClipboard(qrCode.verificationUrl)
-                              }
-                            >
-                              <Copy className="h-3 w-3 mr-1" />
-                              Copy URL
-                            </Button>
+                      {qrCodes.map((qrCode) => {
+                        // Ensure we have a verification URL - fallback to /verify/{qrCodeId}
+                        const verificationUrl = qrCode.verificationUrl || 
+                          `${typeof window !== 'undefined' ? window.location.origin : ''}/verify/${qrCode.qrCodeId}`;
+                        
+                        return (
+                          <div
+                            key={qrCode.id}
+                            className="border rounded-lg p-4 text-center"
+                          >
+                            <QRCodeGenerator
+                              data={verificationUrl}
+                              size={150}
+                              className="w-full mb-2"
+                              alt={`QR Code ${qrCode.serialNumber || 'N/A'}`}
+                            />
+                            <p className="text-xs font-medium mb-1">
+                              #{qrCode.serialNumber || 'N/A'}
+                            </p>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {qrCode.qrCodeId}
+                            </p>
+                            <div className="space-y-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-xs"
+                                onClick={() => downloadQRCodeImage(
+                                  verificationUrl,
+                                  `${qrCode.qrCodeId || qrCode.id}.png`,
+                                  400
+                                )}
+                              >
+                                <Download className="h-3 w-3 mr-1" />
+                                Download
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full text-xs"
+                                onClick={() =>
+                                  copyToClipboard(verificationUrl)
+                                }
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Copy URL
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </DialogContent>
                 </Dialog>

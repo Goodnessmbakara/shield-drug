@@ -278,13 +278,7 @@ export default async function handler(
         $match: { 
           $or: [
             { uploadId: batchId },
-            { 'metadata.batchId': batchId },
-            { uploadId: batch._id?.toString() },
-            { 'metadata.batchId': batch.batchId },
-            // Support both ObjectId string and ObjectId forms
-            ...(mongoose.Types.ObjectId.isValid(batchId) ? [
-              { uploadId: new mongoose.Types.ObjectId(batchId).toString() }
-            ] : [])
+            { 'metadata.batchId': batchId }
           ],
           userEmail: userEmail as string 
         } 
@@ -376,7 +370,7 @@ export default async function handler(
     // Status and processing information with enhanced validation
     status: mapStatus(batch.status, batch.expiryDate),
     blockchainTx: batch.blockchainTx || '',
-    qrCodesGenerated: Math.max(0, batch.qrCodesGenerated || stats.totalQRCodes || 0),
+    qrCodesGenerated: stats.totalQRCodes || 0, // Use actual count from database aggregation
             processingTime: batch.processingTime ?? null,
     fileHash: batch.fileHash || '',
 
