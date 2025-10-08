@@ -205,3 +205,5 @@ No database migration required. New fields have default values:
 - New reports include all fields
 - No data loss or corruption risk
 
+
+
