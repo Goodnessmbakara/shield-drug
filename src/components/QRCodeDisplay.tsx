@@ -86,6 +86,19 @@ export default function QRCodeDisplay({
       const verificationUrl = qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`;
       await downloadQRCode(verificationUrl, `qr-code-${qrCode.qrCodeId}.png`, 400);
       
+      // Track download in database
+      try {
+        await fetch(`/api/qr-codes/${qrCode.id}/download`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (trackingError) {
+        console.warn('Failed to track download:', trackingError);
+        // Continue with success toast even if tracking fails
+      }
+      
       toast({
         title: "QR Code Downloaded",
         description: `QR code ${qrCode.qrCodeId} has been downloaded successfully.`,
@@ -179,7 +192,7 @@ export default function QRCodeDisplay({
   return (
     <div className="space-y-6">
       {/* QR Codes Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         {qrCodes.map((qrCode) => (
           <Card key={qrCode.id} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] p-0">
             <CardHeader className="pb-4 px-6 pt-6">
@@ -227,11 +240,11 @@ export default function QRCodeDisplay({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-4">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 h-9 hover:bg-blue-50 hover:border-blue-200"
+                  className="h-9 hover:bg-blue-50 hover:border-blue-200 touch-target mobile-optimized"
                   onClick={() => handleDownload(qrCode)}
                 >
                   <Download className="w-4 h-4" />
@@ -239,7 +252,7 @@ export default function QRCodeDisplay({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 h-9 hover:bg-green-50 hover:border-green-200"
+                  className="h-9 hover:bg-green-50 hover:border-green-200 touch-target mobile-optimized"
                   onClick={() => handlePreview(qrCode)}
                 >
                   <Eye className="w-4 h-4" />
@@ -247,7 +260,7 @@ export default function QRCodeDisplay({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 h-9 hover:bg-purple-50 hover:border-purple-200"
+                  className="h-9 hover:bg-purple-50 hover:border-purple-200 touch-target mobile-optimized"
                   onClick={() => handleCopyLink(qrCode)}
                 >
                   <Copy className="w-4 h-4" />
@@ -255,7 +268,7 @@ export default function QRCodeDisplay({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 h-9 hover:bg-orange-50 hover:border-orange-200"
+                  className="h-9 hover:bg-orange-50 hover:border-orange-200 touch-target mobile-optimized"
                   onClick={() => handleShare(qrCode)}
                 >
                   <Share2 className="w-4 h-4" />

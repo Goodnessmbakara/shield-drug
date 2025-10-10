@@ -151,7 +151,7 @@ export default function ConsumerDashboard({
       </Card>
 
       {/* Features Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <Card className="shadow-soft hover:shadow-medium transition-shadow touch-hover">
           <CardHeader className="text-center">
             <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto">
@@ -185,7 +185,7 @@ export default function ConsumerDashboard({
           </CardContent>
         </Card>
 
-        <Card className="shadow-soft hover:shadow-medium transition-shadow touch-hover sm:col-span-2 lg:col-span-1">
+        <Card className="shadow-soft hover:shadow-medium transition-shadow touch-hover">
           <CardHeader className="text-center">
             <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center mx-auto">
               <AlertTriangle className="h-6 w-6 text-warning" />

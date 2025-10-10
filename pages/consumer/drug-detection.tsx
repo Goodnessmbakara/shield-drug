@@ -414,30 +414,32 @@ export default function ConsumerDrugDetectionPage() {
     <DashboardLayout userRole="consumer" userName={userEmail}>
       <div className="space-y-6 max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Drug Detection</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Drug Detection</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Upload or capture an image to analyze pharmaceutical authenticity
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => router.push('/consumer/history')}>
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => router.push('/consumer/history')}>
               <History className="h-4 w-4 mr-2" />
-              History
+              <span className="hidden sm:inline">History</span>
+              <span className="sm:hidden">History</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => router.push('/consumer/drugs')}>
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => router.push('/consumer/drugs')}>
               <BarChart3 className="h-4 w-4 mr-2" />
-              My Drugs
+              <span className="hidden sm:inline">My Drugs</span>
+              <span className="sm:hidden">Drugs</span>
             </Button>
           </div>
         </div>
 
         <Tabs defaultValue="upload" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upload">Upload Image</TabsTrigger>
-            <TabsTrigger value="camera">Camera Capture</TabsTrigger>
-            <TabsTrigger value="results">Analysis Results</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
+            <TabsTrigger value="upload">Upload</TabsTrigger>
+            <TabsTrigger value="camera">Camera</TabsTrigger>
+            <TabsTrigger value="results">Results</TabsTrigger>
           </TabsList>
 
           {/* Upload Tab */}
@@ -457,10 +459,11 @@ export default function ConsumerDrugDetectionPage() {
                   <Button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isAnalyzing}
-                    className="flex-1"
+                    className="flex-1 mobile-btn"
                   >
                     <FileImage className="h-4 w-4 mr-2" />
-                    Choose Image File
+                    <span className="hidden sm:inline">Choose Image File</span>
+                    <span className="sm:hidden">Choose File</span>
                   </Button>
                   <Input
                     ref={fileInputRef}

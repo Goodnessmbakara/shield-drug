@@ -225,27 +225,27 @@ export default function ManufacturerDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Batches</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Batches</CardTitle>
+            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalBatches}</div>
+            <div className="text-lg sm:text-2xl font-bold">{stats.totalBatches}</div>
             <p className="text-xs text-muted-foreground">Total uploaded</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-xs sm:text-sm font-medium">
               Active Batches
             </CardTitle>
-            <CheckCircle className="h-4 w-4 text-success" />
+            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">
+            <div className="text-lg sm:text-2xl font-bold text-success">
               {stats.activeBatches}
             </div>
             <p className="text-xs text-muted-foreground">Currently in market</p>
@@ -254,11 +254,11 @@ export default function ManufacturerDashboard() {
 
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">QR Codes</CardTitle>
-            <QrCode className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">QR Codes</CardTitle>
+            <QrCode className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-lg sm:text-2xl font-bold">
               {stats.totalQRCodes >= 1000000
                 ? (stats.totalQRCodes / 1000000).toFixed(1) + "M"
                 : stats.totalQRCodes >= 1000
@@ -271,11 +271,11 @@ export default function ManufacturerDashboard() {
 
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Verifications</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Verifications</CardTitle>
+            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-lg sm:text-2xl font-bold">
               {stats.verifications.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">Total verifications</p>
@@ -284,13 +284,13 @@ export default function ManufacturerDashboard() {
 
         <Card className="shadow-soft hover:shadow-medium transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-xs sm:text-sm font-medium">
               Authenticity Rate
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-success" />
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">
+            <div className="text-lg sm:text-2xl font-bold text-success">
               {stats.authenticityRate}%
             </div>
             <p className="text-xs text-muted-foreground">Authenticity rate</p>
@@ -298,7 +298,7 @@ export default function ManufacturerDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         {/* Recent Batches */}
         <Card className="shadow-soft">
           <CardHeader>
@@ -439,8 +439,8 @@ export default function ManufacturerDashboard() {
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Common manufacturing tasks</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
             <Button
               variant="default"
               size="touch"

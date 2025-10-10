@@ -350,23 +350,24 @@ export default function QRCodesPage() {
     <DashboardLayout userRole="manufacturer" userName={userEmail}>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               QR Code Generation
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Generate, manage, and track QR codes for drug batch authentication
             </p>
           </div>
-          <Button variant="hero" size="xl">
-            <QrCode className="mr-2 h-5 w-5" />
-            Generate New QR Codes
+          <Button variant="hero" size="touch" className="w-full sm:w-auto">
+            <QrCode className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">Generate New QR Codes</span>
+            <span className="sm:hidden">Generate QR Codes</span>
           </Button>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
           <Card className="shadow-soft hover:shadow-medium transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -462,9 +463,9 @@ export default function QRCodesPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* QR Code Generation */}
-          <Card className="shadow-soft lg:col-span-1">
+          <Card className="shadow-soft xl:col-span-1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <QrCode className="h-5 w-5" />
@@ -544,7 +545,7 @@ export default function QRCodesPage() {
           </Card>
 
           {/* QR Codes List */}
-          <Card className="shadow-soft lg:col-span-2">
+          <Card className="shadow-soft xl:col-span-2">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -556,14 +557,14 @@ export default function QRCodesPage() {
                     Track and manage generated QR codes
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <div className="relative w-full sm:w-64">
                     <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground ${isSearching ? 'animate-pulse' : ''}`} />
                     <Input
                       placeholder="Search QR codes..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-64"
+                      className="pl-10 w-full"
                     />
                     {isSearching && (
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -572,7 +573,7 @@ export default function QRCodesPage() {
                     )}
                   </div>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="w-full sm:w-32">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
