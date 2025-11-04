@@ -320,7 +320,7 @@ pnpm run db:seed         # Seed database with sample data (if applicable)
 - **ISO Standards**: Following pharmaceutical industry standards
 - **Blockchain Security**: Immutable records for regulatory compliance
 
-## 🤖 AI/ML Capabilities
+## 🤖 AI/ML Capabilities!
 
 ### Drug Recognition System
 - **Computer Vision**: TensorFlow.js-powered image analysis for drug identification
