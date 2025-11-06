@@ -58,16 +58,25 @@ class UnifiedDrugAnalysisService {
           require('@tensorflow/tfjs-node');
           
           // Check if backend is available before setting it
-          const backends = await tf.engine().backendNames;
-          if (backends.includes('tensorflow')) {
+          // backendNames might be an array or an object, handle both cases
+          const backendNames = await tf.engine().backendNames;
+          const backendsArray = Array.isArray(backendNames) 
+            ? backendNames 
+            : Object.keys(backendNames || {});
+          
+          if (backendsArray.includes('tensorflow')) {
             await tf.setBackend('tensorflow');
             await tf.ready();
             console.log('✅ TensorFlow.js backend initialized');
           } else {
             console.warn('⚠️ TensorFlow backend not available, using CPU fallback');
+            // Disable COCO-SSD if TensorFlow backend isn't available
+            this.config.enableCOCOSSD = false;
           }
         } catch (tfError) {
-          console.warn('⚠️ TensorFlow.js Node.js backend not available, continuing with OCR-only mode:', tfError);
+          console.warn('⚠️ TensorFlow.js Node.js backend not available, continuing with OCR-only mode:', tfError.message || tfError);
+          // Disable COCO-SSD if TensorFlow fails completely
+          this.config.enableCOCOSSD = false;
           // Continue without TensorFlow - OCR will still work
         }
       }
@@ -109,37 +118,40 @@ class UnifiedDrugAnalysisService {
       console.log('Loading COCO-SSD model...');
 
       // Load COCO-SSD model via npm package (works reliably)
-      this.cocoSsdModel = await cocoSsd.load({
-        base: 'lite_mobilenet_v2',
-      });
+      // Skip if TensorFlow backend has issues
+      try {
+        this.cocoSsdModel = await cocoSsd.load({
+          base: 'lite_mobilenet_v2',
+        });
 
-      if (!this.cocoSsdModel) {
-        throw new Error('COCO-SSD model failed to load');
-      }
-
-      // Warm up the model
-      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-        const dummyCanvas = document.createElement('canvas');
-        dummyCanvas.width = 224;
-        dummyCanvas.height = 224;
-        const ctx = dummyCanvas.getContext('2d')!;
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, 224, 224);
-        await this.cocoSsdModel.detect(dummyCanvas);
-      } else {
-        try {
-          const dummyTensor = tf.ones([224, 224, 3]).mul(255).cast('int32') as tf.Tensor3D;
-          await this.cocoSsdModel.detect(dummyTensor);
-          dummyTensor.dispose();
-        } catch (detectError) {
-          console.warn('⚠️ COCO-SSD warmup failed, but model loaded:', detectError);
+        if (!this.cocoSsdModel) {
+          throw new Error('COCO-SSD model failed to load');
         }
-      }
 
-      this.cocoSsdAvailable = true;
-      console.log('✅ COCO-SSD model loaded and warmed up');
+        // Warm up the model (skip if TensorFlow has issues)
+        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+          const dummyCanvas = document.createElement('canvas');
+          dummyCanvas.width = 224;
+          dummyCanvas.height = 224;
+          const ctx = dummyCanvas.getContext('2d')!;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, 224, 224);
+          await this.cocoSsdModel.detect(dummyCanvas);
+        } else {
+          // Skip warmup in Node.js if TensorFlow has issues
+          // The model will be warmed up on first use
+          console.log('✅ COCO-SSD model loaded (will warm up on first use)');
+        }
+
+        this.cocoSsdAvailable = true;
+        console.log('✅ COCO-SSD model loaded and warmed up');
+      } catch (loadError) {
+        // If loading fails due to TensorFlow issues, continue without COCO-SSD
+        console.warn('⚠️ COCO-SSD model failed to load (TensorFlow issue), continuing with OCR-only mode:', loadError);
+        this.cocoSsdAvailable = false;
+      }
     } catch (error) {
-      console.warn('⚠️ COCO-SSD model failed to load:', error);
+      console.warn('⚠️ COCO-SSD initialization failed, continuing with OCR-only mode:', error);
       this.cocoSsdAvailable = false;
     }
   }
@@ -162,11 +174,20 @@ class UnifiedDrugAnalysisService {
       const extractedText = ocrResult.textLines;
       const ocrMethod = ocrResult.method;
 
+      console.log(`📝 OCR extracted ${extractedText.length} text lines using ${ocrMethod}:`, extractedText.slice(0, 3));
+
       // Step 2: Image classification
       const classification = await this.classifyImage(imageData, extractedText);
 
       // Step 3: Drug identification from text
       const drugIdentification = this.identifyDrugFromText(extractedText);
+      
+      console.log('🔍 Drug identification result:', {
+        name: drugIdentification.name,
+        strength: drugIdentification.strength,
+        confidence: drugIdentification.confidence,
+        textLinesUsed: extractedText.length,
+      });
 
       // Step 4: Build result
       const processingTime = Date.now() - startTime;
@@ -361,6 +382,7 @@ class UnifiedDrugAnalysisService {
     issues: string[];
   } {
     if (textLines.length === 0) {
+      console.warn('⚠️ No text lines provided for drug identification');
       return {
         name: 'Unknown Drug',
         strength: 'Unknown',
@@ -371,27 +393,65 @@ class UnifiedDrugAnalysisService {
 
     const combinedText = textLines.join(' ').toLowerCase();
     const correctedText = correctOCRErrors(combinedText);
+    
+    console.log('🔍 Identifying drug from text:', {
+      textLinesCount: textLines.length,
+      combinedTextLength: combinedText.length,
+      sampleText: textLines.slice(0, 3).join(' | '),
+    });
 
-    // Use enhanced drug database for matching
-    const drugMatcher = new DrugMatcher();
-    const match = drugMatcher.findBestMatch(correctedText);
-
-    if (match && match.confidence > 0.5) {
+    // Use enhanced drug database for matching (static method)
+    const matches = DrugMatcher.findBestMatches(textLines, {}, 1);
+    
+    console.log('🔍 Drug database matches:', {
+      matchCount: matches.length,
+      topMatch: matches.length > 0 ? {
+        name: matches[0].drug.name,
+        score: matches[0].score,
+      } : null,
+    });
+    
+    if (matches.length > 0 && matches[0].score > 0.5) {
+      const bestMatch = matches[0].drug;
+      // Extract strength from text
+      const strengthMatch = bestMatch.strengths.find(s => 
+        correctedText.includes(s.toLowerCase())
+      );
+      
       return {
-        name: match.drugName,
-        strength: match.strength || 'Unknown',
-        confidence: match.confidence,
+        name: bestMatch.name,
+        strength: strengthMatch || bestMatch.strengths[0] || 'Unknown',
+        confidence: matches[0].score,
         issues: [],
       };
     }
 
     // Fallback: extract drug info using patterns
-    const drugInfo = extractDrugInfo(correctedText);
+    const drugInfo = extractDrugInfo(textLines); // Pass textLines array, not correctedText string
+    console.log('🔍 Pattern-based extraction result:', {
+      name: drugInfo?.name,
+      dosage: drugInfo?.dosage,
+      confidence: drugInfo?.confidence,
+    });
+    
+    if (drugInfo) {
+      const strength = drugInfo.dosage 
+        ? `${drugInfo.dosage.value}${drugInfo.dosage.unit}` 
+        : 'Unknown';
+      
+      return {
+        name: drugInfo.name,
+        strength,
+        confidence: drugInfo.confidence,
+        issues: [],
+      };
+    }
+    
     return {
-      name: drugInfo.name || 'Unknown Drug',
-      strength: drugInfo.strength || 'Unknown',
-      confidence: drugInfo.confidence || 0.3,
-      issues: drugInfo.issues || [],
+      name: 'Unknown Drug',
+      strength: 'Unknown',
+      confidence: 0.3,
+      issues: [],
     };
   }
 
