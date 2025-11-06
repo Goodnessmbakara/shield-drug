@@ -123,52 +123,26 @@ class AIDrugAnalysisService {
   }
 
   private async loadMobileNetModel(): Promise<void> {
-    try {
-      // Check if model is already loaded
-      if (AIDrugAnalysisService.mobileNetModel) {
-        this.modelAvailable = true;
-        console.log('MobileNet v3 model already loaded from cache');
-        return;
-      }
-
-      console.log('Loading MobileNet v2 model from TensorFlow Hub...');
-      
-      // Load model from TF Hub with retry logic
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (retryCount < maxRetries) {
-        try {
-          AIDrugAnalysisService.mobileNetModel = await tf.loadGraphModel(MOBILENET_V2_URL, {
-            fromTFHub: true
-          });
-          break;
-        } catch (error) {
-          retryCount++;
-          console.warn(`MobileNet v2 model loading attempt ${retryCount} failed:`, error);
-          if (retryCount >= maxRetries) {
-            throw error;
-          }
-          // Exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
-        }
-      }
-
-      // Warm up the model with a normalized dummy tensor - compute synchronously, dispose explicitly
-      const dummyTensor = tf.zeros([1, 224, 224, 3]).div(255); // Normalize to [0,1] range
-      const warmupResult = AIDrugAnalysisService.mobileNetModel!.predict(dummyTensor) as tf.Tensor;
-      await warmupResult.data();
-      dummyTensor.dispose();
-      warmupResult.dispose();
-
-      this.modelAvailable = true;
-      console.log('MobileNet v2 model loaded and warmed up successfully');
-      
-    } catch (error) {
-      console.error('Failed to load MobileNet v2 model:', error);
-      this.modelAvailable = false;
-      // Don't throw error - service will use fallback methods
-    }
+    // MobileNet v2 model URLs are currently returning 404
+    // Google has removed or moved these models from their CDN
+    // Disabling MobileNet - OCR and heuristic analysis are sufficient
+    console.log('⚠️ MobileNet v2 model loading disabled - model URLs are no longer available');
+    console.log('💡 Using OCR and heuristic analysis instead');
+    this.modelAvailable = false;
+    
+    // Alternative: If you have a local model or alternative CDN, uncomment and configure:
+    // try {
+    //   if (AIDrugAnalysisService.mobileNetModel) {
+    //     this.modelAvailable = true;
+    //     return;
+    //   }
+    //   const modelUrl = 'YOUR_ALTERNATIVE_MODEL_URL';
+    //   AIDrugAnalysisService.mobileNetModel = await tf.loadGraphModel(modelUrl);
+    //   // ... warm up and initialization
+    // } catch (error) {
+    //   console.error('Failed to load MobileNet v2 model:', error);
+    //   this.modelAvailable = false;
+    // }
   }
 
   private async loadCocoSsdModel(): Promise<void> {
@@ -607,7 +581,7 @@ class AIDrugAnalysisService {
         detectedObjects: [...pharmaceuticalIndicators.objects, ...nonDrugIndicators.objects],
         confidence,
         objectDetections: [], // Heuristics don't provide bounding boxes
-        detectionMethod: 'heuristic',
+        detectionMethod: 'fallback',
         boundingBoxCount: 0
       };
       
@@ -618,7 +592,7 @@ class AIDrugAnalysisService {
         detectedObjects: ['classification_failed'],
         confidence: 0,
         objectDetections: [],
-        detectionMethod: 'heuristic',
+        detectionMethod: 'fallback',
         boundingBoxCount: 0
       };
     }
@@ -1609,7 +1583,7 @@ class AIDrugAnalysisService {
         detectedObjects: ['pharmaceutical_package'],
         confidence: 0.3,
         objectDetections: [],
-        detectionMethod: 'heuristic',
+        detectionMethod: 'fallback',
         boundingBoxCount: 0
       }
     };

@@ -231,7 +231,7 @@ export interface ImageClassificationResult {
   detectedObjects: string[];
   confidence: number;
   objectDetections?: ObjectDetection[];
-  detectionMethod: 'coco-ssd' | 'mobilenet' | 'heuristic';
+  detectionMethod: 'coco-ssd' | 'mobilenet' | 'ocr-text' | 'ensemble' | 'fallback';
   boundingBoxCount: number;
 }
 

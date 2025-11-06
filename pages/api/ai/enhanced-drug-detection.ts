@@ -88,7 +88,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: analysisResult.status,
       confidence: analysisResult.confidence,
       processingTime,
-      modelStatus: analysisResult.modelStatus,
       isDrugImage: analysisResult.isDrugImage
     });
 
@@ -104,8 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         analysisTimestamp: new Date().toISOString(),
         processingTime,
-        apiVersion: '2.0',
-        modelStatus: analysisResult.modelStatus
+        apiVersion: '2.0'
       },
     });
 

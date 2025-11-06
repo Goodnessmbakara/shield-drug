@@ -221,8 +221,8 @@ export default async function handler(
               retryModelUsed = 'mobilenet-v2';
               retryFallbackLevel = 1;
               break;
-            case 'heuristic':
-              retryModelUsed = 'heuristic';
+            case 'fallback':
+              retryModelUsed = 'fallback';
               retryFallbackLevel = 2;
               break;
           }
