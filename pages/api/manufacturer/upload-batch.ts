@@ -186,7 +186,46 @@ export default async function handler(
     const totalQuantity = validationResult.data.reduce((sum, row) => sum + parseInt(row.quantity.toString()), 0);
     const estimatedTime = estimateProcessingTime(totalQuantity);
 
-    // Initialize progress tracking
+    // If validation fails, return errors BEFORE updating progress
+    if (!validationResult.isValid) {
+      // Log detailed validation errors for debugging
+      console.error('❌ Validation failed:', {
+        totalErrors: validationResult.errors.length,
+        errors: validationResult.errors.map(e => ({
+          row: e.row,
+          column: e.column,
+          message: e.message,
+          value: e.value
+        }))
+      });
+
+      // Update progress with failure status
+      updateUploadProgress(uploadId, {
+        stage: 'validation',
+        progress: 0,
+        message: `Validation failed. ${validationResult.errors.length} error(s) found.`,
+        totalQuantity,
+        processedQuantity: 0,
+        estimatedTimeRemaining: 0,
+        isComplete: true,
+        error: `Validation failed: ${validationResult.errors.map(e => `${e.message} (Row ${e.row}, Column: ${e.column})`).join('; ')}`
+      });
+
+      return res.status(400).json({
+        error: `Validation failed. ${validationResult.errors.length} error(s) found.`,
+        uploadId,
+        status: 'failed' as UploadStatus,
+        validationResult,
+        errorDetails: validationResult.errors.map(e => ({
+          row: e.row,
+          column: e.column,
+          message: e.message,
+          value: e.value
+        }))
+      });
+    }
+
+    // Validation passed - update progress with success
     updateUploadProgress(uploadId, {
       stage: 'validation',
       progress: 10,
@@ -196,16 +235,6 @@ export default async function handler(
       estimatedTimeRemaining: estimatedTime,
       isComplete: false
     });
-
-    // If validation fails, return errors
-    if (!validationResult.isValid) {
-      return res.status(400).json({
-        error: `Validation failed. ${validationResult.errors.length} errors found.`,
-        uploadId,
-        status: 'failed' as UploadStatus,
-        validationResult
-      });
-    }
 
     // Generate file hash for blockchain
     const fileHash = blockchainService.generateFileHash(fileContent);

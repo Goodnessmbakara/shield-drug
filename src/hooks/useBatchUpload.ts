@@ -192,6 +192,20 @@ export function useBatchUpload(): UseBatchUploadReturn {
       
       // Handle API errors
       if (!response.ok || result.error) {
+        // If validation failed, include detailed error information
+        if (result.validationResult && !result.validationResult.isValid) {
+          const errorMessages = result.validationResult.errors.map((e: any) => 
+            `${e.message} (Row ${e.row}, Column: ${e.column})`
+          ).join('; ');
+          throw new Error(`${result.error}\n\nDetails:\n${errorMessages}`);
+        }
+        // Include error details if available
+        if (result.errorDetails && Array.isArray(result.errorDetails)) {
+          const errorMessages = result.errorDetails.map((e: any) => 
+            `${e.message} (Row ${e.row}, Column: ${e.column})`
+          ).join('; ');
+          throw new Error(`${result.error}\n\nDetails:\n${errorMessages}`);
+        }
         throw new Error(result.error || 'Upload failed');
       }
       
