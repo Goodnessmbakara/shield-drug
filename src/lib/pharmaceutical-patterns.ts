@@ -58,6 +58,11 @@ export const DRUG_NAME_PATTERNS = {
   // Cardiac glycosides
   digoxin: /\b(digoxin|lanoxin|digoxina)\b/i,
   
+  // Antimalarial medications
+  artemether: /\b(artemether|artemeter|artemetherum|artemisin|artemisinin)\b/i,
+  lumefantrine: /\b(lumefantrine|lumefantrina|benflumetol)\b/i,
+  artemetherLumefantrine: /\b(artemether\s*\+\s*lumefantrine|coartem|riamet|lokmal|artemether.*lumefantrine)\b/i,
+  
   // Nitrates
   nitroglycerin: /\b(nitroglycerin|nitrostat|nitroquick|nitrolingual|nitro-bid|nitro-dur|nitro-patch|nitro-time|nitro-tab|nitro-cap|nitro-g|nitro-iv|nitro-mist|nitro-stat|nitro-sublingual|nitro-tab|nitro-time|nitro-tran|nitro-v|nitro-vas|nitro-vasodilator)\b/i
 };
