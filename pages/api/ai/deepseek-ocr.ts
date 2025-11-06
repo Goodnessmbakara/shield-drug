@@ -44,31 +44,30 @@ export default async function handler(
       });
     }
 
-    // Prepare arguments for Python script
-    const args: string[] = [pythonScriptPath];
-    
-    if (imageData) {
-      args.push(imageData);
-    } else if (imageUrl) {
-      args.push(imageUrl);
-    }
-    
-    if (prompt) {
-      args.push(prompt);
-    }
+    // Prepare JSON input for Python script (better for large images)
+    const scriptInput = JSON.stringify({
+      imageData,
+      imageUrl,
+      prompt: prompt || undefined,
+    });
 
-    // Call Python service
+    // Call Python service with JSON input via stdin
     const result = await new Promise<DeepSeekOCRResponse>((resolve, reject) => {
-      const pythonProcess = spawn('python3', args, {
+      const pythonProcess = spawn('python3', [pythonScriptPath], {
         cwd: process.cwd(),
         env: {
           ...process.env,
           PYTHONUNBUFFERED: '1',
         },
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
 
       let stdout = '';
       let stderr = '';
+
+      // Write JSON input to stdin
+      pythonProcess.stdin.write(scriptInput);
+      pythonProcess.stdin.end();
 
       pythonProcess.stdout.on('data', (data) => {
         stdout += data.toString();

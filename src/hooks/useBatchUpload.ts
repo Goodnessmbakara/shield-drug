@@ -172,8 +172,23 @@ export function useBatchUpload(): UseBatchUploadReturn {
         message: 'Recording on blockchain...'
       });
 
-      // Get the response
-      const result: UploadResponse = await response.json();
+      // Get the response - handle both JSON and text responses
+      let result: UploadResponse;
+      const contentType = response.headers.get('content-type');
+      const responseText = await response.text();
+      
+      // Check if response is JSON
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          // If JSON parsing fails, throw with the text content
+          throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
+        }
+      } else {
+        // If response is not JSON, it's likely an error message
+        throw new Error(responseText || 'Upload failed');
+      }
       
       // Handle API errors
       if (!response.ok || result.error) {

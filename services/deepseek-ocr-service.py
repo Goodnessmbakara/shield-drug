@@ -167,9 +167,29 @@ def extract_text_from_image(
 
 def main():
     """Main entry point for command-line usage."""
+    # Try to read JSON from stdin first (for API calls)
+    try:
+        import select
+        if select.select([sys.stdin], [], [], 0)[0]:
+            stdin_data = sys.stdin.read()
+            if stdin_data.strip():
+                try:
+                    input_data = json.loads(stdin_data)
+                    image_data = input_data.get('imageData') or input_data.get('imageUrl')
+                    prompt = input_data.get('prompt')
+                    result = extract_text_from_image(image_data, prompt)
+                    print(json.dumps(result, indent=2))
+                    return
+                except json.JSONDecodeError:
+                    pass
+    except (ImportError, OSError):
+        # select not available on Windows, or stdin not available
+        pass
+    
+    # Fallback to command-line arguments
     if len(sys.argv) < 2:
         print(json.dumps({
-            "error": "Usage: python deepseek-ocr-service.py <image_data_or_path> [prompt]"
+            "error": "Usage: python deepseek-ocr-service.py <image_data_or_path> [prompt] or provide JSON via stdin"
         }), file=sys.stderr)
         sys.exit(1)
     

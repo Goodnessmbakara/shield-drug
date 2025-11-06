@@ -21,6 +21,45 @@ export const checkBatchIdExists = async (batchId: string, userEmail?: string): P
   return !!existing;
 };
 
+/**
+ * Generate a unique batch ID by appending a version suffix if the original already exists
+ * @param baseBatchId The original batch ID to make unique
+ * @param userEmail Optional user email to scope the uniqueness check
+ * @returns A unique batch ID (original if unique, or with _v2, _v3, etc. suffix)
+ */
+export const generateUniqueBatchId = async (
+  baseBatchId: string,
+  userEmail?: string
+): Promise<{ uniqueBatchId: string; wasModified: boolean }> => {
+  await dbConnect();
+  
+  // First check if the original batch ID is available
+  const originalExists = await checkBatchIdExists(baseBatchId, userEmail);
+  if (!originalExists) {
+    return { uniqueBatchId: baseBatchId, wasModified: false };
+  }
+  
+  // If it exists, try appending version suffixes (_v2, _v3, etc.)
+  let version = 2;
+  let uniqueBatchId = `${baseBatchId}_v${version}`;
+  let exists = await checkBatchIdExists(uniqueBatchId, userEmail);
+  
+  // Keep incrementing version until we find a unique one
+  while (exists && version < 1000) {
+    version++;
+    uniqueBatchId = `${baseBatchId}_v${version}`;
+    exists = await checkBatchIdExists(uniqueBatchId, userEmail);
+  }
+  
+  if (version >= 1000) {
+    // Fallback to timestamp if we can't find a unique version
+    const timestamp = Date.now().toString(36).slice(-6);
+    uniqueBatchId = `${baseBatchId}_${timestamp}`;
+  }
+  
+  return { uniqueBatchId, wasModified: true };
+};
+
 export const getUploadById = async (id: string): Promise<IUpload | null> => {
   await dbConnect();
   return await Upload.findById(id);

@@ -22,7 +22,7 @@ import {
   Upload,
   Trash2,
 } from "lucide-react";
-import type { DrugAnalysisResult } from "@/services/aiDrugAnalysis";
+import type { DrugAnalysisResult } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import PharmaceuticalAnalysis from "@/components/AI/PharmaceuticalAnalysis";
 

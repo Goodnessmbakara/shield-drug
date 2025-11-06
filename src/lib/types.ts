@@ -172,6 +172,11 @@ export interface UploadResponse {
   error?: string;
   // Optional ID used by the in-memory progress tracker
   progressId?: string;
+  // Optional batch ID modifications if auto-generated unique IDs were used
+  batchIdModifications?: {
+    message: string;
+    modifications: string[];
+  };
 } 
 
 // Unified CSV Export Types

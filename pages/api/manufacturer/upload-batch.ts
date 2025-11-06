@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { parseCSV, validateDrugBatchData, validateFileSize, validateFileType, generateUploadId } from '@/lib/validation';
 import { UploadResponse, ValidationResult, UploadStatus } from '@/lib/types';
 import { blockchainService } from '@/lib/blockchain';
-import { createUpload, checkBatchIdExists } from '@/lib/db-utils';
+import { createUpload, checkBatchIdExists, generateUniqueBatchId } from '@/lib/db-utils';
 import { updateUploadProgress, estimateProcessingTime, calculateProgress } from './upload-progress';
 import QRCode from '@/lib/models/QRCode';
 import { qrCodeService } from '@/lib/qr-code';
@@ -94,55 +94,92 @@ export default async function handler(
       ? clientUploadId
       : generateUploadId();
 
-    // Check for duplicate batch IDs before processing
-    const uniqueBatchIds = new Set<string>();
-    const duplicateBatchIds: string[] = [];
+    // Determine the base batchId that will be saved to database (same logic as line 244)
+    // This is critical - we must check the SAME batchId that will be saved
+    const baseBatchId = formBatchId || validationResult.data[0]?.batch_id || uploadId;
+
+    // AUTO-GENERATE UNIQUE BATCH ID: If the batchId already exists, automatically generate a unique one
+    // This prevents upload failures and improves UX
+    const { uniqueBatchId: finalBatchId, wasModified: batchIdWasModified } = await generateUniqueBatchId(
+      baseBatchId,
+      userEmail as string
+    );
+
+    // If batch ID was modified, log it for transparency
+    if (batchIdWasModified) {
+      console.log(`ℹ️ Batch ID "${baseBatchId}" already exists. Auto-generated unique ID: "${finalBatchId}"`);
+      updateUploadProgress(uploadId, {
+        stage: 'validation',
+        progress: 5,
+        message: `Batch ID "${baseBatchId}" already exists. Using unique ID: "${finalBatchId}"`,
+        totalQuantity: 0,
+        processedQuantity: 0,
+        estimatedTimeRemaining: 0,
+        isComplete: false
+      });
+    }
+
+    // Check for duplicate batch IDs within the CSV file itself and make them unique
+    const batchIdMapping = new Map<string, string>(); // Maps original batch_id to unique batch_id
+    const processedBatchIds = new Map<string, number>(); // Tracks how many times each batch ID appears
     
+    // First pass: count occurrences of each batch ID in CSV
     for (const row of validationResult.data) {
       const batchId = row.batch_id;
-      if (uniqueBatchIds.has(batchId)) {
-        duplicateBatchIds.push(batchId);
+      processedBatchIds.set(batchId, (processedBatchIds.get(batchId) || 0) + 1);
+    }
+    
+    // Second pass: process each row and ensure batch IDs are unique
+    const batchIdCounters = new Map<string, number>(); // Track which occurrence we're on
+    
+    for (let i = 0; i < validationResult.data.length; i++) {
+      const row = validationResult.data[i];
+      const originalBatchId = row.batch_id;
+      const occurrenceCount = processedBatchIds.get(originalBatchId) || 1;
+      
+      // If this batch ID appears multiple times in CSV, we need unique versions
+      if (occurrenceCount > 1) {
+        const occurrence = (batchIdCounters.get(originalBatchId) || 0) + 1;
+        batchIdCounters.set(originalBatchId, occurrence);
+        
+        // Generate unique version for this occurrence
+        const baseUniqueId = occurrence === 1 ? originalBatchId : `${originalBatchId}_dup${occurrence}`;
+        const { uniqueBatchId } = await generateUniqueBatchId(baseUniqueId, userEmail as string);
+        
+        // Store mapping for this specific occurrence
+        const mappingKey = `${originalBatchId}_row${i}`;
+        batchIdMapping.set(mappingKey, uniqueBatchId);
+        row.batch_id = uniqueBatchId;
+        
+        console.log(`ℹ️ Duplicate batch ID "${originalBatchId}" in CSV row ${i + 1} (occurrence ${occurrence}/${occurrenceCount}). Using unique ID: "${uniqueBatchId}"`);
       } else {
-        uniqueBatchIds.add(batchId);
-        // Check if batch ID already exists in database
-        const exists = await checkBatchIdExists(batchId, userEmail as string);
+        // This batch ID appears only once in CSV, but check if it exists in database
+        const exists = await checkBatchIdExists(originalBatchId, userEmail as string);
         if (exists) {
-          duplicateBatchIds.push(batchId);
+          // Generate unique version
+          const { uniqueBatchId } = await generateUniqueBatchId(originalBatchId, userEmail as string);
+          batchIdMapping.set(originalBatchId, uniqueBatchId);
+          row.batch_id = uniqueBatchId;
+          console.log(`ℹ️ Batch ID "${originalBatchId}" already exists in database. Using unique ID: "${uniqueBatchId}"`);
+        } else {
+          // Batch ID is unique, no mapping needed
+          batchIdMapping.set(originalBatchId, originalBatchId);
         }
       }
     }
 
-    if (duplicateBatchIds.length > 0) {
-      updateUploadProgress(uploadId, {
-        stage: 'validation',
-        progress: 0,
-        message: 'Duplicate batch IDs found',
-        totalQuantity: 0,
-        processedQuantity: 0,
-        estimatedTimeRemaining: 0,
-        isComplete: true,
-        error: `Duplicate batch IDs detected: ${duplicateBatchIds.join(', ')}`
-      });
-
-      return res.status(400).json({
-        error: `Duplicate batch IDs detected: ${duplicateBatchIds.join(', ')}. These batches have already been uploaded.`,
-        uploadId,
-        status: 'failed' as UploadStatus,
-        validationResult: {
-          ...validationResult,
-          isValid: false,
-          errors: [
-            ...validationResult.errors,
-            ...duplicateBatchIds.map(id => ({
-              row: 0,
-              column: 'batch_id',
-              value: id,
-              message: `Batch ID '${id}' already exists in the database`,
-              severity: 'error' as const
-            }))
-          ]
-        }
-      });
+    // Collect all batch ID modifications for reporting
+    const allModifications: string[] = [];
+    for (const [key, uniqueId] of batchIdMapping.entries()) {
+      // Extract original batch ID from key (remove _rowX suffix if present)
+      const originalBatchId = key.includes('_row') ? key.split('_row')[0] : key;
+      if (uniqueId !== originalBatchId) {
+        allModifications.push(`${originalBatchId} → ${uniqueId}`);
+      }
+    }
+    
+    if (allModifications.length > 0) {
+      console.log(`ℹ️ Auto-generated unique batch IDs for ${allModifications.length} duplicate(s):`, allModifications);
     }
 
     // Calculate total quantity and estimate processing time
@@ -268,6 +305,30 @@ export default async function handler(
       }
     };
 
+    // FINAL SAFEGUARD: Check batchId one more time right before save
+    // If it exists (race condition), auto-generate a unique one
+    const finalCheckExists = await checkBatchIdExists(uploadData.batchId, userEmail as string);
+    if (finalCheckExists) {
+      console.log(`⚠️ Race condition detected: Batch ID "${uploadData.batchId}" was just created. Generating unique version...`);
+      const { uniqueBatchId: finalUniqueBatchId } = await generateUniqueBatchId(
+        uploadData.batchId,
+        userEmail as string
+      );
+      uploadData.batchId = finalUniqueBatchId;
+      console.log(`✅ Using unique batch ID: "${finalUniqueBatchId}"`);
+      
+      // Update progress to inform user
+      updateUploadProgress(uploadId, {
+        stage: 'database',
+        progress: 90,
+        message: `Batch ID conflict resolved. Using unique ID: "${finalUniqueBatchId}"`,
+        totalQuantity,
+        processedQuantity: qrCodesGenerated,
+        estimatedTimeRemaining: 1,
+        isComplete: false
+      });
+    }
+
     let savedUpload;
     try {
       savedUpload = await createUpload(uploadData);
@@ -287,14 +348,31 @@ export default async function handler(
         error: error instanceof Error ? error.message : 'Database save failed'
       });
       
-      // Handle duplicate key error specifically
-      if (error instanceof Error && error.message.includes('E11000') && error.message.includes('batchId')) {
-        const match = error.message.match(/dup key: { batchId: "([^"]+)" }/);
-        const duplicateBatchId = match ? match[1] : 'unknown';
-        throw new Error(`Batch ID "${duplicateBatchId}" already exists. Please use a different batch ID or check if this batch was already uploaded by you or another user.`);
+      // Handle duplicate key error specifically with better error message
+      if (error instanceof Error && error.message.includes('E11000')) {
+        let errorMessage = 'Batch ID already exists in the database.';
+        
+        if (error.message.includes('batchId')) {
+          const match = error.message.match(/dup key:.*batchId[^}]*"([^"]+)"/);
+          const duplicateBatchId = match ? match[1] : uploadData.batchId;
+          errorMessage = `Batch ID "${duplicateBatchId}" already exists. Each batch ID must be unique. Please use a different batch ID or check your upload history to see if this batch was already uploaded.`;
+        }
+        
+        return res.status(409).json({
+          error: errorMessage,
+          uploadId,
+          status: 'failed' as UploadStatus,
+          validationResult,
+          suggestion: 'Try adding a version suffix to your batch ID (e.g., "CT2024029_v2") or check your upload history for existing batches.'
+        });
       }
       
-      throw new Error('Failed to save upload record to database');
+      return res.status(500).json({
+        error: 'Failed to save upload record to database. Please try again.',
+        uploadId,
+        status: 'failed' as UploadStatus,
+        validationResult
+      });
     }
 
     // Mark upload as complete
@@ -308,12 +386,33 @@ export default async function handler(
       isComplete: true
     });
 
+    // Prepare response with batch ID modification info if applicable
+    const batchIdModifications: string[] = [];
+    if (batchIdWasModified) {
+      batchIdModifications.push(`${baseBatchId} → ${finalBatchId}`);
+    }
+    
+    // Add CSV batch ID modifications
+    for (const [key, uniqueId] of batchIdMapping.entries()) {
+      // Extract original batch ID from key (remove _rowX suffix if present)
+      const originalBatchId = key.includes('_row') ? key.split('_row')[0] : key;
+      if (uniqueId !== originalBatchId) {
+        batchIdModifications.push(`${originalBatchId} → ${uniqueId}`);
+      }
+    }
+
     const response: UploadResponse = {
       uploadId: uploadId,
       status: 'completed',
       validationResult,
       blockchainTx,
-      qrCodesGenerated
+      qrCodesGenerated,
+      ...(batchIdModifications.length > 0 && {
+        batchIdModifications: {
+          message: `Batch ID(s) were auto-modified to ensure uniqueness: ${batchIdModifications.join(', ')}`,
+          modifications: batchIdModifications
+        }
+      })
     };
 
     res.status(200).json(response);

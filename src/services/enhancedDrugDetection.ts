@@ -2,6 +2,7 @@ import * as tf from '@tensorflow/tfjs';
 import { createWorker } from 'tesseract.js';
 import { DrugAnalysisResult, ImageClassificationResult } from '@/lib/types';
 import { recognizePharmaceuticalText, recognizePharmaceuticalTextEnhanced } from '@/lib/ocr-service';
+import { unifiedDrugAnalysis } from './unifiedDrugAnalysis';
 import { extractDrugInfo, correctOCRErrors, DRUG_NAME_PATTERNS } from '@/lib/pharmaceutical-patterns';
 import sharp from 'sharp';
 
@@ -130,62 +131,24 @@ export class EnhancedDrugDetectionService {
   }
 
   async analyzeDrugImage(imageData: string): Promise<DrugAnalysisResult> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    const startTime = Date.now();
-    
+    // Delegate to unified service for consistency
+    // This maintains backward compatibility while using the new unified implementation
     try {
-      console.log('🔍 Starting enhanced drug image analysis...');
-
-      // Step 1: Image classification with ensemble approach
-      const classification = await this.classifyImageEnsemble(imageData);
+      console.log('🔍 Starting enhanced drug image analysis (using unified service)...');
+      const unifiedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
       
-      // Step 2: Early rejection for non-drug images
-      if (!classification.isPharmaceutical && classification.confidence > 0.8) {
-        return this.createRejectionResult(classification);
-      }
-
-      // Step 3: Multi-modal analysis
-      const [visualAnalysis, textAnalysis] = await Promise.allSettled([
-        this.analyzeVisualFeatures(imageData),
-        this.extractTextContent(imageData)
-      ]);
-
-      // Step 4: Drug identification
-      const drugIdentification = this.identifyDrug(
-        visualAnalysis.status === 'fulfilled' ? visualAnalysis.value : null,
-        textAnalysis.status === 'fulfilled' ? textAnalysis.value || [] : []
-      );
-
-      // Step 5: Authenticity assessment
-      const authenticity = this.assessAuthenticity(
-        drugIdentification,
-        visualAnalysis.status === 'fulfilled' ? visualAnalysis.value : null,
-        textAnalysis.status === 'fulfilled' ? textAnalysis.value || [] : []
-      );
-
-      const processingTime = Date.now() - startTime;
-      console.log(`✅ Analysis completed in ${processingTime}ms`);
-
+      // Convert unified result to expected format
       return {
-        drugName: drugIdentification.name,
-        strength: drugIdentification.strength,
-        confidence: drugIdentification.confidence,
-        status: authenticity.status,
-        issues: authenticity.issues,
-        extractedText: textAnalysis.status === 'fulfilled' ? textAnalysis.value || [] : [],
-        visualFeatures: {
-          color: visualAnalysis.status === 'fulfilled' ? visualAnalysis.value?.dominantColor : 'unknown',
-          shape: visualAnalysis.status === 'fulfilled' ? visualAnalysis.value?.primaryShape : 'unknown',
-          markings: visualAnalysis.status === 'fulfilled' ? visualAnalysis.value?.markings : [],
-          objectDetections: classification.objectDetections || []
-        },
-        isDrugImage: true,
-        imageClassification: classification
+        drugName: unifiedResult.drugName,
+        strength: unifiedResult.strength,
+        confidence: unifiedResult.confidence,
+        status: unifiedResult.status,
+        issues: unifiedResult.issues,
+        extractedText: unifiedResult.extractedText,
+        visualFeatures: unifiedResult.visualFeatures,
+        isDrugImage: unifiedResult.isDrugImage,
+        imageClassification: unifiedResult.imageClassification,
       };
-
     } catch (error) {
       console.error('❌ Enhanced drug analysis failed:', error);
       return this.createFallbackResult(error);
