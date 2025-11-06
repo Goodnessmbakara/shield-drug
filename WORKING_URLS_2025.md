@@ -82,3 +82,5 @@
 4. **Remove dependencies on**: MobileNet v2, ResNet50, EAST, GCS models
 5. **Focus on OCR-first approach**: DeepSeek-OCR → Tesseract → Heuristics
 
+
+

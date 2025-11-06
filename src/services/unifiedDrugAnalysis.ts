@@ -3,7 +3,7 @@
  * Consolidates all working components from redundant services
  * 
  * Features:
- * - OCR-first approach: DeepSeek-OCR → Tesseract → Heuristics
+ * - OCR-first approach: Google Cloud Vision → Tesseract → Heuristics
  * - COCO-SSD object detection (via npm package)
  * - Text-based drug identification
  * - No broken model URLs
@@ -11,7 +11,7 @@
 
 import * as tf from '@tensorflow/tfjs';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
-import { recognizePharmaceuticalTextEnhanced } from '@/lib/ocr-service';
+import { extractTextWithTypeScriptOCR } from '@/lib/typescript-ocr-service';
 import { extractDrugInfo, correctOCRErrors, DRUG_NAME_PATTERNS } from '@/lib/pharmaceutical-patterns';
 import { DrugAnalysisResult, ImageClassificationResult } from '@/lib/types';
 import { ENHANCED_DRUG_DATABASE, DrugMatcher, EnhancedDrugSearch } from '@/lib/enhanced-drug-database';
@@ -27,7 +27,7 @@ if (typeof window === 'undefined') {
 }
 
 export interface UnifiedAnalysisResult extends DrugAnalysisResult {
-  ocrMethod: 'deepseek-ocr' | 'tesseract' | 'none';
+  ocrMethod: 'google-vision' | 'tesseract' | 'none';
   classificationMethod: 'coco-ssd' | 'text-heuristic' | 'none';
   processingTime: number;
 }
@@ -42,7 +42,7 @@ class UnifiedDrugAnalysisService {
     confidenceThreshold: 0.3,
     maxProcessingTime: 10000, // 10 seconds
     enableCOCOSSD: true,
-    enableDeepSeekOCR: process.env.DEEPSEEK_OCR_ENABLED !== 'false',
+    enableGoogleVisionOCR: process.env.GOOGLE_CLOUD_API_KEY !== undefined,
   };
 
   async initialize(): Promise<void> {
@@ -51,31 +51,61 @@ class UnifiedDrugAnalysisService {
     try {
       console.log('🚀 Initializing Unified Drug Analysis Service...');
 
-      // Set backend for Node.js environment
+      // Set backend for Node.js environment (optional - continue if it fails)
       if (typeof window === 'undefined') {
-        await tf.setBackend('tensorflow');
-        await tf.ready();
-        console.log('✅ TensorFlow.js backend initialized');
+        try {
+          // Try to require tfjs-node first
+          require('@tensorflow/tfjs-node');
+          
+          // Check if backend is available before setting it
+          const backends = await tf.engine().backendNames;
+          if (backends.includes('tensorflow')) {
+            await tf.setBackend('tensorflow');
+            await tf.ready();
+            console.log('✅ TensorFlow.js backend initialized');
+          } else {
+            console.warn('⚠️ TensorFlow backend not available, using CPU fallback');
+          }
+        } catch (tfError) {
+          console.warn('⚠️ TensorFlow.js Node.js backend not available, continuing with OCR-only mode:', tfError);
+          // Continue without TensorFlow - OCR will still work
+        }
       }
 
-      // Initialize COCO-SSD if enabled
+      // Initialize COCO-SSD if enabled (optional - continue if it fails)
       if (this.config.enableCOCOSSD) {
-        await this.initializeCocoSsd();
+        try {
+          await this.initializeCocoSsd();
+        } catch (cocoError) {
+          console.warn('⚠️ COCO-SSD initialization failed, continuing with OCR-only mode:', cocoError);
+        }
       }
 
       this.isInitialized = true;
       console.log('✅ Unified Drug Analysis Service initialized:', {
         cocoSsd: this.cocoSsdAvailable,
-        deepSeekOCR: this.config.enableDeepSeekOCR,
+        googleVisionOCR: this.config.enableGoogleVisionOCR,
+        tensorflow: typeof window === 'undefined' ? 'optional' : 'browser',
       });
     } catch (error) {
       console.error('❌ Failed to initialize Unified Drug Analysis Service:', error);
-      this.isInitialized = true; // Continue with fallback methods
+      this.isInitialized = true; // Continue with fallback methods (OCR-only mode)
     }
   }
 
   private async initializeCocoSsd(): Promise<void> {
     try {
+      // Check if TensorFlow is available first
+      if (typeof window === 'undefined') {
+        try {
+          await tf.ready();
+        } catch (tfError) {
+          console.warn('⚠️ TensorFlow not ready, skipping COCO-SSD initialization');
+          this.cocoSsdAvailable = false;
+          return;
+        }
+      }
+
       console.log('Loading COCO-SSD model...');
 
       // Load COCO-SSD model via npm package (works reliably)
@@ -97,9 +127,13 @@ class UnifiedDrugAnalysisService {
         ctx.fillRect(0, 0, 224, 224);
         await this.cocoSsdModel.detect(dummyCanvas);
       } else {
-        const dummyTensor = tf.ones([224, 224, 3]).mul(255).cast('int32') as tf.Tensor3D;
-        await this.cocoSsdModel.detect(dummyTensor);
-        dummyTensor.dispose();
+        try {
+          const dummyTensor = tf.ones([224, 224, 3]).mul(255).cast('int32') as tf.Tensor3D;
+          await this.cocoSsdModel.detect(dummyTensor);
+          dummyTensor.dispose();
+        } catch (detectError) {
+          console.warn('⚠️ COCO-SSD warmup failed, but model loaded:', detectError);
+        }
       }
 
       this.cocoSsdAvailable = true;
@@ -172,48 +206,27 @@ class UnifiedDrugAnalysisService {
   }
 
   /**
-   * Extract text using OCR - tries DeepSeek-OCR first, then Tesseract
+   * Extract text using OCR - tries Google Cloud Vision first, then Tesseract
    */
   private async extractTextWithOCR(imageData: string): Promise<{
     textLines: string[];
-    method: 'deepseek-ocr' | 'tesseract' | 'none';
+    method: 'google-vision' | 'tesseract' | 'none';
   }> {
-    // Try DeepSeek-OCR first if enabled
-    if (this.config.enableDeepSeekOCR) {
-      try {
-        console.log('🔬 Attempting DeepSeek-OCR extraction...');
-        const deepSeekResults = await recognizePharmaceuticalTextEnhanced(imageData, {
-          preferDeepSeek: true,
-        });
-
-        if (deepSeekResults.length > 0) {
-          console.log('✅ DeepSeek-OCR extraction successful:', deepSeekResults.length, 'lines');
-          return {
-            textLines: deepSeekResults,
-            method: 'deepseek-ocr',
-          };
-        }
-      } catch (error) {
-        console.warn('⚠️ DeepSeek-OCR failed, falling back to Tesseract:', error);
-      }
-    }
-
-    // Fallback to Tesseract
     try {
-      console.log('🔄 Using Tesseract OCR fallback...');
-      const tesseractResults = await recognizePharmaceuticalTextEnhanced(imageData, {
-        preferDeepSeek: false,
-      });
+      console.log('🔬 Attempting TypeScript OCR extraction...');
+      const ocrResult = await extractTextWithTypeScriptOCR(imageData);
 
-      if (tesseractResults.length > 0) {
-        console.log('✅ Tesseract OCR extraction successful:', tesseractResults.length, 'lines');
+      if (ocrResult.success && ocrResult.text_lines.length > 0) {
+        console.log(`✅ ${ocrResult.method} OCR extraction successful:`, ocrResult.text_lines.length, 'lines');
         return {
-          textLines: tesseractResults,
-          method: 'tesseract',
+          textLines: ocrResult.text_lines,
+          method: ocrResult.method,
         };
+      } else {
+        console.warn(`⚠️ ${ocrResult.method} OCR returned no text`);
       }
     } catch (error) {
-      console.warn('⚠️ Tesseract OCR failed:', error);
+      console.warn('⚠️ TypeScript OCR failed:', error);
     }
 
     return {

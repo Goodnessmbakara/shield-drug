@@ -234,3 +234,5 @@ const result = await extractTextWithDeepSeekOCR(imageData, {
 - [Transformers Documentation](https://huggingface.co/docs/transformers)
 - [Model Paper (arXiv)](https://arxiv.org/abs/2510.18234)
 
+
+

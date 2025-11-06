@@ -298,3 +298,5 @@ The `enhancedDrugDetection` service still exists and works, but now delegates to
 - `src/lib/ocr-service.ts` (still used by unified service)
 - `src/lib/deepseek-ocr-service.ts` (wrapper for DeepSeek-OCR API)
 
+
+

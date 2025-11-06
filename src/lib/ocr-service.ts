@@ -1,6 +1,6 @@
 import Tesseract from 'tesseract.js';
 import { validatePharmaceuticalText, calculatePharmaceuticalConfidence } from '@/lib/pharmaceutical-patterns';
-import { extractPharmaceuticalText as extractWithDeepSeekOCR, type DeepSeekOCRResult } from '@/lib/deepseek-ocr-service';
+import { extractTextWithTypeScriptOCR } from '@/lib/typescript-ocr-service';
 
 // OCR Configuration Interface
 export interface OCROptions {
@@ -376,49 +376,44 @@ export async function recognizePharmaceuticalText(
   }
 }
 
-// Enhanced OCR function that tries DeepSeek-OCR first, then falls back to Tesseract
+// Enhanced OCR function that tries TypeScript OCR (Google Vision/Tesseract) first
 export async function recognizePharmaceuticalTextEnhanced(
   input: string | Buffer,
-  options: OCROptions & { preferDeepSeek?: boolean } = {}
+  options: OCROptions & { preferTypeScriptOCR?: boolean } = {}
 ): Promise<string[]> {
-  const { preferDeepSeek = true, ...ocrOptions } = options;
+  const { preferTypeScriptOCR = true, ...ocrOptions } = options;
 
-  // Try DeepSeek-OCR first if enabled
-  if (preferDeepSeek && typeof window === 'undefined') {
+  // Try TypeScript OCR first if enabled (Google Vision or Tesseract)
+  if (preferTypeScriptOCR) {
     try {
-      // Convert input to base64 string for DeepSeek-OCR
+      // Convert input to base64 string for TypeScript OCR
       let imageData: string;
       
       if (Buffer.isBuffer(input)) {
-        imageData = input.toString('base64');
+        imageData = `data:image/jpeg;base64,${input.toString('base64')}`;
       } else if (typeof input === 'string') {
-        if (input.startsWith('data:image/')) {
-          // Extract base64 from data URL
-          const base64Part = input.split(',')[1];
-          imageData = base64Part || input;
-        } else {
-          imageData = input;
-        }
+        // Already a data URL or base64 string
+        imageData = input.startsWith('data:') ? input : `data:image/jpeg;base64,${input}`;
       } else {
-        throw new Error('Invalid input type');
+        throw new Error('Invalid input type for OCR');
       }
 
-      console.log('🔬 Attempting DeepSeek-OCR extraction...');
-      const deepSeekResult = await extractWithDeepSeekOCR(imageData);
+      console.log('🔬 Attempting TypeScript OCR extraction...');
+      const ocrResult = await extractTextWithTypeScriptOCR(imageData);
       
-      if (deepSeekResult.success && deepSeekResult.text_lines.length > 0) {
-        console.log('✅ DeepSeek-OCR extraction successful');
-        return deepSeekResult.text_lines;
+      if (ocrResult.success && ocrResult.text_lines.length > 0) {
+        console.log(`✅ TypeScript OCR (${ocrResult.method}) extracted ${ocrResult.text_lines.length} lines`);
+        return ocrResult.text_lines;
       } else {
-        console.log('⚠️ DeepSeek-OCR returned no text, falling back to Tesseract');
+        console.log(`⚠️ TypeScript OCR (${ocrResult.method}) returned no text, falling back to direct Tesseract`);
       }
     } catch (error) {
-      console.warn('⚠️ DeepSeek-OCR failed, falling back to Tesseract:', error);
+      console.warn('⚠️ TypeScript OCR failed, falling back to direct Tesseract:', error);
       // Continue to Tesseract fallback
     }
   }
 
-  // Fallback to Tesseract OCR
+  // Fallback to direct Tesseract OCR
   console.log('🔄 Using Tesseract OCR fallback...');
   return recognizePharmaceuticalText(input, ocrOptions);
 }

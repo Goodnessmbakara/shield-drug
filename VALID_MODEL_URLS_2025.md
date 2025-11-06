@@ -100,3 +100,5 @@ curl -I https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco
 
 3. **Performance**: Generic models (MobileNet, EfficientNet-B0) work well for general classification but may need fine-tuning for pharmaceutical-specific use cases.
 
+
+
