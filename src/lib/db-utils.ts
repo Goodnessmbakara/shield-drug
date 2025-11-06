@@ -11,10 +11,22 @@ export const createUpload = async (uploadData: Partial<IUpload>): Promise<IUploa
   return await upload.save();
 };
 
-export const checkBatchIdExists = async (batchId: string, userEmail?: string): Promise<boolean> => {
+/**
+ * Check if a batch ID exists in the database
+ * @param batchId The batch ID to check
+ * @param userEmail Optional user email. If provided, checks only for that user. If not provided, checks globally across all manufacturers.
+ * @param globalCheck If true, checks globally across all manufacturers regardless of userEmail. Defaults to true for global uniqueness.
+ * @returns True if the batch ID exists, false otherwise
+ */
+export const checkBatchIdExists = async (
+  batchId: string, 
+  userEmail?: string,
+  globalCheck: boolean = true
+): Promise<boolean> => {
   await dbConnect();
   const query: any = { batchId };
-  if (userEmail) {
+  // Only scope to userEmail if globalCheck is false AND userEmail is provided
+  if (!globalCheck && userEmail) {
     query.userEmail = userEmail;
   }
   const existing = await Upload.findOne(query);
@@ -23,18 +35,21 @@ export const checkBatchIdExists = async (batchId: string, userEmail?: string): P
 
 /**
  * Generate a unique batch ID by appending a version suffix if the original already exists
+ * Checks globally across all manufacturers to ensure no conflicts between different manufacturers
  * @param baseBatchId The original batch ID to make unique
- * @param userEmail Optional user email to scope the uniqueness check
+ * @param userEmail Optional user email (kept for backward compatibility, but global check is used)
+ * @param globalCheck If true, checks globally across all manufacturers. Defaults to true for global uniqueness.
  * @returns A unique batch ID (original if unique, or with _v2, _v3, etc. suffix)
  */
 export const generateUniqueBatchId = async (
   baseBatchId: string,
-  userEmail?: string
+  userEmail?: string,
+  globalCheck: boolean = true
 ): Promise<{ uniqueBatchId: string; wasModified: boolean }> => {
   await dbConnect();
   
-  // First check if the original batch ID is available
-  const originalExists = await checkBatchIdExists(baseBatchId, userEmail);
+  // First check if the original batch ID is available globally
+  const originalExists = await checkBatchIdExists(baseBatchId, userEmail, globalCheck);
   if (!originalExists) {
     return { uniqueBatchId: baseBatchId, wasModified: false };
   }
@@ -42,13 +57,13 @@ export const generateUniqueBatchId = async (
   // If it exists, try appending version suffixes (_v2, _v3, etc.)
   let version = 2;
   let uniqueBatchId = `${baseBatchId}_v${version}`;
-  let exists = await checkBatchIdExists(uniqueBatchId, userEmail);
+  let exists = await checkBatchIdExists(uniqueBatchId, userEmail, globalCheck);
   
   // Keep incrementing version until we find a unique one
   while (exists && version < 1000) {
     version++;
     uniqueBatchId = `${baseBatchId}_v${version}`;
-    exists = await checkBatchIdExists(uniqueBatchId, userEmail);
+    exists = await checkBatchIdExists(uniqueBatchId, userEmail, globalCheck);
   }
   
   if (version >= 1000) {

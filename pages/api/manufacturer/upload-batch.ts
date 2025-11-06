@@ -107,11 +107,11 @@ export default async function handler(
 
     // If batch ID was modified, log it for transparency
     if (batchIdWasModified) {
-      console.log(`ℹ️ Batch ID "${baseBatchId}" already exists. Auto-generated unique ID: "${finalBatchId}"`);
+      console.log(`ℹ️ Batch ID "${baseBatchId}" already exists globally. Auto-generated unique ID: "${finalBatchId}"`);
       updateUploadProgress(uploadId, {
         stage: 'validation',
         progress: 5,
-        message: `Batch ID "${baseBatchId}" already exists. Using unique ID: "${finalBatchId}"`,
+        message: `Batch ID "${baseBatchId}" already exists (used by another manufacturer). Auto-assigned unique ID: "${finalBatchId}"`,
         totalQuantity: 0,
         processedQuantity: 0,
         estimatedTimeRemaining: 0,
@@ -160,7 +160,7 @@ export default async function handler(
           const { uniqueBatchId } = await generateUniqueBatchId(originalBatchId, userEmail as string);
           batchIdMapping.set(originalBatchId, uniqueBatchId);
           row.batch_id = uniqueBatchId;
-          console.log(`ℹ️ Batch ID "${originalBatchId}" already exists in database. Using unique ID: "${uniqueBatchId}"`);
+          console.log(`ℹ️ Batch ID "${originalBatchId}" already exists globally in database. Using unique ID: "${uniqueBatchId}"`);
         } else {
           // Batch ID is unique, no mapping needed
           batchIdMapping.set(originalBatchId, originalBatchId);
@@ -365,43 +365,90 @@ export default async function handler(
     } catch (error) {
       console.error('❌ Failed to save upload to database:', error);
       
-      // Update progress with error
-      updateUploadProgress(uploadId, {
-        stage: 'database',
-        progress: 0,
-        message: 'Failed to save to database',
-        totalQuantity,
-        processedQuantity: qrCodesGenerated,
-        estimatedTimeRemaining: 0,
-        isComplete: true,
-        error: error instanceof Error ? error.message : 'Database save failed'
-      });
-      
-      // Handle duplicate key error specifically with better error message
-      if (error instanceof Error && error.message.includes('E11000')) {
-        let errorMessage = 'Batch ID already exists in the database.';
+      // Handle duplicate key error by automatically generating a unique batch ID
+      if (error instanceof Error && error.message.includes('E11000') && error.message.includes('batchId')) {
+        const match = error.message.match(/dup key:.*batchId[^}]*"([^"]+)"/);
+        const duplicateBatchId = match ? match[1] : uploadData.batchId;
         
-        if (error.message.includes('batchId')) {
-          const match = error.message.match(/dup key:.*batchId[^}]*"([^"]+)"/);
-          const duplicateBatchId = match ? match[1] : uploadData.batchId;
-          errorMessage = `Batch ID "${duplicateBatchId}" already exists. Each batch ID must be unique. Please use a different batch ID or check your upload history to see if this batch was already uploaded.`;
+        console.log(`⚠️ Race condition: Batch ID "${duplicateBatchId}" conflict detected. Auto-generating unique ID...`);
+        
+        // Generate a unique batch ID and update the upload data
+        const { uniqueBatchId: resolvedBatchId } = await generateUniqueBatchId(
+          duplicateBatchId,
+          userEmail as string,
+          true // Global check
+        );
+        
+        uploadData.batchId = resolvedBatchId;
+        
+        // Update progress to inform user
+        updateUploadProgress(uploadId, {
+          stage: 'database',
+          progress: 90,
+          message: `Batch ID conflict resolved. Using unique ID: "${resolvedBatchId}"`,
+          totalQuantity,
+          processedQuantity: qrCodesGenerated,
+          estimatedTimeRemaining: 1,
+          isComplete: false
+        });
+        
+        // Retry saving with the new unique batch ID
+        try {
+          savedUpload = await createUpload(uploadData);
+          console.log('✅ Upload record saved to database with auto-generated batch ID:', savedUpload._id);
+          // Continue with success flow below
+        } catch (retryError) {
+          console.error('❌ Failed to save upload after batch ID resolution:', retryError);
+          
+          // Update progress with error
+          updateUploadProgress(uploadId, {
+            stage: 'database',
+            progress: 0,
+            message: 'Failed to save to database after resolving batch ID conflict',
+            totalQuantity,
+            processedQuantity: qrCodesGenerated,
+            estimatedTimeRemaining: 0,
+            isComplete: true,
+            error: retryError instanceof Error ? retryError.message : 'Database save failed'
+          });
+          
+          return res.status(500).json({
+            error: 'Failed to save upload record after resolving batch ID conflict. Please try again.',
+            uploadId,
+            status: 'failed' as UploadStatus,
+            validationResult
+          });
+        }
+      } else {
+        // Other errors (non-duplicate or non-batchId duplicate)
+        updateUploadProgress(uploadId, {
+          stage: 'database',
+          progress: 0,
+          message: 'Failed to save to database',
+          totalQuantity,
+          processedQuantity: qrCodesGenerated,
+          estimatedTimeRemaining: 0,
+          isComplete: true,
+          error: error instanceof Error ? error.message : 'Database save failed'
+        });
+        
+        if (error instanceof Error && error.message.includes('E11000')) {
+          // Other duplicate key error (not batchId)
+          return res.status(409).json({
+            error: 'A duplicate record already exists in the database.',
+            uploadId,
+            status: 'failed' as UploadStatus,
+            validationResult
+          });
         }
         
-        return res.status(409).json({
-          error: errorMessage,
+        return res.status(500).json({
+          error: 'Failed to save upload record to database. Please try again.',
           uploadId,
           status: 'failed' as UploadStatus,
-          validationResult,
-          suggestion: 'Try adding a version suffix to your batch ID (e.g., "CT2024029_v2") or check your upload history for existing batches.'
+          validationResult
         });
       }
-      
-      return res.status(500).json({
-        error: 'Failed to save upload record to database. Please try again.',
-        uploadId,
-        status: 'failed' as UploadStatus,
-        validationResult
-      });
     }
 
     // Mark upload as complete
