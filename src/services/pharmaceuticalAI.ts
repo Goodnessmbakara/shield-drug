@@ -56,27 +56,81 @@ export class PharmaceuticalAIService {
   async initialize(): Promise<void> {
     try {
       console.log('🔧 Initializing Pharmaceutical AI Service...');
-      
+
+      // Validate environment variables first
+      await this.validateEnvironment();
+
       // Test Google Cloud Vision API
       await this.testGoogleVisionAPI();
-      
+
       // Test BiomedCLIP API (if available)
       await this.testBiomedCLIPAPI();
-      
+
       // Test Medical Pills API (if available)
       await this.testMedicalPillsAPI();
-      
+
       this.isInitialized = true;
-      
+
       console.log('✅ Pharmaceutical AI Service initialized:', {
         googleVision: this.googleVisionAvailable ? 'available' : 'failed',
         medicalClassification: this.medicalClassificationAvailable ? 'available' : 'failed',
         medicalPills: this.medicalPillsAvailable ? 'available' : 'failed'
       });
-      
+
     } catch (error) {
       console.error('❌ Failed to initialize Pharmaceutical AI Service:', error);
       this.isInitialized = true; // Mark as initialized even if some services fail
+    }
+  }
+
+  /**
+   * Validate environment variables are properly loaded
+   */
+  private async validateEnvironment(): Promise<void> {
+    console.log('🔍 Validating environment variables...');
+
+    const envVars = {
+      'GOOGLE_CLOUD_API_KEY': {
+        value: GOOGLE_CLOUD_API_KEY,
+        required: true,
+        description: 'Google Cloud Vision API access'
+      },
+      'HUGGINGFACE_API_KEY': {
+        value: HUGGINGFACE_API_KEY,
+        required: false,
+        description: 'Hugging Face medical classification API'
+      }
+    };
+
+    let allRequiredVarsPresent = true;
+
+    for (const [varName, config] of Object.entries(envVars)) {
+      const isPresent = !!config.value;
+      const isRequired = config.required;
+
+      console.log(`📋 Environment variable ${varName}:`, {
+        present: isPresent,
+        required: isRequired,
+        description: config.description,
+        valueLength: config.value?.length || 0,
+        valuePrefix: config.value ? `${config.value.substring(0, 8)}...` : 'missing'
+      });
+
+      if (isRequired && !isPresent) {
+        console.error(`❌ Required environment variable ${varName} is missing!`);
+        allRequiredVarsPresent = false;
+      } else if (isPresent) {
+        console.log(`✅ Environment variable ${varName} is loaded correctly`);
+      } else {
+        console.warn(`⚠️ Optional environment variable ${varName} is not set`);
+      }
+    }
+
+    if (!allRequiredVarsPresent) {
+      console.error('🚨 Some required environment variables are missing. OCR functionality will be limited.');
+      console.log('💡 Please check your .env file and ensure all required variables are set.');
+    } else {
+      console.log('✅ All required environment variables are loaded successfully');
     }
   }
 
@@ -87,28 +141,67 @@ export class PharmaceuticalAIService {
     }
 
     try {
-      // Test with a simple request
+      console.log('🔍 Testing Google Cloud Vision API connectivity...');
+
+      // Test with a proper pharmaceutical test image (simple text image)
+      const testImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH5AQbFCQ1Nl2c9AAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAATklEQVQYU2NkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+      const requestBody = {
+        requests: [{
+          image: { content: testImageBase64 },
+          features: [
+            { type: 'TEXT_DETECTION', maxResults: 5 },
+            { type: 'LABEL_DETECTION', maxResults: 5 }
+          ]
+        }]
+      };
+
+      console.log('📤 Sending test request to Google Cloud Vision API...');
       const testResponse = await fetch(`${GOOGLE_CLOUD_VISION_API_URL}?key=${GOOGLE_CLOUD_API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          requests: [{
-            image: { content: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' }, // 1x1 pixel test image
-            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }]
-          }]
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('📥 Google Cloud Vision API response status:', testResponse.status);
+
       if (testResponse.ok) {
+        const responseData = await testResponse.json();
+        console.log('✅ Google Cloud Vision API test successful');
+        console.log('🔍 Test response structure:', {
+          hasResponses: !!responseData.responses,
+          responseCount: responseData.responses?.length || 0,
+          hasTextAnnotations: !!responseData.responses?.[0]?.textAnnotations,
+          textCount: responseData.responses?.[0]?.textAnnotations?.length || 0
+        });
+
         this.googleVisionAvailable = true;
-        console.log('✅ Google Cloud Vision API is available');
+        console.log('✅ Google Cloud Vision API is available and working');
       } else {
-        console.warn('⚠️ Google Cloud Vision API test failed:', testResponse.status);
+        const errorData = await testResponse.json().catch(() => ({ error: 'Unable to parse error response' }));
+        console.error('❌ Google Cloud Vision API test failed:', {
+          status: testResponse.status,
+          statusText: testResponse.statusText,
+          error: errorData
+        });
+
+        // Log specific error details
+        if (testResponse.status === 400) {
+          console.error('🚫 Bad Request - Check API key permissions and request format');
+        } else if (testResponse.status === 403) {
+          console.error('🚫 Forbidden - Check API key validity and billing status');
+        } else if (testResponse.status === 429) {
+          console.error('🚫 Too Many Requests - Rate limit exceeded');
+        }
       }
     } catch (error) {
-      console.warn('⚠️ Google Cloud Vision API test failed:', error);
+      console.error('❌ Google Cloud Vision API test failed with error:', {
+        message: error.message,
+        stack: error.stack,
+        type: error.constructor.name
+      });
     }
   }
 
@@ -414,47 +507,106 @@ export class PharmaceuticalAIService {
     confidence: number;
     method: string;
   }> {
-    if (!this.googleVisionAvailable || !GOOGLE_CLOUD_API_KEY) {
-      console.warn('⚠️ Google Cloud Vision API not available, using fallback');
-      return {
-        extractedText: [],
-        confidence: 0,
-        method: 'fallback'
-      };
+    if (!this.googleVisionAvailable) {
+      console.warn('⚠️ Google Cloud Vision API not available (failed initialization)');
+      console.log('🔄 Falling back to Tesseract OCR');
+      return await this.extractTextWithTesseract(base64Image);
+    }
+
+    if (!GOOGLE_CLOUD_API_KEY) {
+      console.warn('⚠️ Google Cloud API key not found');
+      console.log('🔄 Falling back to Tesseract OCR');
+      return await this.extractTextWithTesseract(base64Image);
     }
 
     try {
+      console.log('📤 Sending request to Google Cloud Vision API...');
+
+      const requestBody = {
+        requests: [{
+          image: { content: base64Image },
+          features: [
+            { type: 'TEXT_DETECTION', maxResults: 50 },
+            { type: 'DOCUMENT_TEXT_DETECTION', maxResults: 50 }
+          ]
+        }]
+      };
+
+      console.log('📋 Request details:', {
+        imageSize: base64Image.length,
+        features: requestBody.requests[0].features.length,
+        endpoint: GOOGLE_CLOUD_VISION_API_URL
+      });
+
       const response = await fetch(`${GOOGLE_CLOUD_VISION_API_URL}?key=${GOOGLE_CLOUD_API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          requests: [{
-            image: { content: base64Image },
-            features: [
-              { type: 'TEXT_DETECTION', maxResults: 50 },
-              { type: 'DOCUMENT_TEXT_DETECTION', maxResults: 50 }
-            ]
-          }]
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('📥 Google Vision API response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Google Vision API error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unable to parse error response' }));
+        console.error('❌ Google Vision API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+
+        // Provide specific error guidance
+        if (response.status === 400) {
+          console.error('🚫 Bad Request - Check image format and request structure');
+        } else if (response.status === 403) {
+          console.error('🚫 Forbidden - Check API key permissions and billing');
+        } else if (response.status === 429) {
+          console.error('🚫 Rate limit exceeded - Please try again later');
+        }
+
+        console.log('🔄 Falling back to Tesseract OCR due to Google Vision failure');
+        return await this.extractTextWithTesseract(base64Image);
       }
 
       const data = await response.json();
-      const textAnnotations = data.responses[0]?.textAnnotations || [];
-      
+      console.log('📊 Google Vision response received:', {
+        hasResponses: !!data.responses,
+        responseCount: data.responses?.length || 0,
+        firstResponseHasTextAnnotations: !!data.responses?.[0]?.textAnnotations,
+        textAnnotationCount: data.responses?.[0]?.textAnnotations?.length || 0
+      });
+
+      // Validate response structure
+      if (!data.responses || !data.responses[0]) {
+        console.error('❌ Invalid Google Vision response structure');
+        console.log('🔄 Falling back to Tesseract OCR');
+        return await this.extractTextWithTesseract(base64Image);
+      }
+
+      const textAnnotations = data.responses[0].textAnnotations || [];
+      console.log(`📝 Found ${textAnnotations.length} text annotations`);
+
       const extractedText = textAnnotations
         .map((annotation: any) => annotation.description)
         .filter((text: string) => text && text.trim().length > 0);
 
-      const confidence = textAnnotations.length > 0 ? 
-        Math.min(0.95, textAnnotations.length * 0.1) : 0;
+      console.log(`📋 Extracted ${extractedText.length} text items:`, extractedText.slice(0, 10));
 
-      console.log(`✅ Google Vision extracted ${extractedText.length} text items`);
+      // Calculate confidence based on multiple factors
+      const baseConfidence = textAnnotations.length > 0 ?
+        Math.min(0.95, textAnnotations.length * 0.05) : 0;
+
+      const lengthConfidence = extractedText.length > 0 ?
+        Math.min(0.3, extractedText.length * 0.02) : 0;
+
+      const confidence = Math.min(0.98, baseConfidence + lengthConfidence);
+
+      console.log('✅ Google Cloud Vision extraction successful:', {
+        extractedTextCount: extractedText.length,
+        confidence: confidence.toFixed(3),
+        method: 'google-vision'
+      });
 
       return {
         extractedText,
@@ -463,12 +615,14 @@ export class PharmaceuticalAIService {
       };
 
     } catch (error) {
-      console.error('❌ Google Vision text extraction failed:', error);
-      return {
-        extractedText: [],
-        confidence: 0,
-        method: 'failed'
-      };
+      console.error('❌ Google Vision text extraction failed with error:', {
+        message: error.message,
+        stack: error.stack,
+        type: error.constructor.name
+      });
+
+      console.log('🔄 Falling back to Tesseract OCR due to error');
+      return await this.extractTextWithTesseract(base64Image);
     }
   }
 
@@ -903,6 +1057,52 @@ export class PharmaceuticalAIService {
       manufacturer: drugIdentification.manufacturer,
       expiryDate: undefined
     };
+  }
+
+  /**
+   * Fallback text extraction using Tesseract OCR
+   */
+  private async extractTextWithTesseract(base64Image: string): Promise<{
+    extractedText: string[];
+    confidence: number;
+    method: string;
+  }> {
+    console.log('🔍 Starting Tesseract OCR fallback extraction...');
+
+    try {
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(base64Image.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
+
+      // Use the enhanced OCR service
+      const { recognizePharmaceuticalText } = await import('@/lib/ocr-service');
+      const extractedText = await recognizePharmaceuticalText(imageBuffer);
+
+      console.log(`📝 Tesseract extracted ${extractedText.length} text items:`, extractedText.slice(0, 10));
+
+      // Calculate confidence for Tesseract (generally lower than Google Vision)
+      const confidence = extractedText.length > 0 ?
+        Math.min(0.85, extractedText.length * 0.08) : 0;
+
+      console.log('✅ Tesseract OCR extraction successful:', {
+        extractedTextCount: extractedText.length,
+        confidence: confidence.toFixed(3),
+        method: 'tesseract-ocr'
+      });
+
+      return {
+        extractedText,
+        confidence,
+        method: 'tesseract-ocr'
+      };
+
+    } catch (error) {
+      console.error('❌ Tesseract OCR extraction failed:', error);
+      return {
+        extractedText: [],
+        confidence: 0,
+        method: 'failed'
+      };
+    }
   }
 }
 

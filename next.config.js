@@ -19,10 +19,20 @@ const nextConfig = {
       os: false,
     };
 
-    // Exclude sharp from client-side bundles
+    // Exclude sharp and TensorFlow from client-side bundles
     if (!isServer) {
       config.externals = config.externals || [];
       config.externals.push('sharp');
+      config.externals.push('@tensorflow/tfjs');
+      config.externals.push('@tensorflow/tfjs-node');
+    }
+
+    // Handle TensorFlow native modules on server
+    if (isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'canvas': false,
+      };
     }
 
     return config;
