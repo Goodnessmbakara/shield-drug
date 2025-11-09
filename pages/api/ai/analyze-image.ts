@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { aiDrugAnalysis } from '@/services/aiDrugAnalysis';
-import { professionalDrugAnalysis } from '@/services/professionalDrugAnalysis';
-import { enhancedDrugAnalysis } from '@/services/enhancedDrugAnalysis';
+import { unifiedDrugAnalysis } from '@/services/unifiedDrugAnalysis';
 
 // Request timeout in milliseconds
 const ANALYSIS_TIMEOUT = parseInt(process.env.AI_MODEL_TIMEOUT || '180000'); // Default 180 seconds (3 minutes) for better reliability
@@ -93,28 +92,28 @@ export default async function handler(
     const analysisPromise = async () => {
       if (useEnhanced === true) {
         try {
-          console.log(`[${requestId}] Attempting enhanced multi-API drug analysis...`);
-          const enhancedResult = await enhancedDrugAnalysis.analyzeImage(imageData);
-          return { result: enhancedResult, method: 'enhanced-multi-api' };
+          console.log(`[${requestId}] Attempting enhanced unified drug analysis...`);
+          const enhancedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
+          return { result: enhancedResult, method: 'unified-analysis' };
         } catch (error) {
           console.log(`[${requestId}] Enhanced analysis failed, falling back to TensorFlow.js:`, error);
           // Fall back to regular analysis
         }
       }
-      
+
       // Regular analysis flow
       try {
         console.log(`[${requestId}] Attempting TensorFlow.js drug analysis...`);
         const tfResult = await aiDrugAnalysis.analyzeImage(imageData);
         return { result: tfResult, method: 'tensorflow-models' };
       } catch (error) {
-        console.log(`[${requestId}] TensorFlow.js analysis failed, falling back to professional analysis:`, error);
+        console.log(`[${requestId}] TensorFlow.js analysis failed, falling back to unified analysis:`, error);
         try {
-          const professionalResult = await professionalDrugAnalysis.analyzeImage(imageData);
-          return { result: professionalResult, method: 'professional-multi-modal' };
-        } catch (professionalError) {
-          console.log(`[${requestId}] Professional analysis also failed:`, professionalError);
-          throw professionalError;
+          const unifiedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
+          return { result: unifiedResult, method: 'unified-analysis' };
+        } catch (unifiedError) {
+          console.log(`[${requestId}] Unified analysis also failed:`, unifiedError);
+          throw unifiedError;
         }
       }
     };
@@ -131,8 +130,8 @@ export default async function handler(
     let modelUsed = method || 'unknown';
     let fallbackLevel = 0;
 
-    if (method === 'professional-multi-modal') {
-      modelUsed = 'professional-multi-modal';
+    if (method === 'unified-analysis') {
+      modelUsed = 'unified-analysis';
       fallbackLevel = 0;
     } else if (analysisResult.imageClassification) {
       switch (analysisResult.imageClassification.detectionMethod) {
