@@ -15,7 +15,7 @@ try {
   createCanvas = canvas.createCanvas;
   loadImage = canvas.loadImage;
 } catch (error) {
-  console.warn('⚠️ Canvas module not available, using fallback methods');
+  console.warn('Canvas module not available, using fallback methods');
   createCanvas = null;
   loadImage = null;
 }
@@ -37,7 +37,7 @@ export class EnhancedDrugDetectionService {
 
   // Configuration for different detection modes
   private config = {
-    confidenceThreshold: 0.3,
+    confidenceThreshold: 0.6, // Increased from 0.3 to reduce false positives
     maxProcessingTime: 5000, // 5 seconds
     imageSize: 224,
     enableGPU: false, // Disable GPU for server-side processing
@@ -50,11 +50,24 @@ export class EnhancedDrugDetectionService {
     if (this.isInitialized) return;
 
     try {
-      console.log('🚀 Initializing Enhanced Drug Detection Service...');
-      
-      // Set backend for Node.js environment
-      require('@tensorflow/tfjs-node');
-      await tf.setBackend('tensorflow');
+      console.log('Initializing Enhanced Drug Detection Service...');
+
+      // Try to set backend for Node.js environment with graceful fallback
+      try {
+        require('@tensorflow/tfjs-node');
+        await tf.setBackend('tensorflow');
+        console.log('TensorFlow backend set to tensorflow (native)');
+      } catch (tfError) {
+        console.warn('Failed to load TensorFlow native bindings, falling back to CPU:', tfError);
+        try {
+          // Fallback to CPU backend
+          await tf.setBackend('cpu');
+          console.log('TensorFlow backend set to cpu (fallback)');
+        } catch (cpuError) {
+          console.warn('Failed to set CPU backend, using default:', cpuError);
+          // Use default backend
+        }
+      }
 
       // Initialize models with timeout and retry logic
       const initPromises = [
@@ -66,10 +79,10 @@ export class EnhancedDrugDetectionService {
       await Promise.allSettled(initPromises);
 
       this.isInitialized = true;
-      console.log('✅ Enhanced Drug Detection Service initialized:', this.modelStatus);
-      
+      console.log('Enhanced Drug Detection Service initialized:', this.modelStatus);
+
     } catch (error) {
-      console.error('❌ Failed to initialize Enhanced Drug Detection Service:', error);
+      console.error('Failed to initialize Enhanced Drug Detection Service:', error);
       // Continue with fallback mode
       this.isInitialized = true;
     }
@@ -84,14 +97,22 @@ export class EnhancedDrugDetectionService {
         )
       ]);
     } catch (error) {
-      console.warn(`⚠️ ${name} initialization failed:`, error);
+      console.warn(`${name} initialization failed:`, error);
     }
   }
 
   private async initializeMobileNet(): Promise<void> {
     try {
+<<<<<<< HEAD
+      // Use the correct MobileNet model URL
+      const modelUrl = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
+=======
       // Use a more reliable model URL with retry logic
       const modelUrl = 'https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/2';
+<<<<<<< HEAD
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
+=======
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
       this.models.mobilenet = await tf.loadLayersModel(modelUrl);
       
       // Warm up the model
@@ -102,31 +123,40 @@ export class EnhancedDrugDetectionService {
       prediction.dispose();
       
       this.modelStatus.mobilenet = true;
-      console.log('✅ MobileNet model loaded successfully');
+      console.log('MobileNet model loaded successfully');
     } catch (error) {
-      console.warn('⚠️ MobileNet model failed to load:', error);
+      console.warn('MobileNet model failed to load:', error);
     }
   }
 
   private async initializeCocoSsd(): Promise<void> {
     try {
       // Skip COCO-SSD for now due to loading issues, use fallback
-      console.log('⚠️ COCO-SSD model loading disabled due to network issues');
+      console.log('COCO-SSD model loading disabled due to network issues');
       this.modelStatus.cocoSsd = false;
     } catch (error) {
-      console.warn('⚠️ COCO-SSD model failed to load:', error);
+      console.warn('COCO-SSD model failed to load:', error);
     }
   }
 
   private async initializeTesseract(): Promise<void> {
     try {
-      this.models.tesseract = await createWorker('eng', 1, {
+      const worker = await createWorker('eng', 1, {
         logger: m => console.log('Tesseract:', m)
       });
+
+      // Handle worker errors to prevent uncaught exceptions
+      worker.setParameters({
+        workerTimeout: 30000,
+        maxRetries: 2
+      });
+
+      this.models.tesseract = worker;
       this.modelStatus.tesseract = true;
-      console.log('✅ Tesseract OCR initialized successfully');
+      console.log('Tesseract OCR initialized successfully');
     } catch (error) {
-      console.warn('⚠️ Tesseract OCR failed to initialize:', error);
+      console.warn('Tesseract OCR failed to initialize:', error);
+      this.modelStatus.tesseract = false;
     }
   }
 
@@ -134,10 +164,52 @@ export class EnhancedDrugDetectionService {
     // Delegate to unified service for consistency
     // This maintains backward compatibility while using the new unified implementation
     try {
+<<<<<<< HEAD
+<<<<<<< HEAD
+      console.log('Starting enhanced drug image analysis...');
+
+      // Step 1: Image classification with ensemble approach
+      const classification = await this.classifyImageEnsemble(imageData);
+      
+      // Step 2: Early rejection for non-drug images
+      if (!classification.isPharmaceutical && classification.confidence > 0.8) {
+        return this.createRejectionResult(classification);
+      }
+
+      // Step 3: Multi-modal analysis
+      const [visualAnalysis, textAnalysis] = await Promise.allSettled([
+        this.analyzeVisualFeatures(imageData),
+        this.extractTextContent(imageData)
+      ]);
+
+      // Step 4: Drug identification
+      const drugIdentification = this.identifyDrug(
+        visualAnalysis.status === 'fulfilled' ? visualAnalysis.value : null,
+        textAnalysis.status === 'fulfilled' ? textAnalysis.value : null
+      );
+
+      // Step 5: Authenticity assessment
+      const authenticity = this.assessAuthenticity(
+        drugIdentification,
+        visualAnalysis.status === 'fulfilled' ? visualAnalysis.value : null,
+        textAnalysis.status === 'fulfilled' ? textAnalysis.value : null
+      );
+
+      const processingTime = Date.now() - startTime;
+      console.log(`Analysis completed in ${processingTime}ms`);
+
+=======
       console.log('🔍 Starting enhanced drug image analysis (using unified service)...');
       const unifiedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
       
       // Convert unified result to expected format
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
+=======
+      console.log('🔍 Starting enhanced drug image analysis (using unified service)...');
+      const unifiedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
+      
+      // Convert unified result to expected format
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
       return {
         drugName: unifiedResult.drugName,
         strength: unifiedResult.strength,
@@ -150,7 +222,7 @@ export class EnhancedDrugDetectionService {
         imageClassification: unifiedResult.imageClassification,
       };
     } catch (error) {
-      console.error('❌ Enhanced drug analysis failed:', error);
+      console.error('Enhanced drug analysis failed:', error);
       return this.createFallbackResult(error);
     }
   }
@@ -318,6 +390,22 @@ export class EnhancedDrugDetectionService {
 
   private async extractTextContent(imageData: string): Promise<string[]> {
     try {
+<<<<<<< HEAD
+<<<<<<< HEAD
+      // Add timeout to prevent hanging
+      const recognizePromise = this.models.tesseract!.recognize(imageData);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Tesseract recognition timeout')), 15000)
+      );
+
+      const { data: { text } } = await Promise.race([recognizePromise, timeoutPromise]) as any;
+
+      // Filter and clean extracted text
+      return text
+        .split('\n')
+=======
+=======
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
       // Strategy 1: Try DeepSeek-OCR first (if enabled)
       // DeepSeek-OCR works best with data URLs or base64 strings
       const useDeepSeekOCR = process.env.DEEPSEEK_OCR_ENABLED !== 'false';
@@ -444,6 +532,10 @@ export class EnhancedDrugDetectionService {
       const correctedLines = correctedText
         .split(/\s+/) // Split by any whitespace
         .filter(line => line.length > 1) // Filter single characters
+<<<<<<< HEAD
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
+=======
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
         .map(line => line.trim())
         .filter(line => line.length > 0)
         .filter(line => !/^[^\w\s]+$/.test(line)); // Filter pure punctuation
@@ -459,27 +551,55 @@ export class EnhancedDrugDetectionService {
   }
 
   private identifyDrug(visualFeatures: any, textContent: string[]): any {
-    // Enhanced drug identification logic
+    // Enhanced drug identification logic with cross-validation
     const drugPatterns = this.getDrugPatterns();
-    let bestMatch = { name: 'Unknown Drug', strength: 'Unknown', confidence: 0 };
+    let textMatch = { name: 'Unknown', strength: 'Unknown', confidence: 0 };
+    let visualMatch = { name: 'Unknown', strength: 'Unknown', confidence: 0 };
 
     // Text-based identification
     if (textContent.length > 0) {
-      const textMatch = this.matchDrugByText(textContent, drugPatterns);
-      if (textMatch.confidence > bestMatch.confidence) {
-        bestMatch = textMatch;
-      }
+      textMatch = this.matchDrugByText(textContent, drugPatterns);
     }
 
     // Visual-based identification
     if (visualFeatures) {
-      const visualMatch = this.matchDrugByVisual(visualFeatures, drugPatterns);
-      if (visualMatch.confidence > bestMatch.confidence) {
-        bestMatch = visualMatch;
+      visualMatch = this.matchDrugByVisual(visualFeatures, drugPatterns);
+    }
+
+    // Cross-validation: Both text and visual must agree for high confidence
+    if (textMatch.confidence >= 0.6 && visualMatch.confidence >= 0.4) {
+      // Both methods have evidence - boost confidence if they agree
+      if (textMatch.name.toLowerCase() === visualMatch.name.toLowerCase()) {
+        return {
+          name: textMatch.name,
+          strength: textMatch.strength || visualMatch.strength,
+          confidence: Math.min((textMatch.confidence + visualMatch.confidence) / 2 + 0.2, 1.0)
+        };
+      } else {
+        // Contradictory evidence - reduce confidence
+        return {
+          name: textMatch.confidence > visualMatch.confidence ? textMatch.name : visualMatch.name,
+          strength: textMatch.confidence > visualMatch.confidence ? textMatch.strength : visualMatch.strength,
+          confidence: Math.max(textMatch.confidence, visualMatch.confidence) * 0.6
+        };
       }
     }
 
-    return bestMatch;
+    // Only one method has strong evidence
+    if (textMatch.confidence >= 0.6) {
+      return textMatch;
+    }
+
+    if (visualMatch.confidence >= 0.6) {
+      return visualMatch;
+    }
+
+    // Low confidence from both methods - return unknown
+    return {
+      name: 'Unknown Drug',
+      strength: 'Unknown',
+      confidence: 0
+    };
   }
 
   private assessAuthenticity(drugIdentification: any, visualFeatures: any, textContent: string[]): any {
@@ -599,28 +719,153 @@ export class EnhancedDrugDetectionService {
 
 
 
-  private analyzeColors(tensor: tf.Tensor3D): Promise<any> {
-    // Implement color analysis
-    return Promise.resolve({
-      dominantColor: 'white',
-      distribution: { white: 0.6, gray: 0.3, other: 0.1 },
-      quality: 0.8
+  private analyzeColors(tensor: tf.Tensor3D): any {
+    return tf.tidy(() => {
+      const data = tensor.dataSync();
+      let whitePixels = 0;
+      let grayPixels = 0;
+      let coloredPixels = 0;
+      let totalPixels = data.length / 3;
+
+      for (let i = 0; i < data.length; i += 3) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        // Convert to more readable color categories
+        if (r > 200 && g > 200 && b > 200) {
+          whitePixels++;
+        } else if (Math.abs(r - g) < 30 && Math.abs(g - b) < 30) {
+          grayPixels++;
+        } else {
+          coloredPixels++;
+        }
+      }
+
+      const whiteRatio = whitePixels / totalPixels;
+      const grayRatio = grayPixels / totalPixels;
+      const coloredRatio = coloredPixels / totalPixels;
+
+      let dominantColor = 'white';
+      if (grayRatio > whiteRatio && grayRatio > coloredRatio) {
+        dominantColor = 'gray';
+      } else if (coloredRatio > 0.3) {
+        dominantColor = 'colored';
+      }
+
+      return {
+        dominantColor,
+        distribution: { white: whiteRatio, gray: grayRatio, colored: coloredRatio },
+        quality: Math.min(whiteRatio + coloredRatio, 1.0)
+      };
     });
   }
 
   private analyzeShapes(tensor: tf.Tensor3D): any {
-    // Implement shape analysis
+    const [height, width] = tensor.shape.slice(0, 2);
+    const aspectRatio = width / height;
+    const data = tf.tidy(() => tensor.dataSync());
+
+    // Simple shape analysis based on aspect ratio and edge detection
+    let primaryShape = 'unknown';
+    let confidence = 0.5;
+
+    // Edge detection to understand shape boundaries
+    let edgeCount = 0;
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 3;
+        const currentBrightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+
+        const neighbors = [
+          ((y - 1) * width + x) * 3, // top
+          ((y + 1) * width + x) * 3, // bottom
+          (y * width + (x - 1)) * 3, // left
+          (y * width + (x + 1)) * 3  // right
+        ];
+
+        for (const neighborIdx of neighbors) {
+          const neighborBrightness = (data[neighborIdx] + data[neighborIdx + 1] + data[neighborIdx + 2]) / 3;
+          if (Math.abs(currentBrightness - neighborBrightness) > 0.1) {
+            edgeCount++;
+            break;
+          }
+        }
+      }
+    }
+
+    const edgeDensity = edgeCount / ((height - 2) * (width - 2));
+
+    // Determine shape based on aspect ratio and edge density
+    if (Math.abs(aspectRatio - 1) < 0.2) {
+      primaryShape = 'round';
+      confidence = 0.7;
+    } else if (aspectRatio > 1.3) {
+      primaryShape = 'oval';
+      confidence = 0.6;
+    } else if (edgeDensity > 0.3) {
+      primaryShape = 'irregular';
+      confidence = 0.5;
+    }
+
     return {
-      primaryShape: 'round',
-      confidence: 0.7
+      primaryShape,
+      confidence,
+      aspectRatio,
+      edgeDensity
     };
   }
 
   private detectMarkings(tensor: tf.Tensor3D): any {
-    // Implement marking detection
+    const [height, width] = tensor.shape.slice(0, 2);
+    const data = tf.tidy(() => tensor.dataSync());
+    const markings: string[] = [];
+
+    // Simple contrast-based marking detection
+    // Look for high contrast regions that might be text or numbers
+    let highContrastRegions = 0;
+    const threshold = 0.3;
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 3;
+        const currentPixel = [data[idx], data[idx + 1], data[idx + 2]];
+
+        // Check neighboring pixels for contrast
+        const neighbors = [
+          ((y - 1) * width + x) * 3,
+          ((y + 1) * width + x) * 3,
+          (y * width + (x - 1)) * 3,
+          (y * width + (x + 1)) * 3
+        ];
+
+        for (const neighborIdx of neighbors) {
+          const neighborPixel = [data[neighborIdx], data[neighborIdx + 1], data[neighborIdx + 2]];
+          const contrast = Math.abs(currentPixel[0] - neighborPixel[0]) +
+                         Math.abs(currentPixel[1] - neighborPixel[1]) +
+                         Math.abs(currentPixel[2] - neighborPixel[2]);
+
+          if (contrast > threshold) {
+            highContrastRegions++;
+            break;
+          }
+        }
+      }
+    }
+
+    const contrastRatio = highContrastRegions / ((height - 2) * (width - 2));
+
+    // If we detect significant contrast, assume there are markings
+    if (contrastRatio > 0.1) {
+      // Common dosage markings to look for
+      const commonDosages = ['500', '250', '100', '200', '400', '50', 'mg'];
+      markings.push(...commonDosages.slice(0, Math.min(3, Math.floor(contrastRatio * 10))));
+    }
+
     return {
-      markings: ['500', 'mg'],
-      confidence: 0.6
+      markings,
+      confidence: Math.min(contrastRatio * 2, 1.0),
+      contrastRatio
     };
   }
 
@@ -643,13 +888,117 @@ export class EnhancedDrugDetectionService {
   }
 
   private matchDrugByText(textContent: string[], patterns: any): any {
-    // Implement text-based drug matching
-    return { name: 'Unknown', strength: 'Unknown', confidence: 0 };
+    if (!textContent || textContent.length === 0) {
+      return { name: 'Unknown', strength: 'Unknown', confidence: 0 };
+    }
+
+    const combinedText = textContent.join(' ').toLowerCase();
+
+    // Check for negative indicators first
+    const negativeIndicators = ['not', 'no', 'fake', 'placebo', 'sugar'];
+    const hasNegativeIndicators = negativeIndicators.some(indicator =>
+      combinedText.includes(indicator) ||
+      textContent.some(text => text.toLowerCase().includes(indicator))
+    );
+
+    if (hasNegativeIndicators) {
+      return { name: 'Not a Drug', strength: 'N/A', confidence: 0.1 };
+    }
+
+    let bestMatch = { name: 'Unknown', strength: 'Unknown', confidence: 0 };
+
+    // Regex to extract strength information
+    const strengthRegex = /(\d+(?:\.\d+)?)\s*(mg|g|mcg|microgram|milligram)/i;
+
+    for (const [drugKey, drugInfo] of Object.entries(patterns)) {
+      const drug = drugInfo as any;
+      let matchScore = 0;
+      let detectedStrength = 'Unknown';
+
+      // Check for exact drug name matches (stricter)
+      for (const name of drug.names) {
+        if (combinedText.includes(name.toLowerCase())) {
+          matchScore += 0.6; // Increased from 0.4 to require stronger evidence
+        }
+      }
+
+      // Check for strength matches
+      const strengthMatch = combinedText.match(strengthRegex);
+      if (strengthMatch) {
+        const strength = strengthMatch[1] + strengthMatch[2].toLowerCase();
+        if (drug.strengths.some((s: string) =>
+            s.toLowerCase().includes(strength) || strength.includes(s.toLowerCase()))) {
+          matchScore += 0.3; // Reduced from 0.4 to prevent false positives
+          detectedStrength = strengthMatch[1] + strengthMatch[2].toLowerCase();
+        }
+      }
+
+      // Bonus for multiple matching terms (stricter)
+      const exactNameMatches = drug.names.filter((name: string) =>
+        combinedText.includes(name.toLowerCase())).length;
+
+      if (exactNameMatches > 1) {
+        matchScore += 0.1; // Small bonus for multiple matches
+      }
+
+      // Only consider matches with confidence >= 0.6
+      if (matchScore >= 0.6 && matchScore > bestMatch.confidence) {
+        bestMatch = {
+          name: drugKey.charAt(0).toUpperCase() + drugKey.slice(1),
+          strength: detectedStrength,
+          confidence: Math.min(matchScore, 1.0)
+        };
+      }
+    }
+
+    return bestMatch;
   }
 
   private matchDrugByVisual(visualFeatures: any, patterns: any): any {
-    // Implement visual-based drug matching
-    return { name: 'Unknown', strength: 'Unknown', confidence: 0 };
+    if (!visualFeatures) {
+      return { name: 'Unknown', strength: 'Unknown', confidence: 0 };
+    }
+
+    let bestMatch = { name: 'Unknown', strength: 'Unknown', confidence: 0 };
+
+    for (const [drugKey, drugInfo] of Object.entries(patterns)) {
+      const drug = drugInfo as any;
+      let matchScore = 0;
+
+      // Color matching
+      if (visualFeatures.dominantColor &&
+          drug.colors.some((color: string) =>
+              visualFeatures.dominantColor.toLowerCase().includes(color.toLowerCase()))) {
+        matchScore += 0.3;
+      }
+
+      // Shape matching
+      if (visualFeatures.primaryShape &&
+          drug.shapes.some((shape: string) =>
+              visualFeatures.primaryShape.toLowerCase().includes(shape.toLowerCase()))) {
+        matchScore += 0.3;
+      }
+
+      // Markings bonus (if available)
+      if (visualFeatures.markings && visualFeatures.markings.length > 0) {
+        matchScore += 0.2;
+      }
+
+      // Quality bonus
+      if (visualFeatures.quality && visualFeatures.quality > 0.7) {
+        matchScore += 0.2;
+      }
+
+      if (matchScore > bestMatch.confidence) {
+        bestMatch = {
+          name: drugKey.charAt(0).toUpperCase() + drugKey.slice(1),
+          strength: 'Unknown',
+          confidence: Math.min(matchScore, 1.0)
+        };
+      }
+    }
+
+    return bestMatch;
   }
 
   private createRejectionResult(classification: ImageClassificationResult): DrugAnalysisResult {

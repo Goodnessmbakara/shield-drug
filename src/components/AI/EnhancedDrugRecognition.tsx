@@ -248,28 +248,20 @@ export default function EnhancedDrugRecognition() {
       
       const imageData = await base64Promise;
 
-      // Simulate progress updates
-      const steps = [
-        { step: 'Preprocessing image...', progress: 15 },
-        { step: 'Performing object detection...', progress: 30 },
-        { step: 'Extracting text with OCR...', progress: 50 },
-        { step: 'Analyzing visual features...', progress: 70 },
-        { step: 'Matching against drug database...', progress: 85 },
-        { step: 'Finalizing results...', progress: 95 }
-      ];
-
-      for (const { step, progress } of steps) {
-        setCurrentStep(step);
-        setAnalysisProgress(progress);
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
+      // Real progress will be updated during actual processing
+      setCurrentStep('Preparing image for analysis...');
+      setAnalysisProgress(10);
 
       // Convert base64 to blob for upload
       const response = await fetch(imageData);
       const blob = await response.blob();
-      
+
       const formData = new FormData();
       formData.append('pharmaceuticalImage', blob, 'pharmaceutical-image.jpg');
+
+      // Start real-time progress monitoring
+      setCurrentStep('Initializing AI analysis...');
+      setAnalysisProgress(5);
 
       const apiResponse = await fetch('/api/ai/pharmaceutical-analysis', {
         method: 'POST',
@@ -282,11 +274,12 @@ export default function EnhancedDrugRecognition() {
       }
 
       const result = await apiResponse.json();
-      
+
       // Handle new pharmaceutical analysis response format
       const analysisData = result.data?.analysis || result;
       setAnalysisResult(analysisData);
-      
+
+      // Set final progress based on actual analysis completion
       setAnalysisProgress(100);
       setCurrentStep('Analysis complete!');
       

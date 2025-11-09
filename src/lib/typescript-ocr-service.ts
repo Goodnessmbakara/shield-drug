@@ -1,10 +1,11 @@
 /**
  * TypeScript OCR Service
- * Replaces Python DeepSeek OCR with TypeScript-native solutions
- * 
- * Priority:
- * 1. Google Cloud Vision API (if configured)
- * 2. Tesseract.js (fallback)
+ * Uses Google Cloud Vision API for pharmaceutical text extraction
+ *
+ * Features:
+ * - High-accuracy text detection
+ * - Document text detection for structured text
+ * - Optimized for pharmaceutical packaging
  */
 
 export interface TypeScriptOCRResult {
@@ -23,8 +24,8 @@ export interface TypeScriptOCROptions {
 }
 
 /**
- * Extract text from an image using TypeScript-native OCR solutions
- * 
+ * Extract text from an image using Google Cloud Vision API
+ *
  * @param imageData - Base64-encoded image or data URL
  * @param options - Optional configuration
  * @returns Promise with OCR result
@@ -33,32 +34,31 @@ export async function extractTextWithTypeScriptOCR(
   imageData: string,
   options: TypeScriptOCROptions = {}
 ): Promise<TypeScriptOCRResult> {
-  // Try Google Cloud Vision API first (if configured)
-  if (process.env.GOOGLE_CLOUD_API_KEY) {
-    try {
-      const result = await extractTextWithGoogleVision(imageData);
-      if (result.success && result.text.trim().length > 0) {
-        return result;
-      }
-    } catch (error) {
-      console.warn('⚠️ Google Cloud Vision OCR failed, falling back to Tesseract:', error);
-    }
+  // Use Google Cloud Vision API (required)
+  if (!process.env.GOOGLE_CLOUD_API_KEY) {
+    console.error('❌ Google Cloud Vision API key not found - please set GOOGLE_CLOUD_API_KEY in .env');
+    throw new Error('Google Cloud Vision API key is required');
   }
 
-  // Fallback to Tesseract.js
   try {
-    return await extractTextWithTesseract(imageData);
-  } catch (error) {
-    console.error('❌ Tesseract OCR failed:', error);
+    const result = await extractTextWithGoogleVision(imageData);
+    if (result.success && result.text.trim().length > 0) {
+      return result;
+    }
+
+    // If no text found, return empty result
     return {
       success: false,
       text: '',
       text_lines: [],
-      model: 'none',
+      model: 'google-cloud-vision-api',
       confidence: 0,
-      method: 'none',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      method: 'google-vision',
+      error: 'No text detected in image',
     };
+  } catch (error) {
+    console.error('❌ Google Cloud Vision OCR failed:', error);
+    throw error; // Re-throw error - no fallback
   }
 }
 
@@ -154,86 +154,15 @@ async function extractTextWithGoogleVision(
   };
 }
 
-/**
- * Extract text using Tesseract.js (fallback)
- */
-async function extractTextWithTesseract(
-  imageData: string
-): Promise<TypeScriptOCRResult> {
-  // Import Tesseract dynamically
-  const Tesseract = (await import('tesseract.js')).default;
-
-  // Convert data URL to blob or buffer
-  let imageBlob: Blob | Buffer;
-  
-  if (typeof window !== 'undefined') {
-    // Browser environment
-    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    imageBlob = new Blob([byteArray], { type: 'image/jpeg' });
-  } else {
-    // Node.js environment
-    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-    imageBlob = Buffer.from(base64Data, 'base64');
-  }
-
-  // Create worker and recognize
-  const worker = await Tesseract.createWorker('eng', 1, {
-    logger: (m: any) => {
-      // Suppress verbose logging in production
-      if (process.env.NODE_ENV === 'development' && m.status === 'recognizing text') {
-        console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
-      }
-    },
-  });
-
-  try {
-    // Configure for pharmaceutical text
-    await worker.setParameters({
-      tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
-      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_- ',
-    });
-
-    const { data } = await worker.recognize(imageBlob);
-
-    const extractedText = data.text || '';
-    const textLines = extractedText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-
-    // Calculate confidence from Tesseract confidence scores
-    const avgConfidence = data.words.length > 0
-      ? data.words.reduce((sum: number, word: any) => sum + (word.confidence || 0), 0) / data.words.length / 100
-      : 0;
-
-    return {
-      success: extractedText.length > 0,
-      text: extractedText,
-      text_lines: textLines,
-      model: 'tesseract.js',
-      confidence: Math.max(0, Math.min(1, avgConfidence)),
-      method: 'tesseract',
-    };
-  } finally {
-    await worker.terminate();
-  }
-}
 
 /**
- * Extract pharmaceutical text with pharmaceutical-focused configuration
+ * Extract pharmaceutical text using Google Cloud Vision API
  */
 export async function extractPharmaceuticalText(
   imageData: string,
   options: Omit<TypeScriptOCROptions, 'prompt'> = {}
 ): Promise<TypeScriptOCRResult> {
-  // For Google Vision, we can't customize prompts, but it's already optimized for text detection
-  // For Tesseract, we use pharmaceutical-specific configuration
+  // Google Vision is optimized for text detection and works well for pharmaceutical packaging
   return extractTextWithTypeScriptOCR(imageData, options);
 }
 
