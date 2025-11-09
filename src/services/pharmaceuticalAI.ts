@@ -508,15 +508,13 @@ export class PharmaceuticalAIService {
     method: string;
   }> {
     if (!this.googleVisionAvailable) {
-      console.warn('⚠️ Google Cloud Vision API not available (failed initialization)');
-      console.log('🔄 Falling back to Tesseract OCR');
-      return await this.extractTextWithTesseract(base64Image);
+      console.error('❌ Google Cloud Vision API not available (failed initialization)');
+      throw new Error('Google Cloud Vision API is required but not available');
     }
 
     if (!GOOGLE_CLOUD_API_KEY) {
-      console.warn('⚠️ Google Cloud API key not found');
-      console.log('🔄 Falling back to Tesseract OCR');
-      return await this.extractTextWithTesseract(base64Image);
+      console.error('❌ Google Cloud API key not found - please set GOOGLE_CLOUD_API_KEY in .env');
+      throw new Error('Google Cloud Vision API key is required');
     }
 
     try {
@@ -565,8 +563,7 @@ export class PharmaceuticalAIService {
           console.error('🚫 Rate limit exceeded - Please try again later');
         }
 
-        console.log('🔄 Falling back to Tesseract OCR due to Google Vision failure');
-        return await this.extractTextWithTesseract(base64Image);
+        throw new Error(`Google Vision API failed with status ${response.status}`);
       }
 
       const data = await response.json();
@@ -580,8 +577,7 @@ export class PharmaceuticalAIService {
       // Validate response structure
       if (!data.responses || !data.responses[0]) {
         console.error('❌ Invalid Google Vision response structure');
-        console.log('🔄 Falling back to Tesseract OCR');
-        return await this.extractTextWithTesseract(base64Image);
+        throw new Error('Invalid Google Vision API response structure');
       }
 
       const textAnnotations = data.responses[0].textAnnotations || [];
@@ -621,8 +617,7 @@ export class PharmaceuticalAIService {
         type: error.constructor.name
       });
 
-      console.log('🔄 Falling back to Tesseract OCR due to error');
-      return await this.extractTextWithTesseract(base64Image);
+      throw error; // Re-throw error - no fallback
     }
   }
 
@@ -633,7 +628,7 @@ export class PharmaceuticalAIService {
   }> {
     // Enhanced pharmaceutical detection with person/face filtering
     console.log('🔍 Starting pharmaceutical image classification with face detection...');
-    
+
     // Try to use Google Vision API for object/face detection first
     if (this.googleVisionAvailable && GOOGLE_CLOUD_API_KEY) {
       try {
@@ -646,24 +641,15 @@ export class PharmaceuticalAIService {
         console.warn('⚠️ Google Vision classification failed, using fallback:', error);
       }
     }
-    
-    // Enhanced fallback: Use text-based pharmaceutical detection
-    const pharmaceuticalTextKeywords = [
-      'tablet', 'tablets', 'capsule', 'capsules', 'pill', 'pills', 'medicine', 'medication',
-      'mg', 'mcg', 'dosage', 'dose', 'prescription', 'pharmaceutical', 'drug', 'medicine',
-      'antibiotic', 'analgesic', 'vitamin', 'supplement', 'treatment', 'therapeutic',
-      'artemether', 'lumefantrine', 'paracetamol', 'ibuprofen', 'amoxicillin', 'aspirin',
-      'lokmal', 'camosunate', 'loren', 'nafdac', 'manufacturer', 'batch', 'expiry',
-      'dispersible', 'flavour', 'orange', 'white', 'yellow', 'blue', 'red'
-    ];
 
-    // IMPORTANT: Without proper AI models, we cannot reliably classify images
-    // Return conservative result that requires manual verification
-    console.warn('⚠️ No reliable AI classification available - using conservative fallback');
+    // FIXED: Don't reject images - allow OCR to determine pharmaceutical content
+    // Object detection is unreliable for blister packs and drug labels
+    // OCR is the primary method for pharmaceutical detection
+    console.log('✅ Using OCR-based classification - allowing image to be processed');
     return {
-      isPharmaceutical: false, // Conservative: require proper verification
-      confidence: 0.3, // Low confidence without proper AI
-      detectedObjects: ['unclassified_object']
+      isPharmaceutical: true, // Allow OCR to determine - don't reject based on object detection alone
+      confidence: 0.5, // Moderate confidence - final decision based on OCR results
+      detectedObjects: ['pharmaceutical_candidate']
     };
 
     /* Disabled: Unreachable code - keeping for reference
@@ -1005,22 +991,19 @@ export class PharmaceuticalAIService {
     let riskScore = 0;
     const riskFactors: string[] = [];
 
-    // Check image quality
-    if (imageClassification.confidence < 0.7) {
-      riskScore += 0.3;
-      riskFactors.push('Low image classification confidence');
-    }
+    // FIXED: Don't heavily penalize based on image classification alone
+    // OCR is more reliable for pharmaceutical detection
 
-    // Check for pharmaceutical indicators
-    if (!imageClassification.isPharmaceutical) {
-      riskScore += 0.4;
-      riskFactors.push('Image does not appear to be pharmaceutical');
-    }
-
-    // Check drug identification confidence
+    // Check drug identification confidence (primary factor)
     if (drugIdentification.confidence < 0.5) {
-      riskScore += 0.3;
+      riskScore += 0.4;
       riskFactors.push('Low drug identification confidence');
+    }
+
+    // Check if drug name was found
+    if (drugIdentification.drugName === 'Unknown') {
+      riskScore += 0.3;
+      riskFactors.push('Drug name not identified');
     }
 
     // Check for missing manufacturer information
@@ -1029,7 +1012,13 @@ export class PharmaceuticalAIService {
       riskFactors.push('Unknown manufacturer');
     }
 
-    const isCounterfeit = riskScore > 0.5;
+    // Only add minor penalty for low image classification confidence
+    if (imageClassification.confidence < 0.4) {
+      riskScore += 0.1;
+      riskFactors.push('Low image classification confidence');
+    }
+
+    const isCounterfeit = riskScore > 0.6; // Increased threshold
 
     console.log('🔍 Counterfeit detection:', {
       riskScore,
@@ -1059,51 +1048,6 @@ export class PharmaceuticalAIService {
     };
   }
 
-  /**
-   * Fallback text extraction using Tesseract OCR
-   */
-  private async extractTextWithTesseract(base64Image: string): Promise<{
-    extractedText: string[];
-    confidence: number;
-    method: string;
-  }> {
-    console.log('🔍 Starting Tesseract OCR fallback extraction...');
-
-    try {
-      // Convert base64 to buffer
-      const imageBuffer = Buffer.from(base64Image.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
-
-      // Use the enhanced OCR service
-      const { recognizePharmaceuticalText } = await import('@/lib/ocr-service');
-      const extractedText = await recognizePharmaceuticalText(imageBuffer);
-
-      console.log(`📝 Tesseract extracted ${extractedText.length} text items:`, extractedText.slice(0, 10));
-
-      // Calculate confidence for Tesseract (generally lower than Google Vision)
-      const confidence = extractedText.length > 0 ?
-        Math.min(0.85, extractedText.length * 0.08) : 0;
-
-      console.log('✅ Tesseract OCR extraction successful:', {
-        extractedTextCount: extractedText.length,
-        confidence: confidence.toFixed(3),
-        method: 'tesseract-ocr'
-      });
-
-      return {
-        extractedText,
-        confidence,
-        method: 'tesseract-ocr'
-      };
-
-    } catch (error) {
-      console.error('❌ Tesseract OCR extraction failed:', error);
-      return {
-        extractedText: [],
-        confidence: 0,
-        method: 'failed'
-      };
-    }
-  }
 }
 
 // Export singleton instance

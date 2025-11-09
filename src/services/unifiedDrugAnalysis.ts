@@ -17,31 +17,16 @@ import { DrugAnalysisResult, ImageClassificationResult } from '@/lib/types';
 import { identifyDrugFromAPI } from '@/lib/drug-api-service';
 import sharp from 'sharp';
 
-// Apply TensorFlow.js patch at runtime before requiring tfjs-node
-if (typeof window === 'undefined') {
-  try {
-    const util = require('util');
-    if (!util.isNullOrUndefined) {
-      util.isNullOrUndefined = function(val: any) {
-        return val === null || val === undefined;
-      };
-    }
-    if (!util.isArray) {
-      util.isArray = Array.isArray;
-    }
-  } catch (e) {
-    // Patch failed, will be handled by postinstall script
-  }
-}
-
-// Conditionally import tfjs-node for Node.js environment
-if (typeof window === 'undefined') {
-  try {
-    require('@tensorflow/tfjs-node');
-  } catch (error) {
-    console.warn('TensorFlow.js Node.js backend not available:', error);
-  }
-}
+/**
+ * Use browser-only TensorFlow.js to avoid native addon issues
+ * This works cross-platform without needing build tools or Node.js backend
+ *
+ * Benefits:
+ * - No Windows build tool requirements
+ * - No native addon compilation
+ * - Works on any Node.js version
+ * - Simpler deployment
+ */
 
 export interface UnifiedAnalysisResult extends DrugAnalysisResult {
   ocrMethod: 'google-vision' | 'tesseract' | 'none';
@@ -58,7 +43,7 @@ class UnifiedDrugAnalysisService {
   private config = {
     confidenceThreshold: 0.3,
     maxProcessingTime: 10000, // 10 seconds
-    enableCOCOSSD: false, // Disabled - OCR is primary
+    enableCOCOSSD: true, // Re-enabled - required to filter non-pharmaceutical images
     enableGoogleVisionOCR: process.env.GOOGLE_CLOUD_API_KEY !== undefined,
   };
 
@@ -68,45 +53,15 @@ class UnifiedDrugAnalysisService {
     try {
       console.log('🚀 Initializing Unified Drug Analysis Service...');
 
-      // Set backend for Node.js environment (optional - continue if it fails)
-      if (typeof window === 'undefined') {
-        try {
-          // Try to require tfjs-node first - this will apply the patch if needed
-          require('@tensorflow/tfjs-node');
-          
-          // Wait for TensorFlow to be ready
-          await tf.ready();
-          
-          // Check if backend is available before setting it
-          // backendNames is a function that returns a promise
-          const backendNames = await tf.engine().backendNames();
-          const backendsArray = Array.isArray(backendNames) 
-            ? backendNames 
-            : Object.keys(backendNames || {});
-          
-          console.log('🔍 Available TensorFlow backends:', backendsArray);
-          
-          // Try to set tensorflow backend (Node.js native backend)
-          if (backendsArray.includes('tensorflow')) {
-            await tf.setBackend('tensorflow');
-            await tf.ready();
-            console.log('✅ TensorFlow.js backend initialized successfully');
-          } else if (backendsArray.includes('cpu')) {
-            // Fallback to CPU backend
-            await tf.setBackend('cpu');
-            await tf.ready();
-            console.log('✅ TensorFlow.js CPU backend initialized');
-          } else {
-            console.warn('⚠️ TensorFlow backend not available, using default backend');
-            // Disable COCO-SSD if TensorFlow backend isn't available
-            this.config.enableCOCOSSD = false;
-          }
-        } catch (tfError: any) {
-          console.warn('⚠️ TensorFlow.js Node.js backend not available, continuing with OCR-only mode:', tfError?.message || tfError);
-          // Disable COCO-SSD if TensorFlow fails completely
-          this.config.enableCOCOSSD = false;
-          // Continue without TensorFlow - OCR will still work
-        }
+      // Use browser-only TensorFlow.js (no Node.js backend required)
+      // This avoids native addon issues on Windows
+      try {
+        await tf.ready();
+        const backend = tf.getBackend();
+        console.log(`✅ TensorFlow.js initialized with backend: ${backend}`);
+      } catch (tfError: any) {
+        console.warn('⚠️ TensorFlow.js initialization failed, continuing with OCR-only mode:', tfError?.message || tfError);
+        this.config.enableCOCOSSD = false;
       }
 
       // Initialize COCO-SSD if enabled (optional - continue if it fails)
@@ -132,67 +87,50 @@ class UnifiedDrugAnalysisService {
 
   private async initializeCocoSsd(): Promise<void> {
     try {
-      // Apply runtime patch before loading COCO-SSD to fix util.isNullOrUndefined
-      if (typeof window === 'undefined') {
+      console.log('🔧 Loading COCO-SSD model...');
+
+      // Try to load from local files first (if downloaded)
+      let loadOptions: cocoSsd.ModelConfig = {
+        base: 'lite_mobilenet_v2' as const,
+      };
+
+      // Check if local model files exist (browser environment)
+      if (typeof window !== 'undefined') {
         try {
-          const util = require('util');
-          if (!util.isNullOrUndefined) {
-            util.isNullOrUndefined = function(val: any) {
-              return val === null || val === undefined;
+          const modelJsonResponse = await fetch('/models/coco-ssd/model.json');
+          if (modelJsonResponse.ok) {
+            console.log('📦 Loading COCO-SSD from local files...');
+            loadOptions = {
+              base: 'lite_mobilenet_v2' as const,
+              modelUrl: '/models/coco-ssd/model.json',
             };
           }
-          if (!util.isArray) {
-            util.isArray = Array.isArray;
-          }
-        } catch (patchError) {
-          console.warn('⚠️ Runtime patch failed:', patchError);
+        } catch (e) {
+          // Local files not found, will load from CDN
+          console.log('📡 Loading COCO-SSD from CDN (local files not found)...');
         }
       }
 
-      // Check if TensorFlow is available first
-      if (typeof window === 'undefined') {
-        try {
-          await tf.ready();
-        } catch (tfError) {
-          console.warn('⚠️ TensorFlow not ready, skipping COCO-SSD initialization');
-          this.cocoSsdAvailable = false;
-          return;
-        }
+      // Load COCO-SSD model
+      this.cocoSsdModel = await cocoSsd.load(loadOptions);
+
+      if (!this.cocoSsdModel) {
+        throw new Error('COCO-SSD model failed to load');
       }
 
-      console.log('Loading COCO-SSD model...');
-
-      // Load COCO-SSD model via npm package (works reliably)
-      try {
-        this.cocoSsdModel = await cocoSsd.load({
-          base: 'lite_mobilenet_v2',
-        });
-
-        if (!this.cocoSsdModel) {
-          throw new Error('COCO-SSD model failed to load');
-        }
-
-        // Warm up the model (skip if TensorFlow has issues)
-        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-          const dummyCanvas = document.createElement('canvas');
-          dummyCanvas.width = 224;
-          dummyCanvas.height = 224;
-          const ctx = dummyCanvas.getContext('2d')!;
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, 224, 224);
-          await this.cocoSsdModel.detect(dummyCanvas);
-        } else {
-          // Skip warmup in Node.js - model will warm up on first use
-          console.log('✅ COCO-SSD model loaded (will warm up on first use)');
-        }
-
-        this.cocoSsdAvailable = true;
-        console.log('✅ COCO-SSD model loaded and warmed up');
-      } catch (loadError) {
-        // If loading fails, continue without COCO-SSD
-        console.warn('⚠️ COCO-SSD model failed to load, continuing with OCR-only mode:', loadError);
-        this.cocoSsdAvailable = false;
+      // Warm up the model
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const dummyCanvas = document.createElement('canvas');
+        dummyCanvas.width = 224;
+        dummyCanvas.height = 224;
+        const ctx = dummyCanvas.getContext('2d')!;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 224, 224);
+        await this.cocoSsdModel.detect(dummyCanvas);
       }
+
+      this.cocoSsdAvailable = true;
+      console.log('✅ COCO-SSD model loaded and warmed up');
     } catch (error) {
       console.warn('⚠️ COCO-SSD initialization failed, continuing with OCR-only mode:', error);
       this.cocoSsdAvailable = false;
@@ -200,7 +138,7 @@ class UnifiedDrugAnalysisService {
   }
 
   /**
-   * Main analysis method - OCR-first approach
+   * Main analysis method - OCR-first approach with pharmaceutical validation
    */
   async analyzeImage(imageData: string): Promise<UnifiedAnalysisResult> {
     if (!this.isInitialized) {
@@ -212,19 +150,17 @@ class UnifiedDrugAnalysisService {
     try {
       console.log('🔍 Starting unified drug image analysis...');
 
-      // Step 1: OCR extraction (primary method)
+      // Step 1: OCR extraction (PRIMARY - always run first)
+      // OCR is more reliable for pharmaceutical detection than object detection
       const ocrResult = await this.extractTextWithOCR(imageData);
       const extractedText = ocrResult.textLines;
       const ocrMethod = ocrResult.method;
 
       console.log(`📝 OCR extracted ${extractedText.length} text lines using ${ocrMethod}:`, extractedText.slice(0, 3));
 
-      // Step 2: Image classification
-      const classification = await this.classifyImage(imageData, extractedText);
-
-      // Step 3: Drug identification from text
+      // Step 2: Drug identification from text (primary method)
       const drugIdentification = await this.identifyDrugFromText(extractedText);
-      
+
       console.log('🔍 Drug identification result:', {
         name: drugIdentification.name,
         strength: drugIdentification.strength,
@@ -232,14 +168,68 @@ class UnifiedDrugAnalysisService {
         textLinesUsed: extractedText.length,
       });
 
-      // Step 4: Build result
+      // Step 3: Image classification (to boost/reduce confidence based on visual features)
+      const classification = await this.classifyImage(imageData, extractedText);
+
+      // Step 4: Decide if this is a valid drug image
+      // Reject ONLY if both OCR found nothing AND object detection found nothing
+      const hasTextEvidence = extractedText.length > 0;
+      const hasValidDrugName = drugIdentification.name && drugIdentification.name !== 'Unknown Drug';
+      const hasVisualEvidence = classification.isPharmaceutical;
+
+      // Reject only if we have zero evidence from both methods
+      if (!hasTextEvidence && !hasVisualEvidence) {
+        console.warn('⚠️ No pharmaceutical evidence found (no text and no pharmaceutical objects)');
+        const processingTime = Date.now() - startTime;
+        return {
+          drugName: 'Not a Drug Image',
+          strength: 'N/A',
+          confidence: 0.1,
+          status: 'suspicious',
+          issues: ['No text or pharmaceutical objects detected in image'],
+          extractedText: [],
+          visualFeatures: {
+            color: 'unknown',
+            shape: 'unknown',
+            markings: [],
+            objectDetections: classification.objectDetections || [],
+          },
+          isDrugImage: false,
+          imageClassification: classification,
+          ocrMethod,
+          classificationMethod: (classification.method as 'coco-ssd' | 'text-heuristic' | 'none') || 'none',
+          processingTime,
+        };
+      }
+
+      // Step 5: Calculate final confidence considering both OCR and classification
+      let finalConfidence = drugIdentification.confidence || 0;
+
+      // Boost confidence if we have drug name from OCR
+      if (hasValidDrugName) {
+        finalConfidence = Math.max(finalConfidence, 0.5); // At least 50% if we found a drug name
+      }
+
+      // Boost confidence if classification confirms pharmaceutical content
+      if (classification.isPharmaceutical && classification.confidence > 0.5) {
+        finalConfidence = Math.min(1.0, finalConfidence * 1.2); // +20% boost
+        console.log(`✅ Visual confirmation: Pharmaceutical objects detected, confidence boosted to ${finalConfidence.toFixed(2)}`);
+      }
+
+      // Reduce confidence slightly if no visual evidence, but don't reject
+      if (!classification.isPharmaceutical && hasValidDrugName) {
+        finalConfidence = Math.max(0.4, finalConfidence * 0.8); // -20% penalty, but min 40%
+        console.log(`⚠️ No pharmaceutical objects detected, but OCR found drug name - confidence: ${finalConfidence.toFixed(2)}`);
+      }
+
+      // Step 6: Build result
       const processingTime = Date.now() - startTime;
 
       const result: UnifiedAnalysisResult = {
         drugName: drugIdentification.name || 'Unknown Drug',
         strength: drugIdentification.strength || 'Unknown',
-        confidence: drugIdentification.confidence || 0,
-        status: drugIdentification.confidence > 0.5 ? 'authentic' : 'suspicious',
+        confidence: finalConfidence,
+        status: finalConfidence > 0.5 ? 'authentic' : 'suspicious',
         issues: drugIdentification.issues || [],
         extractedText,
         visualFeatures: {
@@ -248,7 +238,7 @@ class UnifiedDrugAnalysisService {
           markings: extractedText.slice(0, 5),
           objectDetections: classification.objectDetections || [],
         },
-        isDrugImage: classification.isPharmaceutical,
+        isDrugImage: hasValidDrugName || hasVisualEvidence, // True if we found a drug name OR pharmaceutical objects
         imageClassification: classification,
         ocrMethod,
         classificationMethod: (classification.method as 'coco-ssd' | 'text-heuristic' | 'none') || 'text-heuristic',
@@ -258,6 +248,7 @@ class UnifiedDrugAnalysisService {
       console.log('✅ Unified analysis completed:', {
         drugName: result.drugName,
         confidence: result.confidence,
+        isDrugImage: result.isDrugImage,
         ocrMethod: result.ocrMethod,
         processingTime: result.processingTime,
       });

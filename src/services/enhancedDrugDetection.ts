@@ -109,6 +109,9 @@ export class EnhancedDrugDetectionService {
 =======
       // Use a more reliable model URL with retry logic
       const modelUrl = 'https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/2';
+<<<<<<< HEAD
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
+=======
 >>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
       this.models.mobilenet = await tf.loadLayersModel(modelUrl);
       
@@ -162,6 +165,7 @@ export class EnhancedDrugDetectionService {
     // This maintains backward compatibility while using the new unified implementation
     try {
 <<<<<<< HEAD
+<<<<<<< HEAD
       console.log('Starting enhanced drug image analysis...');
 
       // Step 1: Image classification with ensemble approach
@@ -194,6 +198,12 @@ export class EnhancedDrugDetectionService {
       const processingTime = Date.now() - startTime;
       console.log(`Analysis completed in ${processingTime}ms`);
 
+=======
+      console.log('🔍 Starting enhanced drug image analysis (using unified service)...');
+      const unifiedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
+      
+      // Convert unified result to expected format
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
 =======
       console.log('🔍 Starting enhanced drug image analysis (using unified service)...');
       const unifiedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
@@ -381,6 +391,7 @@ export class EnhancedDrugDetectionService {
   private async extractTextContent(imageData: string): Promise<string[]> {
     try {
 <<<<<<< HEAD
+<<<<<<< HEAD
       // Add timeout to prevent hanging
       const recognizePromise = this.models.tesseract!.recognize(imageData);
       const timeoutPromise = new Promise((_, reject) =>
@@ -393,6 +404,8 @@ export class EnhancedDrugDetectionService {
       return text
         .split('\n')
 =======
+=======
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
       // Strategy 1: Try DeepSeek-OCR first (if enabled)
       // DeepSeek-OCR works best with data URLs or base64 strings
       const useDeepSeekOCR = process.env.DEEPSEEK_OCR_ENABLED !== 'false';
@@ -519,6 +532,9 @@ export class EnhancedDrugDetectionService {
       const correctedLines = correctedText
         .split(/\s+/) // Split by any whitespace
         .filter(line => line.length > 1) // Filter single characters
+<<<<<<< HEAD
+>>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
+=======
 >>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
         .map(line => line.trim())
         .filter(line => line.length > 0)
