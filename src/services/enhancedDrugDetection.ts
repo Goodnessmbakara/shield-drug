@@ -103,16 +103,8 @@ export class EnhancedDrugDetectionService {
 
   private async initializeMobileNet(): Promise<void> {
     try {
-<<<<<<< HEAD
-      // Use the correct MobileNet model URL
-      const modelUrl = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
-=======
       // Use a more reliable model URL with retry logic
       const modelUrl = 'https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/2';
-<<<<<<< HEAD
->>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
-=======
->>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
       this.models.mobilenet = await tf.loadLayersModel(modelUrl);
       
       // Warm up the model
@@ -164,52 +156,10 @@ export class EnhancedDrugDetectionService {
     // Delegate to unified service for consistency
     // This maintains backward compatibility while using the new unified implementation
     try {
-<<<<<<< HEAD
-<<<<<<< HEAD
-      console.log('Starting enhanced drug image analysis...');
-
-      // Step 1: Image classification with ensemble approach
-      const classification = await this.classifyImageEnsemble(imageData);
-      
-      // Step 2: Early rejection for non-drug images
-      if (!classification.isPharmaceutical && classification.confidence > 0.8) {
-        return this.createRejectionResult(classification);
-      }
-
-      // Step 3: Multi-modal analysis
-      const [visualAnalysis, textAnalysis] = await Promise.allSettled([
-        this.analyzeVisualFeatures(imageData),
-        this.extractTextContent(imageData)
-      ]);
-
-      // Step 4: Drug identification
-      const drugIdentification = this.identifyDrug(
-        visualAnalysis.status === 'fulfilled' ? visualAnalysis.value : null,
-        textAnalysis.status === 'fulfilled' ? textAnalysis.value : null
-      );
-
-      // Step 5: Authenticity assessment
-      const authenticity = this.assessAuthenticity(
-        drugIdentification,
-        visualAnalysis.status === 'fulfilled' ? visualAnalysis.value : null,
-        textAnalysis.status === 'fulfilled' ? textAnalysis.value : null
-      );
-
-      const processingTime = Date.now() - startTime;
-      console.log(`Analysis completed in ${processingTime}ms`);
-
-=======
       console.log('🔍 Starting enhanced drug image analysis (using unified service)...');
       const unifiedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
-      
+
       // Convert unified result to expected format
->>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
-=======
-      console.log('🔍 Starting enhanced drug image analysis (using unified service)...');
-      const unifiedResult = await unifiedDrugAnalysis.analyzeImage(imageData);
-      
-      // Convert unified result to expected format
->>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
       return {
         drugName: unifiedResult.drugName,
         strength: unifiedResult.strength,
@@ -390,22 +340,6 @@ export class EnhancedDrugDetectionService {
 
   private async extractTextContent(imageData: string): Promise<string[]> {
     try {
-<<<<<<< HEAD
-<<<<<<< HEAD
-      // Add timeout to prevent hanging
-      const recognizePromise = this.models.tesseract!.recognize(imageData);
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Tesseract recognition timeout')), 15000)
-      );
-
-      const { data: { text } } = await Promise.race([recognizePromise, timeoutPromise]) as any;
-
-      // Filter and clean extracted text
-      return text
-        .split('\n')
-=======
-=======
->>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
       // Strategy 1: Try DeepSeek-OCR first (if enabled)
       // DeepSeek-OCR works best with data URLs or base64 strings
       const useDeepSeekOCR = process.env.DEEPSEEK_OCR_ENABLED !== 'false';
@@ -532,10 +466,6 @@ export class EnhancedDrugDetectionService {
       const correctedLines = correctedText
         .split(/\s+/) // Split by any whitespace
         .filter(line => line.length > 1) // Filter single characters
-<<<<<<< HEAD
->>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
-=======
->>>>>>> 55e851dc0470fe5a9e9c7692dd7b0469b318e6e8
         .map(line => line.trim())
         .filter(line => line.length > 0)
         .filter(line => !/^[^\w\s]+$/.test(line)); // Filter pure punctuation
