@@ -83,7 +83,7 @@ export default function QRCodeDisplay({
 
   const handleDownload = async (qrCode: QRCodeData) => {
     try {
-      const verificationUrl = qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`;
+      const verificationUrl = getVerificationUrl(qrCode);
       await downloadQRCode(verificationUrl, `qr-code-${qrCode.qrCodeId}.png`, 400);
       
       // Track download in database
@@ -125,9 +125,45 @@ export default function QRCodeDisplay({
     }
   };
 
+  /**
+   * Generate a valid verification URL using the current origin
+   * This ensures the URL is always correct regardless of stored verificationUrl
+   */
+  const getVerificationUrl = (qrCode: QRCodeData): string => {
+    if (typeof window === 'undefined') {
+      // Server-side: use the stored URL or construct from qrCodeId
+      return qrCode.verificationUrl || `/verify/${qrCode.qrCodeId}`;
+    }
+    
+    // Client-side: Always use current origin to ensure correct domain
+    // Extract just the qrCodeId from stored URL if it exists, otherwise use qrCode.qrCodeId
+    let qrCodeId = qrCode.qrCodeId;
+    
+    // If verificationUrl exists, try to extract qrCodeId from it
+    if (qrCode.verificationUrl) {
+      const urlMatch = qrCode.verificationUrl.match(/\/verify\/([^/?]+)/);
+      if (urlMatch && urlMatch[1]) {
+        qrCodeId = urlMatch[1];
+      }
+    }
+    
+    // Always construct URL using current origin
+    const verificationUrl = `${window.location.origin}/verify/${qrCodeId}`;
+    
+    // Validate the URL
+    try {
+      new URL(verificationUrl);
+      return verificationUrl;
+    } catch (error) {
+      console.error('Invalid verification URL generated:', verificationUrl, error);
+      // Fallback to stored URL if current origin fails
+      return qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`;
+    }
+  };
+
   const handleCopyLink = async (qrCode: QRCodeData) => {
     try {
-      const link = qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`;
+      const link = getVerificationUrl(qrCode);
       await navigator.clipboard.writeText(link);
       
       toast({
@@ -150,10 +186,11 @@ export default function QRCodeDisplay({
 
   const handleShare = async (qrCode: QRCodeData) => {
     try {
+      const verificationUrl = getVerificationUrl(qrCode);
       const shareData = {
         title: `QR Code: ${qrCode.drug}`,
         text: `Scan this QR code to verify ${qrCode.drug} authenticity`,
-        url: qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`
+        url: verificationUrl
       };
 
       if (navigator.share) {
@@ -210,7 +247,7 @@ export default function QRCodeDisplay({
               {/* QR Code Image */}
               <div className="flex justify-center p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl">
                 <QRCodeGenerator
-                  data={qrCode.verificationUrl || `${window.location.origin}/verify/${qrCode.qrCodeId}`}
+                  data={getVerificationUrl(qrCode)}
                   size={160}
                   className="rounded-lg border-2 border-white shadow-lg"
                   alt={`QR Code for ${qrCode.drug}`}
@@ -289,7 +326,7 @@ export default function QRCodeDisplay({
             <div className="space-y-4">
               <div className="flex justify-center">
                 <QRCodeGenerator
-                  data={selectedQR.verificationUrl || `${window.location.origin}/verify/${selectedQR.qrCodeId}`}
+                  data={getVerificationUrl(selectedQR)}
                   size={180}
                   className="rounded border-2 border-gray-200"
                   alt={`QR Code for ${selectedQR.drug}`}
@@ -331,17 +368,15 @@ export default function QRCodeDisplay({
                   <Download className="w-4 h-4 mr-2" />
                   Download
                 </Button>
-                {selectedQR.verificationUrl && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => window.open(selectedQR.verificationUrl, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Verify
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => window.open(getVerificationUrl(selectedQR), '_blank')}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Verify
+                </Button>
               </div>
             </div>
           )}

@@ -690,9 +690,19 @@ export default function UploadDetailsPage() {
                     </DialogHeader>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {qrCodes.map((qrCode) => {
-                        // Ensure we have a verification URL - fallback to /verify/{qrCodeId}
-                        const verificationUrl = qrCode.verificationUrl || 
-                          `${typeof window !== 'undefined' ? window.location.origin : ''}/verify/${qrCode.qrCodeId}`;
+                        // Always generate verification URL using current origin to ensure correctness
+                        // Extract qrCodeId from stored URL if it exists, otherwise use qrCode.qrCodeId
+                        let qrCodeId = qrCode.qrCodeId;
+                        if (qrCode.verificationUrl) {
+                          const urlMatch = qrCode.verificationUrl.match(/\/verify\/([^/?]+)/);
+                          if (urlMatch && urlMatch[1]) {
+                            qrCodeId = urlMatch[1];
+                          }
+                        }
+                        // Always use current origin for the verification URL
+                        const verificationUrl = typeof window !== 'undefined' 
+                          ? `${window.location.origin}/verify/${qrCodeId}`
+                          : `/verify/${qrCodeId}`;
                         
                         return (
                           <div

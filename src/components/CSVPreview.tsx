@@ -238,21 +238,65 @@ function analyzeCSVData(csvData: CSVRow[]) {
 function validateCSVData(csvData: CSVRow[]): string[] {
   const errors: string[] = [];
   
+  // Required fields that match backend validation
+  const requiredFields = [
+    'drug_name',
+    'batch_id',
+    'quantity',
+    'manufacturer',
+    'location',
+    'expiry_date',
+    'nafdac_number',
+    'manufacturing_date',
+    'active_ingredient',
+    'dosage_form',
+    'strength',
+    'package_size',
+    'storage_conditions'
+  ];
+  
   csvData.forEach((row, index) => {
-    if (!row.drug_name || row.drug_name.trim() === '') {
-      errors.push(`Row ${index + 1}: Missing drug name`);
+    const rowNumber = index + 1;
+    
+    // Check all required fields
+    requiredFields.forEach(field => {
+      const value = row[field];
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        errors.push(`Row ${rowNumber}: Missing ${field.replace('_', ' ')}`);
+      }
+    });
+    
+    // Validate quantity
+    const quantity = parseInt(row.quantity?.toString() || '0');
+    if (isNaN(quantity) || quantity <= 0) {
+      errors.push(`Row ${rowNumber}: Invalid quantity (must be a positive number)`);
     }
-    if (!row.batch_id || row.batch_id.trim() === '') {
-      errors.push(`Row ${index + 1}: Missing batch ID`);
+    
+    // Validate expiry_date format (YYYY-MM-DD)
+    if (row.expiry_date) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(row.expiry_date)) {
+        errors.push(`Row ${rowNumber}: Invalid expiry date format (must be YYYY-MM-DD)`);
+      } else {
+        const expiryDate = new Date(row.expiry_date);
+        const today = new Date();
+        if (expiryDate <= today) {
+          errors.push(`Row ${rowNumber}: Expiry date must be in the future`);
+        }
+      }
     }
-    if (!row.quantity || row.quantity <= 0) {
-      errors.push(`Row ${index + 1}: Invalid quantity`);
+    
+    // Validate manufacturing_date format (YYYY-MM-DD)
+    if (row.manufacturing_date) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(row.manufacturing_date)) {
+        errors.push(`Row ${rowNumber}: Invalid manufacturing date format (must be YYYY-MM-DD)`);
+      }
     }
-    if (!row.expiry_date || isNaN(new Date(row.expiry_date).getTime())) {
-      errors.push(`Row ${index + 1}: Invalid expiry date`);
-    }
-    if (!row.manufacturer || row.manufacturer.trim() === '') {
-      errors.push(`Row ${index + 1}: Missing manufacturer`);
+    
+    // Validate nafdac_number format (optional but should match pattern if present)
+    if (row.nafdac_number && !/^NAFDAC-\d{6}$/i.test(row.nafdac_number)) {
+      errors.push(`Row ${rowNumber}: NAFDAC number should be in format NAFDAC-123456`);
     }
   });
   

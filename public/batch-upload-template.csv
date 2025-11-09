@@ -1,0 +1,2 @@
+drug_name,batch_id,quantity,manufacturer,location,expiry_date,nafdac_number,manufacturing_date,active_ingredient,dosage_form,strength,package_size,storage_conditions,description
+Coartem,CT2024001,10000,Novartis,Lagos Nigeria,2026-12-31,NAFDAC-123456,2024-01-15,Artemether/Lumefantrine,Tablet,20mg/120mg,24 tablets per pack,Store below 30°C,Antimalarial medication for treating uncomplicated P. falciparum malaria

@@ -283,7 +283,7 @@ export default function ConsumerDrugDetectionPage() {
       formData.append('drugImage', file);
 
       const startTime = Date.now();
-      const response = await fetch('/api/ai/enhanced-drug-detection', {
+      const response = await fetch('/api/ai/analyze', {
         method: 'POST',
         body: formData,
       });

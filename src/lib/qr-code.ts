@@ -166,6 +166,14 @@ export class QRCodeService {
   }
 
   /**
+   * Check if a string is a valid MongoDB ObjectId
+   */
+  private isValidObjectId(id: string): boolean {
+    // MongoDB ObjectId is 24 hex characters
+    return /^[0-9a-fA-F]{24}$/.test(id);
+  }
+
+  /**
    * Verify QR code data
    */
   async verifyQRCode(qrCodeId: string): Promise<{
@@ -184,29 +192,61 @@ export class QRCodeService {
 
       console.log('🔍 Looking for QR code with ID:', qrCodeId);
 
-      // Find QR code in database - handle multiple formats for backward compatibility
-      let qrCodeDoc = await QRCode.findOne({ qrCodeId });
+      let qrCodeDoc = null;
 
-      // If not found with exact match, try pattern matching for different formats
+      // Strategy 1: Check if input is a MongoDB ObjectId and try to find by _id
+      if (this.isValidObjectId(qrCodeId)) {
+        console.log('🔍 Input appears to be a MongoDB ObjectId, trying lookup by _id...');
+        try {
+          qrCodeDoc = await QRCode.findById(qrCodeId);
+          if (qrCodeDoc) {
+            console.log(`✅ Found QR code by MongoDB _id: ${qrCodeDoc.qrCodeId}`);
+          }
+        } catch (idError) {
+          // ObjectId might be invalid, continue with other strategies
+          console.log('⚠️ ObjectId lookup failed, trying other strategies...');
+        }
+      }
+
+      // Strategy 2: Try exact match by qrCodeId
+      if (!qrCodeDoc) {
+        qrCodeDoc = await QRCode.findOne({ qrCodeId });
+        if (qrCodeDoc) {
+          console.log(`✅ Found QR code by qrCodeId: ${qrCodeDoc.qrCodeId}`);
+        }
+      }
+
+      // Strategy 3: If not found, try pattern matching for different formats
       if (!qrCodeDoc) {
         console.log('⚠️ Exact match not found, trying pattern matching...');
 
         // Try to find similar QR codes with different formats
         const similarQRCodes = await QRCode.find({
           $or: [
-            { qrCodeId: qrCodeId }, // Exact match (already tried above)
             { qrCodeId: qrCodeId.toUpperCase() }, // Try uppercase
             { qrCodeId: qrCodeId.toLowerCase() }, // Try lowercase
             { qrCodeId: `QR-${qrCodeId}` }, // Try with QR- prefix
-            { qrCodeId: qrCodeId.replace('QR-', '') }, // Try without QR- prefix
-            // Pattern matching for hash-like IDs
-            { qrCodeId: { $regex: new RegExp(qrCodeId.replace(/[^a-zA-Z0-9]/g, ''), 'i') } }
+            { qrCodeId: qrCodeId.replace(/^QR-/, '') }, // Try without QR- prefix
+            // Pattern matching for hash-like IDs (only if not ObjectId)
+            ...(!this.isValidObjectId(qrCodeId) ? [
+              { qrCodeId: { $regex: new RegExp(qrCodeId.replace(/[^a-zA-Z0-9]/g, ''), 'i') } }
+            ] : [])
           ]
         }).limit(1);
 
         if (similarQRCodes.length > 0) {
           qrCodeDoc = similarQRCodes[0];
           console.log(`✅ Found QR code with alternate format: ${qrCodeDoc.qrCodeId}`);
+        }
+      }
+
+      // Strategy 4: If input is ObjectId and still not found, try uploadId
+      if (!qrCodeDoc && this.isValidObjectId(qrCodeId)) {
+        console.log('⚠️ Trying to find QR code by uploadId...');
+        // Find first QR code with this uploadId (there might be multiple)
+        qrCodeDoc = await QRCode.findOne({ uploadId: qrCodeId }).sort({ serialNumber: 1 });
+        if (qrCodeDoc) {
+          console.log(`✅ Found QR code by uploadId (showing first): ${qrCodeDoc.qrCodeId}`);
         }
       }
 

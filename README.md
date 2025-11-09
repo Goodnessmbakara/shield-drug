@@ -133,20 +133,42 @@ sudo apt-get install build-essential python3-dev
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-### TensorFlow.js Setup & Troubleshooting
+### AI/ML Setup & Troubleshooting
 
-#### AI Model Configuration
-The platform uses TensorFlow.js with MobileNet v2 and COCO-SSD models for drug recognition. The system includes configurable fallback mechanisms:
+#### Unified Drug Analysis Service
+The platform uses a unified drug analysis service with OCR-first approach:
 
-1. **COCO-SSD Object Detection** (Primary) - Detects pharmaceutical objects
-2. **MobileNet v2 Classification** (Secondary) - Classifies drug types
-3. **Heuristic Analysis** (Fallback) - Lightweight pattern matching
+1. **OCR Pipeline** (Primary):
+   - **DeepSeek-OCR**: Python service using Hugging Face Transformers (best accuracy)
+   - **Tesseract.js**: Local OCR fallback (npm package)
+   - **Text-based heuristics**: Pattern matching for pharmaceutical text
 
-**Fallback Mode Options:**
-- `auto` (default): COCO-SSD → MobileNet → Heuristic
-- `coco`: COCO-SSD → MobileNet → Heuristic
-- `mobile`: MobileNet → COCO-SSD → Heuristic
-- `heuristic`: Heuristic only
+2. **Image Classification**:
+   - **COCO-SSD**: Object detection via npm package (works reliably)
+   - **Text-based heuristics**: Classification from extracted text
+   - **No broken model URLs**: All dependencies use working sources
+
+#### Python Dependencies (Required for DeepSeek-OCR)
+```bash
+pip install -r requirements.txt
+```
+
+This installs:
+- `transformers` - Hugging Face Transformers library
+- `torch` - PyTorch backend
+- `Pillow` - Image processing
+- `accelerate` - Model acceleration
+
+**Note**: First run will download DeepSeek-OCR model (~6GB). Subsequent runs use cached model.
+
+#### TensorFlow.js Setup
+The platform uses TensorFlow.js with COCO-SSD for object detection:
+
+1. **COCO-SSD Object Detection** (Primary) - Detects pharmaceutical objects via npm package
+2. **Text-based Heuristics** (Fallback) - Classification from extracted OCR text
+3. **No broken model URLs** - All dependencies use working sources
+
+**Note**: MobileNet v2 and other TensorFlow Hub models were removed due to broken URLs (404 errors). The system now uses COCO-SSD (npm package) and OCR-first approach for reliable operation.
 
 #### Common TensorFlow.js Issues
 
@@ -200,12 +222,16 @@ AVALANCHE_CONTRACT_ADDRESS=your_deployed_contract_address
 # AI/ML Services
 AI_SERVICE_KEY=your_ai_service_key
 
-# TensorFlow.js Model Configuration (Optional)
-MOBILENET_MODEL_URL=https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/2
+# DeepSeek-OCR Configuration (Required for best OCR accuracy)
+DEEPSEEK_OCR_ENABLED=true
+DEEPSEEK_OCR_MODEL=deepseek-ai/DeepSeek-OCR
+
+# TensorFlow.js Configuration (Optional)
 TENSORFLOW_BACKEND=node
 AI_MODEL_TIMEOUT=30000
-AI_FALLBACK_MODE=auto
-AI_API_LEGACY_FORMAT=false
+
+# Model URLs (Only working URLs are kept)
+DRUG_CLASSIFIER_MODEL_URL=https://tfhub.dev/tensorflow/tfjs-model/efficientnet/b0/classification/1/default/1
 
 # Database Configuration
 MONGODB_URI=your_mongodb_connection_string

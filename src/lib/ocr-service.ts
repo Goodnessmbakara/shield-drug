@@ -1,5 +1,6 @@
 import Tesseract from 'tesseract.js';
 import { validatePharmaceuticalText, calculatePharmaceuticalConfidence } from '@/lib/pharmaceutical-patterns';
+import { extractTextWithTypeScriptOCR } from '@/lib/typescript-ocr-service';
 
 // OCR Configuration Interface
 export interface OCROptions {
@@ -26,7 +27,7 @@ const OCR_CONFIGS = {
   // For single text lines (batch numbers, expiry dates)
   singleLine: {
     ...PHARMACEUTICAL_OCR_CONFIG,
-    psm: Tesseract.PSM.SINGLE_TEXT_LINE, // Valid PSM mode
+    psm: Tesseract.PSM.SINGLE_LINE, // Fixed: Use SINGLE_LINE instead of SINGLE_TEXT_LINE
     charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/:'
   },
   // For text blocks (drug names, instructions)
@@ -38,7 +39,7 @@ const OCR_CONFIGS = {
   // For uniform text blocks (dense text areas)
   uniform: {
     ...PHARMACEUTICAL_OCR_CONFIG,
-    psm: Tesseract.PSM.UNIFORM_BLOCK, // Safe PSM mode
+    psm: Tesseract.PSM.SINGLE_BLOCK, // Fixed: Use SINGLE_BLOCK since UNIFORM_BLOCK doesn't exist
     charWhitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:()[]{}%+-=<>/\\|&@#$*!?\'"`~_'
   }
 };
@@ -86,7 +87,10 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
     while (isInitializing) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    return workerInstance!;
+    if (!workerInstance) {
+      throw new Error('Worker initialization failed');
+    }
+    return workerInstance;
   }
 
   isInitializing = true;
@@ -98,24 +102,20 @@ async function initializeWorker(): Promise<Tesseract.Worker> {
 
     console.log(`🔄 Creating new Tesseract.js worker (attempt #${workerCreationCount})...`);
     
-    // Use basic Tesseract.js API to avoid complex initialization issues
-    workerInstance = Tesseract.createWorker({
-      cachePath: isBrowser ? undefined : './tesseract-cache',
-      gzip: false // Disable gzip to avoid potential issues
-    });
-
-    // Initialize worker step by step with proper error handling
-    // Note: createWorker() already handles loading, so we skip .load()
-    
-    // Load language with array format as required by Tesseract.js API
+    // Use Tesseract.js v5+ API - createWorker with language and options
     const language = PHARMACEUTICAL_OCR_CONFIG.language || 'eng';
-    await workerInstance.loadLanguage([language]); // Pass as array to fix langsArr.map error
-    await workerInstance.initialize(language);
+    
+    // Fixed: createWorker signature (language, oem, options)
+    // Returns a Worker that's already initialized
+    const worker = await Tesseract.createWorker(language, 1);
+    
+    workerInstance = worker;
 
     // Set pharmaceutical-optimized parameters
+    // Note: PSM enum should be passed as enum value, not string
     await workerInstance.setParameters({
       tessedit_char_whitelist: PHARMACEUTICAL_OCR_CONFIG.charWhitelist,
-      tessedit_pageseg_mode: PHARMACEUTICAL_OCR_CONFIG.psm,
+      tessedit_pageseg_mode: PHARMACEUTICAL_OCR_CONFIG.psm, // Pass enum directly
       preserve_interword_spaces: '1',
       user_defined_dpi: PHARMACEUTICAL_OCR_CONFIG.dpi.toString(),
       textord_heavy_nr: '1', // Better noise reduction
@@ -200,7 +200,14 @@ export async function recognizePharmaceuticalTextMultiStrategy(
         continue;
       }
       
-      const result = await recognizePharmaceuticalText(input, { ...options, ...strategy.config });
+      // Convert PSM enum to number for OCROptions
+      const strategyOptions = {
+        ...options,
+        ...strategy.config,
+        psm: Number(strategy.config.psm) // Convert enum to number
+      };
+      
+      const result = await recognizePharmaceuticalText(input, strategyOptions);
       
       if (result.length > bestResult.text.length) {
         bestResult = {
@@ -314,12 +321,12 @@ export async function recognizePharmaceuticalText(
     if (pharmaceuticalLines.length === 0) {
       // Try with different PSM mode if no pharmaceutical text found
       if (config.retries && config.retries > 0) {
-        console.log('No pharmaceutical text found, retrying with SINGLE_TEXT_LINE mode...');
+        console.log('No pharmaceutical text found, retrying with SINGLE_LINE mode...');
         // Release semaphore before recursive call
         isRecognizing = false;
         return await recognizePharmaceuticalText(input, {
           ...options,
-          psm: Number(Tesseract.PSM.SINGLE_TEXT_LINE), // Use valid PSM mode
+          psm: Number(Tesseract.PSM.SINGLE_LINE), // Fixed: Use SINGLE_LINE instead of SINGLE_TEXT_LINE
           retries: config.retries - 1
         });
       }
@@ -357,7 +364,7 @@ export async function recognizePharmaceuticalText(
       isRecognizing = false;
       return await recognizePharmaceuticalText(input, {
         ...options,
-        psm: Number(Tesseract.PSM.SINGLE_TEXT_LINE), // Use valid PSM mode
+        psm: Number(Tesseract.PSM.SINGLE_LINE), // Fixed: Use SINGLE_LINE instead of SINGLE_TEXT_LINE
         retries: config.retries - 1
       });
     }
@@ -367,6 +374,48 @@ export async function recognizePharmaceuticalText(
   } finally {
     isRecognizing = false;
   }
+}
+
+// Enhanced OCR function that tries TypeScript OCR (Google Vision/Tesseract) first
+export async function recognizePharmaceuticalTextEnhanced(
+  input: string | Buffer,
+  options: OCROptions & { preferTypeScriptOCR?: boolean } = {}
+): Promise<string[]> {
+  const { preferTypeScriptOCR = true, ...ocrOptions } = options;
+
+  // Try TypeScript OCR first if enabled (Google Vision or Tesseract)
+  if (preferTypeScriptOCR) {
+    try {
+      // Convert input to base64 string for TypeScript OCR
+      let imageData: string;
+      
+      if (Buffer.isBuffer(input)) {
+        imageData = `data:image/jpeg;base64,${input.toString('base64')}`;
+      } else if (typeof input === 'string') {
+        // Already a data URL or base64 string
+        imageData = input.startsWith('data:') ? input : `data:image/jpeg;base64,${input}`;
+      } else {
+        throw new Error('Invalid input type for OCR');
+      }
+
+      console.log('🔬 Attempting TypeScript OCR extraction...');
+      const ocrResult = await extractTextWithTypeScriptOCR(imageData);
+      
+      if (ocrResult.success && ocrResult.text_lines.length > 0) {
+        console.log(`✅ TypeScript OCR (${ocrResult.method}) extracted ${ocrResult.text_lines.length} lines`);
+        return ocrResult.text_lines;
+      } else {
+        console.log(`⚠️ TypeScript OCR (${ocrResult.method}) returned no text, falling back to direct Tesseract`);
+      }
+    } catch (error) {
+      console.warn('⚠️ TypeScript OCR failed, falling back to direct Tesseract:', error);
+      // Continue to Tesseract fallback
+    }
+  }
+
+  // Fallback to direct Tesseract OCR
+  console.log('🔄 Using Tesseract OCR fallback...');
+  return recognizePharmaceuticalText(input, ocrOptions);
 }
 
 // Cleanup function for manual worker termination

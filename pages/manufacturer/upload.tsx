@@ -794,9 +794,10 @@ export default function UploadPage() {
                     {error}
                   </p>
                   {error.includes('Batch ID') && error.includes('already exists') && (
-                    <div className="mt-2 p-2 bg-red-100 rounded text-xs text-red-700">
-                      <strong>💡 Tip:</strong> Each batch ID must be unique. If you're uploading a new version of the same batch, 
-                      consider using a version suffix (e.g., "AS2024113_v2") or check if this batch was already uploaded.
+                    <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-700">
+                      <strong>ℹ️ Note:</strong> Batch IDs must be unique across all manufacturers. 
+                      The system will automatically generate a unique batch ID if your batch ID conflicts with another manufacturer's batch.
+                      If you see this error, please try again - the system should automatically resolve the conflict.
                     </div>
                   )}
                   {uploadResult?.validationResult &&
@@ -832,6 +833,21 @@ export default function UploadPage() {
                       generated.
                     </span>
                   </div>
+                  {uploadResult.batchIdModifications && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                      <strong className="text-blue-700">ℹ️ Batch ID Auto-Modified:</strong>
+                      <p className="text-blue-600 mt-1">
+                        {uploadResult.batchIdModifications.message}
+                      </p>
+                      {uploadResult.batchIdModifications.modifications && uploadResult.batchIdModifications.modifications.length > 0 && (
+                        <ul className="mt-1 list-disc list-inside text-blue-600">
+                          {uploadResult.batchIdModifications.modifications.map((mod: string, idx: number) => (
+                            <li key={idx}>{mod}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs text-green-600 mt-1">
                     Transaction: {uploadResult.blockchainTx?.hash}
                   </p>

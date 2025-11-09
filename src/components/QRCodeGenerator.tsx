@@ -42,6 +42,33 @@ export default function QRCodeGenerator({
         setIsLoading(true);
         setError('');
 
+        // Validate data before encoding
+        if (!data || typeof data !== 'string' || data.trim().length === 0) {
+          throw new Error('QR code data is empty or invalid');
+        }
+
+        // Validate URL format if it looks like a URL
+        if (data.startsWith('http://') || data.startsWith('https://') || data.startsWith('/')) {
+          try {
+            // If it's a relative URL, construct full URL for validation
+            const testUrl = data.startsWith('/') 
+              ? (typeof window !== 'undefined' ? `${window.location.origin}${data}` : data)
+              : data;
+            new URL(testUrl);
+          } catch (urlError) {
+            console.warn('QR code data appears to be a URL but is invalid:', data, urlError);
+            // Continue anyway - might be a valid non-URL string
+          }
+        }
+
+        // Log what we're encoding (for debugging)
+        console.log('🔍 Encoding QR code with data:', {
+          dataLength: data.length,
+          dataPreview: data.substring(0, 100),
+          isUrl: data.startsWith('http') || data.startsWith('/'),
+          fullData: data
+        });
+
         const url = await QRCode.toDataURL(data, {
           width: size,
           margin: margin,
@@ -50,8 +77,9 @@ export default function QRCodeGenerator({
         });
 
         setQrCodeUrl(url);
+        console.log('✅ QR code generated successfully');
       } catch (err) {
-        console.error('QR Code generation failed:', err);
+        console.error('❌ QR Code generation failed:', err);
         setError('Failed to generate QR code');
       } finally {
         setIsLoading(false);

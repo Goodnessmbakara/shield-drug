@@ -355,7 +355,7 @@ export function generateCSVTemplate(): string {
     'CT2024001',
     '10000',
     'Novartis',
-    'Lagos, Nigeria',
+    'Lagos Nigeria',
     '2025-12-31',
     'NAFDAC-123456',
     '2024-01-15',
@@ -367,7 +367,18 @@ export function generateCSVTemplate(): string {
     'Antimalarial medication'
   ];
   
-  return [headers.join(','), sampleData.join(',')].join('\n');
+  // Quote fields that contain commas or special characters
+  const quoteIfNeeded = (value: string): string => {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  };
+  
+  const quotedHeaders = headers.map(quoteIfNeeded);
+  const quotedData = sampleData.map(quoteIfNeeded);
+  
+  return [quotedHeaders.join(','), quotedData.join(',')].join('\n');
 }
 
 // Format file size
